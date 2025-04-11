@@ -1,0 +1,28 @@
+# Dependency directories
+node_modules/
+
+# Build directories
+dist/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Package files
+# (ВНИМАНИЕ: Обычно package.json не игнорируют, чтобы другие разработчики знали зависимости)
+# Но по просьбе: добавляем
+package-lock.json
+
+# Other
+.env
+.env.*
+
+# Coverage
+coverage/
+
+# Editor / IDE
+.vscode/
+.idea/

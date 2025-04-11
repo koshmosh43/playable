@@ -1,0 +1,35 @@
+{
+    "name": "gin-rummy-card-game",
+    "version": "1.0.0",
+    "private": true,
+    "description": "Gin Rummy card game implemented with PixiJS and GSAP",
+    "main": "index.html",
+    "scripts": {
+      "start": "http-server -c-1 -p 8080",
+      "build": "mkdir -p dist && cp -r index.html game.js assets dist/",
+      "lint": "eslint game.js",
+      "serve": "http-server ./dist -p 8080"
+    },
+    "dependencies": {
+      "pixi.js": "^7.2.4",
+      "gsap": "^3.12.2"
+    },
+    "devDependencies": {
+      "eslint": "^8.43.0",
+      "http-server": "^14.1.1",
+      "uglify-js": "^3.17.4"
+    },
+    "browserslist": {
+      "production": [
+        ">0.2%",
+        "not dead",
+        "not op_mini all"
+      ],
+      "development": [
+        "last 1 chrome version",
+        "last 1 firefox version",
+        "last 1 safari version"
+      ]
+    }
+  }
+  

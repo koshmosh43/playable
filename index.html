@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="format-detection" content="telephone=no">
+  <title>Gin Rummy Card Game</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      background-color: #0B5D2E;
+      overflow: hidden;
+      touch-action: none;
+      position: fixed;
+    }
+    
+    #game-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+    
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      outline: none;
+      border: none;
+      touch-action: none;
+    }
+    
+    /* Loading screen */
+    #loading {
+      position: absolute;
+      top: 0; 
+      left: 0;
+      width: 100%; 
+      height: 100%;
+      background-color: #052e15;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: white;
+      font-size: 24px;
+      z-index: 1000;
+    }
+    
+    .progress-bar {
+      width: 300px;
+      height: 20px;
+      background-color: #333;
+      border-radius: 10px;
+      margin-top: 20px;
+      overflow: hidden;
+    }
+    
+    .progress {
+      height: 100%;
+      background-color: #4CAF50;
+      width: 0%;
+      transition: width 0.3s;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <div id="loading">
+      <div>Loading Game Assets...</div>
+      <div class="progress-bar">
+        <div class="progress" id="progress-bar"></div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Подключение библиотек через CDN можно оставить,
+       но если требуется полный inline, следует их тоже инлайнить -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.2.4/pixi.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/PixiPlugin.min.js"></script>
+  
+  <!-- Модули игры подключаются здесь, их сборка заменит их содержимое -->
+  <script type="module" src="HandCursor.js"></script>
+  <script type="module" src="UIRenderer.js"></script>
+  <script type="module" src="CardRenderer.js"></script>
+  <script type="module" src="GameStateManager.js"></script>
+  <script type="module" src="UIManager.js"></script>
+  <script type="module" src="AssetLoader.js"></script>
+  <script type="module" src="game.js"></script>
+</body>
+</html>
