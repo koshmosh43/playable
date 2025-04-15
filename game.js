@@ -361,7 +361,7 @@ class GinRummyGame {
 async setupBackground() {
   try {
     // Try to load the specified background image first
-    const bgTexture = await this.assetLoader.loadTexture('assets/background.png');
+    const bgTexture = await this.assetLoader.loadTexture('assets/Backgr.webp');
     
     // Create a background sprite that maintains aspect ratio
     const bgSprite = new PIXI.Sprite(bgTexture);
@@ -1356,18 +1356,6 @@ setupTutorialElements(introContainer) {
   
   // Helper method for intro screen content
   setupIntroScreenContent(introContainer) {
-    // Load banner for intro screen
-    this.assetLoader.loadTexture('assets/ad.webp')
-      .then(texture => {
-        const bannerSprite = new PIXI.Sprite(texture);
-        bannerSprite.anchor.set(0.5);
-        bannerSprite.x = this.app.screen.width / 2;
-        bannerSprite.y = this.app.screen.height / 2 - 100;
-        introContainer.addChild(bannerSprite);
-      })
-      .catch(err => {
-        console.warn("Could not load banner for intro screen", err);
-      });
     
     // Title text - "Make Set or Run!" to match screenshots
     const introText = new PIXI.Text("Make Set or Run!", {
@@ -1503,6 +1491,7 @@ setupTutorialElements(introContainer) {
     this.endContainer = endContainer;
   }
 
+  // Update to showTutorial method to make text disappear on interaction
   showTutorial() {
     if (!this.handCursor || !this.cardRenderer) return;
     
@@ -1517,106 +1506,216 @@ setupTutorialElements(introContainer) {
       y: this.cardRenderer.discardContainer.y + this.config.cardHeight / 2
     } : null;
     
-    // Player hand position (roughly the middle card)
-    const playerHandPosition = {
-      x: this.cardRenderer.playerHandContainer.x,
-      y: this.cardRenderer.playerHandContainer.y - 20
-    };
-    
-    // Create the large title text exactly as in the screenshots
+    // Create the container for the tutorial elements
     const titleContainer = new PIXI.Container();
     titleContainer.zIndex = 200;
     
-    // Text style with strong drop shadow to match screenshot
-    const style = {
-      fontFamily: "Arial",
-      fontSize: 42,
-      fontWeight: "bold",
-      fill: 0xFFFFFF,
-      align: "center",
-      stroke: 0x000000,
-      strokeThickness: 5,
-      dropShadow: true,
-      dropShadowColor: 0x000000,
-      dropShadowBlur: 4,
-      dropShadowDistance: 4,
-      dropShadowAngle: Math.PI / 4
+    // Load the black background asset
+    this.assetLoader.loadTexture('assets/black.webp')
+      .then(texture => {
+        // Create background sprite
+        const bgSprite = new PIXI.Sprite(texture);
+        
+        // Set opacity
+        bgSprite.alpha = 0.5;
+        
+        // Set background to stretch across screen width
+        bgSprite.width = this.app.screen.width;
+        
+        // Height for the text band (adjust as needed for your asset)
+        const bgHeight = 120;
+        bgSprite.height = bgHeight;
+        
+        // Position background vertically where the text will be
+        bgSprite.y = this.app.screen.height * 0.35 - bgHeight/2;
+        bgSprite.x = 0;
+        
+        titleContainer.addChild(bgSprite);
+        
+        // Now add the text on top of the background
+        createTutorialText();
+      })
+      .catch(err => {
+        console.warn("Could not load black.webp asset, falling back to graphics", err);
+        
+        // Fallback to graphics if asset loading fails
+        const gradientBg = new PIXI.Graphics();
+        
+        // Full screen width 
+        const bgWidth = this.app.screen.width;
+        // Height for the text band
+        const bgHeight = 120;
+        
+        // Position background vertically where the text will be
+        const bgY = this.app.screen.height * 0.35 - bgHeight/2;
+        
+        // Create a solid black background with opacity
+        gradientBg.beginFill(0x000000, 0.5);
+        gradientBg.drawRect(0, bgY, bgWidth, bgHeight);
+        gradientBg.endFill();
+        
+        titleContainer.addChild(gradientBg);
+        
+        // Add text after creating the fallback background
+        createTutorialText();
+      });
+    
+    // Function to create the tutorial text
+    const createTutorialText = () => {
+      // Text style with strong drop shadow
+      const style = {
+        fontFamily: "Arial",
+        fontSize: this.app.screen.width < 500 ? 36 : 42, // Smaller font for narrow screens
+        fontWeight: "bold",
+        fill: 0xFFFFFF,
+        align: "center",
+        stroke: 0x000000,
+        strokeThickness: 4,
+        dropShadow: true,
+        dropShadowColor: 0x000000,
+        dropShadowBlur: 2,
+        dropShadowDistance: 2
+      };
+      
+      // Create the tutorial text
+      const titleText = new PIXI.Text("Take a card: Deck or\nshown card", style);
+      titleText.anchor.set(0.5);
+      titleText.x = this.app.screen.width / 2;
+      titleText.y = this.app.screen.height * 0.35;
+      
+      titleContainer.addChild(titleText);
+      this.app.stage.addChild(titleContainer);
+      
+      // Start the hand animation after text is created
+      startHandAnimation();
     };
     
-    // Create the title text with drop shadow exactly as in the screenshot
-    const titleText = new PIXI.Text("Take a card: Deck or\nshown card", style);
-    titleText.anchor.set(0.5);
-    titleText.x = this.app.screen.width / 2;
-    titleText.y = this.app.screen.height * 0.35;
+    // Add event listeners for interaction
+    const handleInteraction = () => {
+      this.hideTutorialElements();
+    };
     
-    titleContainer.addChild(titleText);
-    this.app.stage.addChild(titleContainer);
+    // Make deck container interactive
+    if (this.cardRenderer.deckContainer) {
+      this.cardRenderer.deckContainer.interactive = true;
+      this.cardRenderer.deckContainer.buttonMode = true;
+      this.cardRenderer.deckContainer.on('pointerdown', handleInteraction);
+    }
     
-    // Create handCursor animation cycle based on screenshots
-    // Notice in the screenshots, the finger starts pointing at different cards
-    const cycleAnimation = () => {
-      // First show the hand pointing to the discard pile (like in screenshot 2)
-      if (discardPosition) {
-        this.handCursor.showAt(discardPosition.x, discardPosition.y - 30);
+    // Make discard container interactive
+    if (this.cardRenderer.discardContainer) {
+      this.cardRenderer.discardContainer.interactive = true;
+      this.cardRenderer.discardContainer.buttonMode = true;
+      this.cardRenderer.discardContainer.on('pointerdown', handleInteraction);
+    }
+    
+    // Store a reference to the title container for later removal
+    this.tutorialTitleContainer = titleContainer;
+    
+    // Function to start the hand animation cycle
+    const startHandAnimation = () => {
+      // Create handCursor animation cycle
+      const cycleAnimation = () => {
+        // Check if tutorial is still visible
+        if (!this.tutorialTitleContainer || !this.tutorialTitleContainer.visible) {
+          this.handCursor.hide();
+          return;
+        }
         
-        setTimeout(() => {
-          // Tap the discard pile
-          this.handCursor.tap(discardPosition.x, discardPosition.y, {
-            onComplete: () => {
-              // Highlight the discard pile
-              if (this.cardRenderer.discardContainer.children.length > 0) {
-                const topCard = this.cardRenderer.discardContainer.children[
-                  this.cardRenderer.discardContainer.children.length - 1
-                ];
+        // Show hand pointing to discard pile if available
+        if (discardPosition) {
+          this.handCursor.showAt(discardPosition.x, discardPosition.y - 30);
+          
+          setTimeout(() => {
+            // Check again if tutorial is still visible
+            if (!this.tutorialTitleContainer || !this.tutorialTitleContainer.visible) {
+              this.handCursor.hide();
+              return;
+            }
+            
+            // Tap the discard pile
+            this.handCursor.tap(discardPosition.x, discardPosition.y, {
+              onComplete: () => {
+                // Check again if tutorial is still visible
+                if (!this.tutorialTitleContainer || !this.tutorialTitleContainer.visible) {
+                  this.handCursor.hide();
+                  return;
+                }
                 
-                gsap.to(topCard.scale, {
+                // Highlight discard pile
+                if (this.cardRenderer.discardContainer.children.length > 0) {
+                  const topCard = this.cardRenderer.discardContainer.children[
+                    this.cardRenderer.discardContainer.children.length - 1
+                  ];
+                  
+                  gsap.to(topCard.scale, {
+                    x: 1.1, y: 1.1, duration: 0.2, repeat: 1, yoyo: true
+                  });
+                }
+                
+                // Then move to deck
+                setTimeout(() => {
+                  // Check again if tutorial is still visible
+                  if (!this.tutorialTitleContainer || !this.tutorialTitleContainer.visible) {
+                    this.handCursor.hide();
+                    return;
+                  }
+                  
+                  // Move to the deck
+                  this.handCursor.tap(deckPosition.x, deckPosition.y, {
+                    onComplete: () => {
+                      // Check again if tutorial is still visible
+                      if (!this.tutorialTitleContainer || !this.tutorialTitleContainer.visible) {
+                        this.handCursor.hide();
+                        return;
+                      }
+                      
+                      // Highlight deck
+                      if (this.cardRenderer && this.cardRenderer.deckContainer.children.length > 0) {
+                        gsap.to(this.cardRenderer.deckContainer.scale, {
+                          x: 1.1, y: 1.1, duration: 0.2, repeat: 1, yoyo: true
+                        });
+                      }
+                      
+                      // Wait a bit and repeat the cycle
+                      setTimeout(() => {
+                        cycleAnimation();
+                      }, 1500);
+                    }
+                  });
+                }, 1200);
+              }
+            });
+          }, 600);
+        } else {
+          // If no discard pile, just focus on the deck
+          this.handCursor.tap(deckPosition.x, deckPosition.y, {
+            onComplete: () => {
+              // Check if tutorial is still visible
+              if (!this.tutorialTitleContainer || !this.tutorialTitleContainer.visible) {
+                this.handCursor.hide();
+                return;
+              }
+              
+              // Highlight deck
+              if (this.cardRenderer && this.cardRenderer.deckContainer.children.length > 0) {
+                gsap.to(this.cardRenderer.deckContainer.scale, {
                   x: 1.1, y: 1.1, duration: 0.2, repeat: 1, yoyo: true
                 });
               }
               
-              // Then move to deck (alternate between discard and deck)
+              // Then repeat
               setTimeout(() => {
-                // Move to the deck
-                this.handCursor.tap(deckPosition.x, deckPosition.y, {
-                  onComplete: () => {
-                    // Highlight deck
-                    if (this.cardRenderer && this.cardRenderer.deckContainer.children.length > 0) {
-                      gsap.to(this.cardRenderer.deckContainer.scale, {
-                        x: 1.1, y: 1.1, duration: 0.2, repeat: 1, yoyo: true
-                      });
-                    }
-                    
-                    // Wait a bit and repeat the cycle
-                    setTimeout(cycleAnimation, 1500);
-                  }
-                });
-              }, 1200);
+                cycleAnimation();
+              }, 1500);
             }
           });
-        }, 600);
-      } else {
-        // If no discard pile, just focus on the deck
-        this.handCursor.tap(deckPosition.x, deckPosition.y, {
-          onComplete: () => {
-            // Highlight deck
-            if (this.cardRenderer && this.cardRenderer.deckContainer.children.length > 0) {
-              gsap.to(this.cardRenderer.deckContainer.scale, {
-                x: 1.1, y: 1.1, duration: 0.2, repeat: 1, yoyo: true
-              });
-            }
-            
-            // Then repeat
-            setTimeout(cycleAnimation, 1500);
-          }
-        });
-      }
+        }
+      };
+      
+      // Start the animation cycle
+      cycleAnimation();
     };
-    
-    // Start the animation cycle
-    cycleAnimation();
-    
-    // Store reference to title container for cleanup if needed
-    this.tutorialTitleContainer = titleContainer;
   }
   
 
@@ -2180,28 +2279,69 @@ updateGamePositions() {
   }
 
   setupMakeMeldText() {
-    // Create the "Make Set or Run!" text as shown in the screenshots
-    const makeMeldText = new PIXI.Text("Make Set or\nRun !", {
+    // Create a container for the text and background
+    const textContainer = new PIXI.Container();
+    textContainer.zIndex = 100; // Ensure it's above most elements
+    
+    // Create gradient background
+    const gradientBg = new PIXI.Graphics();
+    
+    // Full screen width 
+    const bgWidth = this.app.screen.width;
+    // Height for the text band
+    const bgHeight = 90;
+    
+    // Position background vertically where the text will be
+    const bgY = this.app.screen.height * 0.2 - bgHeight/2;
+    
+    // Create horizontal gradient background
+    gradientBg.beginFill(0x000000, 0); // Start with transparent
+    gradientBg.drawRect(0, bgY, bgWidth * 0.2, bgHeight); // Left transparent portion
+    gradientBg.endFill();
+    
+    gradientBg.beginFill(0x000000, 0.5); // Black with 0.5 opacity (middle)
+    gradientBg.drawRect(bgWidth * 0.2, bgY, bgWidth * 0.6, bgHeight); // Middle section with opacity
+    gradientBg.endFill();
+    
+    gradientBg.beginFill(0x000000, 0); // End with transparent
+    gradientBg.drawRect(bgWidth * 0.8, bgY, bgWidth * 0.2, bgHeight); // Right transparent portion
+    gradientBg.endFill();
+    
+    textContainer.addChild(gradientBg);
+    
+    // Create the "Make Set or Run!" text
+    const fontSize = this.getFontSizeForTitle ? this.getFontSizeForTitle() : (this.app.screen.width < 500 ? 40 : 48);
+    
+    const makeMeldText = new PIXI.Text("Make Set or Run !", {
       fontFamily: "Arial",
-      fontSize: 42,
+      fontSize: fontSize,
       fontWeight: "bold",
       fill: 0xFFFFFF,
       stroke: 0x000000,
-      strokeThickness: 5,
+      strokeThickness: 4,
       align: "center",
       dropShadow: true,
       dropShadowColor: 0x000000,
-      dropShadowDistance: 3
+      dropShadowDistance: 2
     });
     
     makeMeldText.anchor.set(0.5);
     makeMeldText.x = this.app.screen.width / 2;
     makeMeldText.y = this.app.screen.height * 0.2;
     
+    textContainer.addChild(makeMeldText);
+    
     // Add to main container
-    this.containers.main.addChild(makeMeldText);
-    this.makeMeldText = makeMeldText;
+    this.containers.main.addChild(textContainer);
+    this.makeMeldText = textContainer; // Store reference to the container
   }
+
+  // Helper method to show/hide the Make Set or Run text
+showMakeMeldText(visible) {
+  if (this.makeMeldText) {
+    this.makeMeldText.visible = visible;
+  }
+}
 
   handleDrawFromDeck() {
     console.log('Player draws from deck');
@@ -2381,70 +2521,183 @@ updateGamePositions() {
   }
 
   // Handle card click
-  handleCardClick(cardData, source) {
-    console.log('Card clicked:', cardData, 'source:', source);
-    
-    // Find the clicked sprite for visual feedback
-    let clickedSprite = null;
-    if (this.cardRenderer) {
-      if (source === 'player') {
-        this.cardRenderer.playerHandContainer.children.forEach(sprite => {
-          if (sprite.cardData && sprite.cardData.id === cardData.id) {
-            clickedSprite = sprite;
-          }
-        });
-      } else if (source === 'discard' && this.cardRenderer.discardContainer.children.length > 0) {
-        clickedSprite = this.cardRenderer.discardContainer.children[this.cardRenderer.discardContainer.children.length - 1];
-      } else if (source === 'deck' && this.cardRenderer.deckContainer.children.length > 0) {
-        clickedSprite = this.cardRenderer.deckContainer.children[this.cardRenderer.deckContainer.children.length - 1];
-      }
-      
-      // Add visual feedback if we found the sprite
-      if (clickedSprite) {
-        this.cardRenderer.enhanceCardClickFeedback(clickedSprite);
-      }
-    }
-    
-    // Handle based on source and game state
-    if (source === 'deck' && this.playerTurn && this.gameStep % 2 === 0) {
-      // Player is drawing from deck - explicit user choice
-      this.handleDrawFromDeck();
-      return;
-    }
-    
-    if (source === 'discard' && this.playerTurn && this.gameStep % 2 === 0) {
-      // Player is drawing from discard pile - explicit user choice
-      this.handleDrawFromDiscard(cardData);
-      return;
-    }
-    
+  // Update to handleCardClick method to remove tutorial text on interaction
+handleCardClick(cardData, source) {
+  console.log('Card clicked:', cardData, 'source:', source);
+  
+  // Remove tutorial elements when any card is clicked
+  this.hideTutorialElements();
+  
+  // Find the clicked sprite for visual feedback
+  let clickedSprite = null;
+  if (this.cardRenderer) {
     if (source === 'player') {
-      // Player selecting a card from their hand
-      if (this.playerTurn && this.gameStep % 2 === 1) {
-        // It's discard phase - select a card to discard
-        
-        // Check if the card is in a meld
-        const meldResult = this.isCardInMeld(cardData);
-        if (meldResult) {
-          // Ask for confirmation before breaking a meld
-          this.showMeldBreakConfirmation(meldResult.meld);
-          return;
+      this.cardRenderer.playerHandContainer.children.forEach(sprite => {
+        if (sprite.cardData && sprite.cardData.id === cardData.id) {
+          clickedSprite = sprite;
         }
-        
-        // Select the card for discard - explicitly hide pass button
-        this.selectedCard = cardData;
-        
-        
-        // Update display
-        this.updatePlayScreen();
-        
-        // Schedule the actual discard
-        setTimeout(() => {
-          this.handleDiscard();
-        }, 500);
-      }
+      });
+    } else if (source === 'discard' && this.cardRenderer.discardContainer.children.length > 0) {
+      clickedSprite = this.cardRenderer.discardContainer.children[this.cardRenderer.discardContainer.children.length - 1];
+    } else if (source === 'deck' && this.cardRenderer.deckContainer.children.length > 0) {
+      clickedSprite = this.cardRenderer.deckContainer.children[this.cardRenderer.deckContainer.children.length - 1];
+    }
+    
+    // Add visual feedback if we found the sprite
+    if (clickedSprite) {
+      this.cardRenderer.enhanceCardClickFeedback(clickedSprite);
     }
   }
+  
+  // Handle based on source and game state
+  if (source === 'deck' && this.playerTurn && this.gameStep % 2 === 0) {
+    // Player is drawing from deck - explicit user choice
+    this.handleDrawFromDeck();
+    return;
+  }
+  
+  if (source === 'discard' && this.playerTurn && this.gameStep % 2 === 0) {
+    // Player is drawing from discard pile - explicit user choice
+    this.handleDrawFromDiscard(cardData);
+    return;
+  }
+  
+  if (source === 'player') {
+    // Player selecting a card from their hand
+    if (this.playerTurn && this.gameStep % 2 === 1) {
+      // It's discard phase - select a card to discard
+      
+      // Check if the card is in a meld
+      const meldResult = this.isCardInMeld(cardData);
+      if (meldResult) {
+        // Ask for confirmation before breaking a meld
+        this.showMeldBreakConfirmation(meldResult.meld);
+        return;
+      }
+      
+      // Select the card for discard - explicitly hide pass button
+      this.selectedCard = cardData;
+      
+      
+      // Update display
+      this.updatePlayScreen();
+      
+      // Schedule the actual discard
+      setTimeout(() => {
+        this.handleDiscard();
+      }, 500);
+    }
+  }
+}
+
+// Helper method to hide all tutorial elements
+hideTutorialElements() {
+  // Hide tutorial text if visible
+  if (this.tutorialTitleContainer) {
+    this.tutorialTitleContainer.visible = false;
+    this.app.stage.removeChild(this.tutorialTitleContainer);
+    this.tutorialTitleContainer = null;
+  }
+  
+  // Hide hand cursor if visible
+  if (this.handCursor) {
+    this.handCursor.hide();
+  }
+  
+  // Set flag that tutorial was shown
+  this.tutorialShown = true;
+}
+
+// Update to handleDrawFromDeck method to remove tutorial text
+handleDrawFromDeck() {
+  console.log('Player draws from deck');
+  
+  // Remove tutorial elements
+  this.hideTutorialElements();
+  
+  // Only allow if it's draw phase
+  if (!this.playerTurn || this.gameStep % 2 !== 0) return;
+  
+  const newCard = this.drawCardFromDeck();
+  this.cardManager.playerCards.push(newCard);
+  
+  // Sort cards with melds
+  this.cardManager.playerCards = this.sortCardsWithMelds();
+  
+  // Decrease deck count
+  this.deckCount--;
+  this.gameStep++;
+  
+  // Set flag that player has drawn a card
+  this.hasDrawnCard = true;
+  
+  // Find position of new card after sorting
+  const cardIndex = this.cardManager.playerCards.findIndex(card => card.id === newCard.id);
+  
+  // Use improved card taking animation
+  if (this.cardRenderer) {
+    this.cardRenderer.animateCardTake(newCard, 'deck', cardIndex);
+  }
+  
+  // Wait for card animation to complete before showing discard hint
+  // This will now directly show "Discard a card" without any intermediate dialog
+  setTimeout(() => {
+    this.showDiscardHint();
+  }, 800);
+  
+  // Update the play screen and check for melds
+  this.updatePlayScreen();
+}
+
+// Update to handleDrawFromDiscard method to remove tutorial text
+handleDrawFromDiscard(cardData) {
+  console.log('Player draws from discard pile');
+  
+  // Remove tutorial elements
+  this.hideTutorialElements();
+  
+  // Only allow if it's draw phase
+  if (!this.playerTurn || this.gameStep % 2 !== 0) return;
+  
+  // Take the top card from discard pile
+  const discardCard = this.cardManager.discardPile.pop();
+  
+  if (!discardCard) return;
+  
+  // Add to player's hand
+  this.cardManager.playerCards.push(discardCard);
+  
+  // Sort cards with melds
+  this.cardManager.playerCards = this.sortCardsWithMelds();
+  
+  // Update game state
+  this.gameStep++;
+  
+  // Set flag that player has drawn a card
+  this.hasDrawnCard = true;
+  
+  // Find position of new card after sorting
+  const cardIndex = this.cardManager.playerCards.findIndex(card => card.id === discardCard.id);
+  
+  // Hide any existing tutorial elements or hints
+  if (this.handCursor) {
+    this.handCursor.hide();
+  }
+  
+  // Use improved card taking animation
+  if (this.cardRenderer) {
+    this.cardRenderer.animateCardTake(discardCard, 'discard', cardIndex);
+  }
+  
+  // Wait for card animation to complete before showing discard hint
+  // This will now directly show "Discard a card" without any intermediate dialog
+  setTimeout(() => {
+    this.showDiscardHint();
+  }, 800);
+  
+  // Update the play screen and check for melds
+  this.updatePlayScreen();
+}
 
   // Get suit symbol
   getSuitSymbol(suit) {

@@ -12,9 +12,8 @@ export class AssetLoader {
   async loadGameAssets(progressCallback) {
     // Critical assets that must load first
     const criticalAssets = [
-      { name: 'background', path: `${BASE_URL}background.webp` },
+      { name: 'background', path: `${BASE_URL}Backgr.webp` },
       { name: 'cardBack', path: `${BASE_URL}CardBack_Blue.webp` },
-      { name: 'ad', path: `${BASE_URL}ad.webp` },
       { name: 'hand', path: `${BASE_URL}hand.webp` }
     ];
 

@@ -70,10 +70,6 @@ export class UIRenderer {
   
   // Setup all UI components
   async setupUI() {
-    await this.setupTopBanner();
-    await this.setupAdBanner();
-    await this.setupScoreDisplay();
-    await this.setupGameButtons();
     await this.setupLightbulbButton();
     await this.setupGameActions();
     await this.setupAvatars();
@@ -109,54 +105,6 @@ export class UIRenderer {
         return g;
       }
     }
-    
-
-  
-  // Setup ad banner
-  async setupAdBanner() {
-try {
-  const adTexture = await this.assetLoader.loadTexture('assets/ad.webp');
-  const adSprite  = new PIXI.Sprite(adTexture);
-
-  // Ad = 80% ширины
-  const scaledWidth = this.app.screen.width * 0.8;
-  const aspect      = adTexture.height / adTexture.width;
-  adSprite.width    = scaledWidth;
-  adSprite.height   = scaledWidth * aspect;
-  adSprite.originalAspect = aspect;
-
-  // по центру
-  adSprite.x = (this.app.screen.width - scaledWidth) / 2;
-  // у самого верха
-  adSprite.y = 0;
-  
-  this.adContainer.removeChildren();
-  this.adContainer.addChild(adSprite);
-  
-  this.adHeight = adSprite.height;
-  return adSprite;
-} catch (err) {
-  console.warn("Using fallback ad banner");
-  const fallbackBanner = new PIXI.Graphics();
-  fallbackBanner.beginFill(0x666666);
-
-  // тоже 80% для единообразия
-  const w = this.app.screen.width * 0.8;
-  fallbackBanner.drawRect(
-    (this.app.screen.width - w) / 2,
-    0,
-    w,
-    80
-  );
-  fallbackBanner.endFill();
-  
-  this.adContainer.removeChildren();
-  this.adContainer.addChild(fallbackBanner);
-  
-  this.adHeight = 80;
-  return fallbackBanner;
-}
-}
 
 async setupAvatars() {
 try {
@@ -182,9 +130,9 @@ try {
   // Note: These positions are relative to the UI renderer container.
   // They will appear at the appropriate vertical positions.
   this.redAvatar.x = this.app.screen.width / 2;
-  this.redAvatar.y = this.app.screen.height * 0.22;
+  this.redAvatar.y = this.app.screen.height * 0.18;
   this.blueAvatar.x = this.app.screen.width / 2;
-  this.blueAvatar.y = this.app.screen.height * 0.78;
+  this.blueAvatar.y = this.app.screen.height * 0.765;
 
   // Add avatars to the avatars container inside UI renderer
   this.avatarsContainer.addChild(this.blueAvatar);

@@ -163,15 +163,14 @@ export class CardRenderer {
       
       // Apply highlighting based on card type - only if needed
       if (selectedCard && selectedCard.id === cardData.id) {
-        // Selected card (Yellow highlight)
+        // Selected card (Purple highlight)
         this.applySelectedHighlight(sprite);
-        sprite.y -= 20; // Raise selected card
       } else if (isSetCard) {
         // Set cards (Yellow highlight)
-        this.applySpecialHighlight(sprite, 0xFFFE7A, 0.7);
+        this.applySpecialHighlight(sprite, 0xFFFE7A, 0.2);
       } else if (isRunCard) {
         // Run cards (Green highlight)
-        this.applySpecialHighlight(sprite, 0x98FB98, 0.7);
+        this.applySpecialHighlight(sprite, 0x98FB98, 0.2);
       }
       
       // Add to container
@@ -179,36 +178,63 @@ export class CardRenderer {
     }
   }
   
-  // Apply highlight for selected card
-  applySelectedHighlight(sprite) {
-    // Card highlight with transparency
-    const cardHighlight = new PIXI.Graphics();
-    cardHighlight.beginFill(0xFFC107, 0.3);
-    cardHighlight.drawRoundedRect(-this.config.cardWidth/2, -this.config.cardHeight * 0.9, 
-                          this.config.cardWidth, this.config.cardHeight, 5);
-    cardHighlight.endFill();
-    cardHighlight.zIndex = -1;
-    sprite.addChild(cardHighlight);
-    
-    // Yellow strip at bottom of card
-    const cardStrip = new PIXI.Graphics();
-    cardStrip.beginFill(0xFFC107, 1.0);
-    cardStrip.drawRect(-this.config.cardWidth/2, this.config.cardHeight * 0.9 - 20, 
-                    this.config.cardWidth, 20);
-    cardStrip.endFill();
-    cardStrip.zIndex = -1;
-    sprite.addChild(cardStrip);
+  // Apply highlight for selected card with more subtle effect
+applySelectedHighlight(sprite) {
+  // Create a color matrix filter
+  const selectedColorMatrix = new PIXI.filters.ColorMatrixFilter();
+  
+  // Instead of tint, use subtler matrix adjustments
+  // Slightly amplify purple/violet color channels
+  selectedColorMatrix.matrix[0] = 1.05; // Red channel (slight boost)
+  selectedColorMatrix.matrix[6] = 0.95; // Green channel (slight reduction)
+  selectedColorMatrix.matrix[12] = 1.1; // Blue channel (boost)
+  
+  // Apply the filter
+  sprite.filters = [selectedColorMatrix];
+  
+  // Slightly raise the card
+  sprite.y -= 10;
+}
+
+// Apply special highlight with more subtle effect
+applySpecialHighlight(sprite, color, alpha) {
+  if (!sprite) return;
+  
+  // Create a color matrix filter
+  const colorMatrix = new PIXI.filters.ColorMatrixFilter();
+  
+  // For green highlights (runs) - MORE SATURATED
+  if (color === 0x98FB98) {
+    colorMatrix.matrix[0] = 0.92;  // Reduce red further
+    colorMatrix.matrix[6] = 1.12;  // Boost green more
+    colorMatrix.matrix[12] = 0.92; // Reduce blue further
+  } 
+  // For yellow highlights (sets) - MORE SATURATED
+  else if (color === 0xFFFE7A) {
+    colorMatrix.matrix[0] = 1.09;  // Boost red more
+    colorMatrix.matrix[6] = 1.09;  // Boost green more
+    colorMatrix.matrix[12] = 0.80; // Reduce blue significantly more
+  }
+  // For purple selections - UNCHANGED FROM PREVIOUS
+  else if (color === 0x9C27B0) {
+    colorMatrix.matrix[0] = 1.05;  // Boost red slightly
+    colorMatrix.matrix[6] = 0.95;  // Reduce green
+    colorMatrix.matrix[12] = 1.1;  // Boost blue more
   }
   
-  // Apply special highlight (for sets, runs, or queen of clubs)
-  applySpecialHighlight(sprite, color, alpha) {
-    const cardHighlight = new PIXI.Graphics();
-    cardHighlight.beginFill(color, alpha);
-    cardHighlight.drawRoundedRect(-this.config.cardWidth/2, -this.config.cardHeight * 0.9, 
-                          this.config.cardWidth, this.config.cardHeight, 5);
-    cardHighlight.endFill();
-    cardHighlight.zIndex = -1;
-    sprite.addChild(cardHighlight);
+  // Apply the filter
+  sprite.filters = [colorMatrix];
+}
+
+  clearAllHighlights() {
+    // Clear highlights from all cards in player hand
+    if (this.playerHandContainer) {
+      this.playerHandContainer.children.forEach(sprite => {
+        if (sprite.filters) {
+          sprite.filters = null;
+        }
+      });
+    }
   }
 
   // Add visual feedback when a card is clicked
@@ -230,7 +256,7 @@ export class CardRenderer {
     
     // Add a ripple effect
     const ripple = new PIXI.Graphics();
-    ripple.beginFill(0xFFFFFF, 0.5);
+    ripple.beginFill(0xFFFFFF, 0.2);
     ripple.drawCircle(0, 0, 30);
     ripple.endFill();
     ripple.x = this.config.cardWidth / 2;
@@ -444,17 +470,12 @@ export class CardRenderer {
     this.discardContainer.removeChildren();
     
     if (discardPile && discardPile.length > 0) {
-      // Show up to 5 top cards in discard
+      // Show all cards in the discard pile, up to 5 maximum
       const visibleDiscards = Math.min(discardPile.length, 5);
       
-      // Pattern for card positioning - alternating direction and rotation angle
-      const positions = [
-        { x: 0, y: 0, rotation: 0 },       // Center card
-        { x: 15, y: -3, rotation: 0.1 },   // Slightly right
-        { x: -12, y: -8, rotation: -0.15 }, // More to the left
-        { x: 8, y: -12, rotation: 0.08 },  // Right again
-        { x: -18, y: -5, rotation: -0.12 }  // Left again
-      ];
+      // Centered position for all cards in the discard pile
+      const centerX = this.config.cardWidth / 2;
+      const centerY = this.config.cardHeight / 2;
       
       // Show cards starting from bottom of stack
       for (let i = 0; i < visibleDiscards; i++) {
@@ -470,11 +491,16 @@ export class CardRenderer {
         // Set anchor to center for proper rotation
         sprite.anchor.set(0.5);
         
-        // Apply predefined position and rotation
-        const pos = positions[i % positions.length];
-        sprite.x = this.config.cardWidth/2 + pos.x;
-        sprite.y = this.config.cardHeight/2 + pos.y;
-        sprite.rotation = pos.rotation;
+        // Apply small random rotation and offset for natural look
+        // Use seeded random to be more consistent
+        const randomRotation = ((i * 137 + 547) % 100) / 500 - 0.1; // Between -0.1 and 0.1
+        const randomOffsetX = ((i * 263 + 821) % 10) - 5;           // Between -5 and 5
+        const randomOffsetY = ((i * 521 + 347) % 10) - 5;           // Between -5 and 5
+        
+        // Always center the card with small random variations
+        sprite.x = centerX + randomOffsetX;
+        sprite.y = centerY + randomOffsetY;
+        sprite.rotation = randomRotation;
         
         // Z-index for proper layering
         sprite.zIndex = i;
@@ -488,6 +514,9 @@ export class CardRenderer {
         
         this.discardContainer.addChild(sprite);
       }
+      
+      // Sort the discard container children to ensure proper layering
+      this.discardContainer.sortChildren();
     } else {
       // Empty discard
       const emptyDiscard = new PIXI.Graphics();
@@ -734,10 +763,10 @@ export class CardRenderer {
     // Starting position in player's hand
     const spacing = this.config.fanDistance || 30;
     const totalCards = this.playerHandContainer.children.length;
-    const startX = this.playerHandContainer.x + (totalCards - 1) * spacing / 2 - sourceIndex * spacing;
+    const startX = this.playerHandContainer.x - ((totalCards - 1) * spacing / 2) + sourceIndex * spacing;
     const startY = this.playerHandContainer.y;
     
-    // Final position (discard)
+    // Final position (discard) - ALWAYS CENTER
     const endX = this.discardContainer.x + this.config.cardWidth / 2;
     const endY = this.discardContainer.y + this.config.cardHeight / 2;
     
