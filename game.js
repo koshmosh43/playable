@@ -407,7 +407,7 @@ class GinRummyGame {
     const introContainer = new PIXI.Container();
     
     // Загрузка фона
-    this.assetLoader.loadTexture('assets/background.webp')
+    this.assetLoader.loadTexture('assets/Backgr.webp')
       .then(bgTexture => {
         const bgSprite = new PIXI.Sprite(bgTexture);
         bgSprite.width = this.app.screen.width;
@@ -442,13 +442,13 @@ setupTutorialElements(introContainer) {
   introContainer.sortableChildren = true;
   
   // Title "Make Set or Run!"
-  const titleText = new PIXI.Text("Make Set or Run!", {
+  const titleText = new PIXI.Text("Make SET or RUN!", {
     fontFamily: "Arial",
     fontSize: 48,
     fill: 0xFFFFFF,
     fontWeight: 'bold',
     stroke: 0x000000,
-    strokeThickness: 6,
+    strokeThickness: 3,
     dropShadow: true,
     dropShadowColor: 0x000000,
     dropShadowDistance: 4
@@ -559,7 +559,6 @@ setupTutorialElements(introContainer) {
   cardRowContainer.sortableChildren = true; // Enable sorting by zIndex
   cardsContainer.addChild(cardRowContainer);
   
-  // Rest of the function remains the same...
   // Set up card data for both layouts
   const baseCards = [
     { value: '4', suit: 'spades', position: 0 },
@@ -575,7 +574,7 @@ setupTutorialElements(introContainer) {
   // Create a card-holding hand cursor
   const createHandCursor = () => {
     const handContainer = new PIXI.Container();
-    handContainer.zIndex = 30; // High z-index to be above everything
+    handContainer.zIndex = 300; // High z-index to be above everything
     
     // Rest of the hand cursor implementation...
     // Try to load the hand image
@@ -646,67 +645,50 @@ setupTutorialElements(introContainer) {
         movingCard.height = cardHeight;
         movingCard.cardData = movableCard;
         
-        // Create highlight for RUN (yellow)
-const runHighlight = new PIXI.Graphics();
-runHighlight.beginFill(0x98FB98, 0.7); // Зелёный для RUN
-runHighlight.drawRect(0, 0, spacing * 3 + cardWidth/2, cardHeight * 1.2); // Увеличиваем на 20%
-runHighlight.endFill();
-runHighlight.zIndex = -1; // Below cards
-cardRowContainer.addChild(runHighlight);
+        // Создание текста "RUN!" над зелеными картами
+        const runText = new PIXI.Text("RUN!", {
+          fontFamily: "Arial",
+          fontSize: 40,
+          fontWeight: "bold",
+          fill: 0xFFF8C9, // Кремово-желтый цвет
+          stroke: 0x8B4513, // Коричневая обводка
+          strokeThickness: 6,
+          dropShadow: true,
+          dropShadowColor: 0x000000,
+          dropShadowDistance: 4
+        });
+        runText.anchor.set(0.5);
+        runText.x = spacing; // Центр 2-й слева карты
+        runText.y = -100; // 100 пикселей выше верха карт
+        runText.alpha = 1;
+        runText.visible = true;
+        cardRowContainer.addChild(runText);
 
-// Create highlight for SET (green)
-const setHighlight = new PIXI.Graphics();
-setHighlight.beginFill(0xFFFE7A, 0.7); // Жёлтый для SET
-setHighlight.drawRect(0, 0, spacing * 3 + cardWidth/2, cardHeight * 1.2); // Увеличиваем на 20%
-setHighlight.endFill();
-setHighlight.visible = false;
-setHighlight.zIndex = -1; // Below cards
-cardRowContainer.addChild(setHighlight);
+        // Создание текста "SET!" над желтыми картами
+        const setText = new PIXI.Text("SET!", {
+          fontFamily: "Arial",
+          fontSize: 40,
+          fontWeight: "bold",
+          fill: 0xFFF8C9, // Кремово-желтый цвет
+          stroke: 0x8B4513, // Коричневая обводка
+          strokeThickness: 6,
+          dropShadow: true,
+          dropShadowColor: 0x000000,
+          dropShadowDistance: 4
+        });
+        setText.anchor.set(0.5);
+        setText.x = spacing * 4; // Центр предпоследней карты
+        setText.y = -100; // 100 пикселей выше верха карт
+        setText.alpha = 0;
+        setText.visible = true;
+        cardRowContainer.addChild(setText);
 
-// СЮДА ДОБАВЬТЕ СЛЕДУЮЩИЙ КОД:
-runHighlight.alpha = 1;
-setHighlight.alpha = 0;
-setHighlight.visible = false;
+        // Создание фильтров для подсветки карт
+        const runColorMatrix = new PIXI.filters.ColorMatrixFilter();
+        runColorMatrix.tint(0x98FB98, 0.7); // Зеленый оттенок для RUN
 
-// Создание текста "RUN!" над зеленым хайлайтом
-const runText = new PIXI.Text("RUN!", {
-  fontFamily: "Arial",
-  fontSize: 40,
-  fontWeight: "bold",
-  fill: 0x98FB98, // Зеленый
-  stroke: 0x000000,
-  strokeThickness: 6,
-  dropShadow: true,
-  dropShadowColor: 0x000000,
-  dropShadowDistance: 4
-});
-runText.anchor.set(0.5);
-// Центр 2-й слева карты: positioning.x = spacing
-runText.x = spacing; // Центр 2-й слева карты
-runText.y = -100; // 100 пикселей выше верха карт
-runText.alpha = 1;
-runText.visible = true;
-cardRowContainer.addChild(runText);
-
-// Создание текста "SET!" над желтым хайлайтом
-const setText = new PIXI.Text("SET!", {
-  fontFamily: "Arial",
-  fontSize: 40,
-  fontWeight: "bold",
-  fill: 0xFFFE7A, // Жёлтый
-  stroke: 0x000000,
-  strokeThickness: 6,
-  dropShadow: true,
-  dropShadowColor: 0x000000,
-  dropShadowDistance: 4
-});
-setText.anchor.set(0.5);
-// Центр предпоследней карты: spacing * 4
-setText.x = spacing * 4; // Центр предпоследней карты
-setText.y = -100; // 100 пикселей выше верха карт
-setText.alpha = 0;
-setText.visible = true;
-cardRowContainer.addChild(setText);
+        const setColorMatrix = new PIXI.filters.ColorMatrixFilter();
+        setColorMatrix.tint(0xFFFE7A, 0.7); // Желтый оттенок для SET
         
         // Create "SET!" and "RUN!" indicators
         const runIndicator = new PIXI.Text("RUN!", {
@@ -748,124 +730,157 @@ cardRowContainer.addChild(setText);
         // Function to update card z-indices based on position
         /* Обновление z‑индексов карт согласно требуемому порядку */
         // Обновление z‑индексов карт согласно требуемому порядку
-// Обновление z‑индексов карт согласно требуемому порядку
-// Обновление z‑индексов карт согласно требуемому порядку
-const updateCardZIndices = () => {
-  let order = [];
-  
-  if (showingRun) {
-      // Режим "RUN" - карты могут перекрываться в особом порядке
-      order = [
-          { card: baseCards[0], zIndex: 0 },  // 4♠ (самая нижняя)
-          { card: baseCards[1], zIndex: 2 },  // 6♠ (над 5♠)
-          { card: movableCard, zIndex: 1 },   // 5♠ (между 4♠ и 6♠)
-          { card: baseCards[2], zIndex: 3 },  // 7♠
-          { card: baseCards[3], zIndex: 4 },  // 5♥
-          { card: baseCards[4], zIndex: 5 }   // 5♦ (самая верхняя)
-      ];
-  } else {
-      // Режим "SET" - последовательные z-индексы без переплетения
-      order = [
-          { card: baseCards[0], zIndex: 0 },  // 4♠
-          { card: baseCards[1], zIndex: 1 },  // 6♠
-          { card: baseCards[2], zIndex: 2 },  // 7♠
-          { card: baseCards[3], zIndex: 3 },  // 5♥
-          { card: movableCard, zIndex: 4 },   // 5♠
-          { card: baseCards[4], zIndex: 5 }   // 5♦
-      ];
-  }
-  
-  // Находим все карты в контейнере
-  const allCards = cardRowContainer.children.filter(child => child.cardData);
-  
-  // Применяем z-индексы к соответствующим картам
-  allCards.forEach(sprite => {
-      const match = order.find(item => 
-          item.card.value === sprite.cardData.value && 
-          item.card.suit === sprite.cardData.suit
-      );
-      
-      // Устанавливаем z-индекс, если карта найдена в порядке
-      if (match) {
-          sprite.zIndex = match.zIndex;
-      }
-  });
-  
-  // Сортируем дочерние элементы контейнера по z-индексу
-  cardRowContainer.sortChildren();
-};
+        // Обновление z‑индексов карт согласно требуемому порядку
+        // Обновление z‑индексов карт согласно требуемому порядку
+        const updateCardZIndices = () => {
+          let order = [];
+          
+          if (showingRun) {
+              // Режим "RUN" - карты могут перекрываться в особом порядке
+              order = [
+                  { card: baseCards[0], zIndex: 0 },  // 4♠ (самая нижняя)
+                  { card: baseCards[1], zIndex: 2 },  // 6♠ (над 5♠)
+                  { card: movableCard, zIndex: 1 },   // 5♠ (между 4♠ и 6♠)
+                  { card: baseCards[2], zIndex: 3 },  // 7♠
+                  { card: baseCards[3], zIndex: 4 },  // 5♥
+                  { card: baseCards[4], zIndex: 5 }   // 5♦ (самая верхняя)
+              ];
+          } else {
+              // Режим "SET" - последовательные z-индексы без переплетения
+              order = [
+                  { card: baseCards[0], zIndex: 0 },  // 4♠
+                  { card: baseCards[1], zIndex: 1 },  // 6♠
+                  { card: baseCards[2], zIndex: 2 },  // 7♠
+                  { card: baseCards[3], zIndex: 3 },  // 5♥
+                  { card: movableCard, zIndex: 4 },   // 5♠
+                  { card: baseCards[4], zIndex: 5 }   // 5♦
+              ];
+          }
+          
+          // Находим все карты в контейнере
+          const allCards = cardRowContainer.children.filter(child => child.cardData);
+          
+          // Применяем z-индексы к соответствующим картам
+          allCards.forEach(sprite => {
+              const match = order.find(item => 
+                  item.card.value === sprite.cardData.value && 
+                  item.card.suit === sprite.cardData.suit
+              );
+              
+              // Устанавливаем z-индекс, если карта найдена в порядке
+              if (match) {
+                  sprite.zIndex = match.zIndex;
+              }
+          });
+          
+          // Сортируем дочерние элементы контейнера по z-индексу
+          cardRowContainer.sortChildren();
+        };
 
-/* Расстановка карт веером с обновлением позиций и z‑индексов */
-const arrangeCardsInFan = () => {
-  // Параметры для эффекта веера
-  const fanAngle = 4;        // угол наклона между картами (в градусах)
-  const verticalOffset = 15; // вертикальное смещение
-  
-  if (showingRun) {
-    // Раскладка RUN: порядок должен быть – 4♠, 5♠, 6♠, 7♠, 5♥, 5♦
-    // Карты базового набора (baseCards) и движущаяся карта (movableCard) располагаются сразу в финальные позиции
-    cardSprites[0].x = spacing * 0;
-    cardSprites[0].y = -verticalOffset * 0;
-    cardSprites[0].rotation = (-fanAngle * 2) * Math.PI / 180;
-    
-    // 6♠
-    cardSprites[1].x = spacing * 2;
-    cardSprites[1].y = -verticalOffset * 2;
-    cardSprites[1].rotation = 0;
-    
-    // 7♠
-    cardSprites[2].x = spacing * 3;
-    cardSprites[2].y = -verticalOffset * 3;
-    cardSprites[2].rotation = (fanAngle) * Math.PI / 180;
-    
-    // 5♥ – эта карта должна сразу оказаться между 7♠ и 5♦
-    cardSprites[3].x = spacing * 4;
-    cardSprites[3].y = -verticalOffset * 4;
-    cardSprites[3].rotation = (fanAngle * 2) * Math.PI / 180;
-    
-    // 5♦
-    cardSprites[4].x = spacing * 5;
-    cardSprites[4].y = -verticalOffset * 5;
-    cardSprites[4].rotation = (fanAngle * 3) * Math.PI / 180;
-    
-    // Движущаяся карта (например, 5♠) позиционируется отдельно.
-    // Если она участвует только в RUN‑раскладке, её позиция задаётся так,
-    // чтобы не заказывать (перекрывать) другую карту.
-    movingCard.x = spacing * 1;
-    movingCard.y = -verticalOffset * 1;
-    movingCard.rotation = (-fanAngle) * Math.PI / 180;
-    
-  } else {
-    // Раскладка SET: порядок должен быть – 4♠, 6♠, 7♠, 5♥, 5♠, 5♦
-    cardSprites[0].x = spacing * 0;
-    cardSprites[0].y = -verticalOffset * 0;
-    cardSprites[0].rotation = (-fanAngle * 2) * Math.PI / 180;
-    
-    cardSprites[1].x = spacing * 1;
-    cardSprites[1].y = -verticalOffset * 1;
-    cardSprites[1].rotation = (-fanAngle) * Math.PI / 180;
-    
-    cardSprites[2].x = spacing * 2;
-    cardSprites[2].y = -verticalOffset * 2;
-    cardSprites[2].rotation = 0;
-    
-    cardSprites[3].x = spacing * 3;
-    cardSprites[3].y = -verticalOffset * 3;
-    cardSprites[3].rotation = (fanAngle) * Math.PI / 180;
-    
-    cardSprites[4].x = spacing * 5;
-    cardSprites[4].y = -verticalOffset * 5;
-    cardSprites[4].rotation = (fanAngle * 3) * Math.PI / 180;
-    
-    movingCard.x = spacing * 4;
-    movingCard.y = -verticalOffset * 4;
-    movingCard.rotation = (fanAngle * 2) * Math.PI / 180;
-  }
-  
-  // После того как все карты сразу установили свои координаты, обновляем их z‑индексы
-  updateCardZIndices();
-};
+        // Функция подсветки карт для комбинации RUN
+        const highlightRunCards = () => {
+          // Сначала сбрасываем все подсветки
+          cardSprites.forEach(sprite => {
+            sprite.filters = null;
+          });
+          movingCard.filters = null;
+          
+          // Применяем зеленую подсветку к картам RUN (4♠, 5♠, 6♠)
+          cardSprites[0].filters = [runColorMatrix]; // 4♠
+          movingCard.filters = [runColorMatrix];     // 5♠
+          cardSprites[1].filters = [runColorMatrix]; // 6♠
+          
+          // Обновляем z-индексы карт
+          updateCardZIndices();
+        };
 
+        // Функция подсветки карт для комбинации SET
+        const highlightSetCards = () => {
+          // Сначала сбрасываем все подсветки
+          cardSprites.forEach(sprite => {
+            sprite.filters = null;
+          });
+          movingCard.filters = null;
+          
+          // Применяем желтую подсветку к картам SET (три пятерки)
+          cardSprites[3].filters = [setColorMatrix]; // 5♥
+          movingCard.filters = [setColorMatrix];     // 5♠
+          cardSprites[4].filters = [setColorMatrix]; // 5♦
+          
+          // Обновляем z-индексы карт
+          updateCardZIndices();
+        };
+
+        /* Расстановка карт веером с обновлением позиций и z‑индексов */
+        const arrangeCardsInFan = () => {
+          // Параметры для эффекта веера
+          const fanAngle = 4;        // угол наклона между картами (в градусах)
+          const verticalOffset = 15; // вертикальное смещение
+          
+          if (showingRun) {
+            // Раскладка RUN: порядок должен быть – 4♠, 5♠, 6♠, 7♠, 5♥, 5♦
+            // Карты базового набора (baseCards) и движущаяся карта (movableCard) располагаются сразу в финальные позиции
+            cardSprites[0].x = spacing * 0;
+            cardSprites[0].y = -verticalOffset * 0;
+            cardSprites[0].rotation = (-fanAngle * 2) * Math.PI / 180;
+            
+            // 6♠
+            cardSprites[1].x = spacing * 2;
+            cardSprites[1].y = -verticalOffset * 2;
+            cardSprites[1].rotation = 0;
+            
+            // 7♠
+            cardSprites[2].x = spacing * 3;
+            cardSprites[2].y = -verticalOffset * 3;
+            cardSprites[2].rotation = (fanAngle) * Math.PI / 180;
+            
+            // 5♥ – эта карта должна сразу оказаться между 7♠ и 5♦
+            cardSprites[3].x = spacing * 4;
+            cardSprites[3].y = -verticalOffset * 4;
+            cardSprites[3].rotation = (fanAngle * 2) * Math.PI / 180;
+            
+            // 5♦
+            cardSprites[4].x = spacing * 5;
+            cardSprites[4].y = -verticalOffset * 5;
+            cardSprites[4].rotation = (fanAngle * 3) * Math.PI / 180;
+            
+            // Движущаяся карта (например, 5♠) позиционируется отдельно.
+            // Если она участвует только в RUN‑раскладке, её позиция задаётся так,
+            // чтобы не заказывать (перекрывать) другую карту.
+            movingCard.x = spacing * 1;
+            movingCard.y = -verticalOffset * 1;
+            movingCard.rotation = (-fanAngle) * Math.PI / 180;
+            
+          } else {
+            // Раскладка SET: порядок должен быть – 4♠, 6♠, 7♠, 5♥, 5♠, 5♦
+            cardSprites[0].x = spacing * 0;
+            cardSprites[0].y = -verticalOffset * 0;
+            cardSprites[0].rotation = (-fanAngle * 2) * Math.PI / 180;
+            
+            cardSprites[1].x = spacing * 1;
+            cardSprites[1].y = -verticalOffset * 1;
+            cardSprites[1].rotation = (-fanAngle) * Math.PI / 180;
+            
+            cardSprites[2].x = spacing * 2;
+            cardSprites[2].y = -verticalOffset * 2;
+            cardSprites[2].rotation = 0;
+            
+            cardSprites[3].x = spacing * 3;
+            cardSprites[3].y = -verticalOffset * 3;
+            cardSprites[3].rotation = (fanAngle) * Math.PI / 180;
+            
+            cardSprites[4].x = spacing * 5;
+            cardSprites[4].y = -verticalOffset * 5;
+            cardSprites[4].rotation = (fanAngle * 3) * Math.PI / 180;
+            
+            movingCard.x = spacing * 4;
+            movingCard.y = -verticalOffset * 4;
+            movingCard.rotation = (fanAngle * 2) * Math.PI / 180;
+          }
+          
+          // После того как все карты сразу установили свои координаты, обновляем их z‑индексы
+          updateCardZIndices();
+        };
         
         // Set up animation states
         let showingRun = true; // Start with RUN
@@ -910,17 +925,15 @@ const arrangeCardsInFan = () => {
             handCursor.x = cardsContainer.x + spacing * 1;
             handCursor.y = cardsContainer.y + cardHeight/2;
             
-            // Set highlight
-            runHighlight.x = 0;
-            runHighlight.y = -cardHeight * 0.1; // Сдвигаем немного вверх для центрирования
-            runHighlight.width = spacing * 3 + cardWidth/2;
-            runHighlight.visible = true;
+            // Применяем подсветку к картам RUN
+            highlightRunCards();
 
-// Добавьте эти строки:
-runText.x = (spacing * 3 + cardWidth/2) / 2;
-runText.visible = true;
-runText.alpha = 1;
-setText.visible = false;
+            // Настраиваем текст
+            runText.x = spacing; // Центр 2-й слева карты
+            runText.visible = true;
+            runText.alpha = 1;
+            setText.visible = false;
+            setText.alpha = 0;
             
             // Show RUN indicator
             gsap.timeline()
@@ -988,32 +1001,28 @@ setText.visible = false;
               ease: "power2.out"
             });
             
-            // Show RUN highlight
-            // Fade out SET highlight and text, fade in RUN highlight and text
-timeline.to([setHighlight, setText], {
-  alpha: 0,
-  duration: 0.3,
-  onComplete: () => { 
-    setHighlight.visible = false;
-    setText.visible = false;
-  }
-}, "-=0.4");
+            // Анимация скрытия текста SET
+            timeline.to(setText, {
+              alpha: 0,
+              duration: 0.3,
+              onComplete: () => {
+                setText.visible = false;
+                
+                // Применяем подсветку карт RUN
+                highlightRunCards();
+              }
+            }, "-=0.4");
 
-timeline.to([runHighlight, runText], {
-  alpha: 1,
-  duration: 0.3,
-  onStart: () => { 
-    runHighlight.visible = true;
-    runHighlight.alpha = 0;
-    runHighlight.x = 0;
-    runHighlight.y = -cardHeight * 0.1;
-    runHighlight.width = spacing * 3 + cardWidth/2;
-    
-    runText.visible = true;
-    runText.alpha = 0;
-    runText.x = spacing; // Центр 2-й слева карты
-  }
-}, "-=0.3");
+            // Анимация появления текста RUN
+            timeline.to(runText, {
+              alpha: 1,
+              duration: 0.3,
+              onStart: () => {
+                runText.visible = true;
+                runText.alpha = 0;
+                runText.x = spacing; // Центр 2-й слева карты
+              }
+            }, "-=0.3");
             
             // Show RUN indicator
             timeline.add(() => {
@@ -1085,6 +1094,7 @@ timeline.to([runHighlight, runText], {
               if (this.progress() >= 0.5 && movingCard.zIndex !== 4) {
                 // Change z-index for SET layout halfway through the animation
                 movingCard.zIndex = 4;  // 5♠ (above 5♥, below 5♦)
+                cardSprites[0].zIndex = 0;
                 cardSprites[0].zIndex = 0;  // 4♠
                 cardSprites[1].zIndex = 1;  // 6♠
                 cardSprites[2].zIndex = 2;  // 7♠
@@ -1102,27 +1112,23 @@ timeline.to([runHighlight, runText], {
             ease: "power2.out"
           });
           
-          // Show SET highlight
-          // Fade out RUN highlight and fade in SET highlight
-          timeline.to([runHighlight, runText], {
+          // Анимация скрытия текста RUN
+          timeline.to(runText, {
             alpha: 0,
             duration: 0.3,
-            onComplete: () => { 
-              runHighlight.visible = false;
+            onComplete: () => {
               runText.visible = false;
+              
+              // Применяем подсветку карт SET
+              highlightSetCards();
             }
           }, "-=0.4");
-          
-          timeline.to([setHighlight, setText], {
+
+          // Анимация появления текста SET
+          timeline.to(setText, {
             alpha: 1,
             duration: 0.3,
-            onStart: () => { 
-              setHighlight.visible = true;
-              setHighlight.alpha = 0;
-              setHighlight.x = spacing * 3;
-              setHighlight.y = -cardHeight * 0.1;
-              setHighlight.width = spacing * 3 + cardWidth/2;
-              
+            onStart: () => {
               setText.visible = true;
               setText.alpha = 0;
               setText.x = spacing * 4; // Центр предпоследней карты
