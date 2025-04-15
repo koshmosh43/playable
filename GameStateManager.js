@@ -21,6 +21,13 @@ export class GameStateManager {
           if (this.game.initializeGame) {
             this.game.initializeGame();
           }
+          // вызов туториала после перехода в play
+          setTimeout(() => {
+            if (!this.game.tutorialShown) {
+              this.game.showTutorial();
+              this.game.tutorialShown = true;
+            }
+          }, 500);
         },
         exit: () => this.hidePlayScreen()
       },
@@ -55,7 +62,15 @@ export class GameStateManager {
   // Show intro screen
   showIntroScreen() {
     if (this.game.introContainer) {
+      // Плавно показываем интро-контейнер
+      this.game.introContainer.alpha = 0;
       this.game.introContainer.visible = true;
+      
+      gsap.to(this.game.introContainer, {
+        alpha: 1,
+        duration: 0.5,
+        ease: "power2.out"
+      });
     }
   }
   

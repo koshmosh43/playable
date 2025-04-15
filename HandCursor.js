@@ -298,7 +298,7 @@ export class HandCursor {
         this.isAnimating = true;
         this.isVisible = true;
         
-        // Создаем GSAP таймлайн
+        // Create a GSAP timeline
         this.timeline = gsap.timeline({
           onComplete: () => {
             this.isAnimating = false;
@@ -306,50 +306,49 @@ export class HandCursor {
           }
         });
         
-        // Последовательность анимации
+        // Set initial position (slightly above target)
+        this.handSprite.x = x;
+        this.handSprite.y = y - 40;
+        this.handSprite.alpha = 0;
+        this.handSprite.scale.set(scale);
+        
+        // Animation sequence
         this.timeline
-          // Установка начальной позиции (немного выше цели)
-          .set(this.handSprite, {
-            x: x,
-            y: y - 40,
-            alpha: 0,
-            scale: scale
-          })
-          // Плавное появление
+          // Fade in
           .to(this.handSprite, {
             alpha: 1,
             duration: 0.3,
             ease: "power2.out"
           })
-          // Движение вниз (тап)
+          // Move down (tap)
           .to(this.handSprite, {
             y: y,
             duration: 0.2,
             ease: "power2.in"
           })
-          // Эффект нажатия
+          // Press effect
           .to(this.handSprite.scale, {
             x: scale * 0.8,
             y: scale * 0.8,
             duration: 0.1,
             ease: "power2.in"
           })
-          // Эффект отпускания
+          // Release effect
           .to(this.handSprite.scale, {
             x: scale,
             y: scale,
             duration: 0.2,
             ease: "back.out(1.5)"
           })
-          // Движение обратно вверх
+          // Move back up
           .to(this.handSprite, {
             y: y - 15,
             duration: 0.3,
             ease: "power2.out"
           })
-          // Ожидание
-          .to({}, { duration: 0.4 })
-          // Исчезновение
+          // Wait
+          .to({}, { duration: 0.2 })
+          // Fade out
           .to(this.handSprite, {
             alpha: 0,
             duration: 0.3,
@@ -362,78 +361,16 @@ export class HandCursor {
         return this.timeline;
       }
     
-    // Tap animation at specific position
-    tap(x, y, options = {}) {
-      const {
-        duration = 0.8,
-        scale = 0.7,
-        onComplete = null
-      } = options;
-      
-      this.isAnimating = true;
-      this.isVisible = true;
-      
-      // Create a GSAP timeline
-      this.timeline = gsap.timeline({
-        onComplete: () => {
-          this.isAnimating = false;
-          if (onComplete) onComplete();
-        }
-      });
-      
-      // Animation sequence
-      this.timeline
-        // Set initial position (slightly above target)
-        .set(this.handSprite, {
-          x: x,
-          y: y - 30,
-          alpha: 0,
-          scale: scale
-        })
-        // Fade in
-        .to(this.handSprite, {
-          alpha: 1,
-          duration: 0.3,
-          ease: "power2.out"
-        })
-        // Move down (tap)
-        .to(this.handSprite, {
-          y: y,
-          duration: 0.2,
-          ease: "power2.in"
-        })
-        // Press effect
-        .to(this.handSprite.scale, {
-          x: scale * 0.8,
-          y: scale * 0.8,
-          duration: 0.1,
-          ease: "power2.in"
-        })
-        // Release effect
-        .to(this.handSprite.scale, {
-          x: scale,
-          y: scale,
-          duration: 0.2,
-          ease: "back.out(1.5)"
-        })
-        // Move back up
-        .to(this.handSprite, {
-          y: y - 15,
-          duration: 0.3,
-          ease: "power2.out"
-        })
-        // Wait
-        .to({}, { duration: 0.2 })
-        // Fade out
-        .to(this.handSprite, {
-          alpha: 0,
-          duration: 0.3,
-          ease: "power2.in",
-          onComplete: () => {
-            this.isVisible = false;
-          }
+      tapDiscardPile(options = {}) {
+        if (!this.handSprite || !this.isVisible) return;
+        
+        const {
+          onComplete = null,
+          discardPosition = { x: 0, y: 0 }
+        } = options;
+        
+        this.tap(discardPosition.x, discardPosition.y, {
+          onComplete: onComplete
         });
-      
-      return this.timeline;
-    }
+      }
   }

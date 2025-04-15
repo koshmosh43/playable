@@ -15,39 +15,7 @@ export class CardManager {
     this.discardPile = [];
   }
 
-  initializeCards() {
-    // Example test set - Gin Rummy uses 52 cards
-    this.playerCards = [
-      { id: 1, value: 'A', suit: 'spades', filename: 'A_Spades.webp' },
-      { id: 2, value: 'Q', suit: 'hearts', filename: 'Q_Hearts.webp' },
-      { id: 3, value: '3', suit: 'hearts', filename: '3_Hearts.webp' },
-      { id: 4, value: '10', suit: 'hearts', filename: '10_Hearts.webp' },
-      { id: 5, value: '2', suit: 'spades', filename: '2_Spades.webp' },
-      { id: 6, value: '5', suit: 'spades', filename: '5_Spades.webp' },
-      { id: 7, value: '6', suit: 'spades', filename: '6_Spades.webp' },
-      { id: 8, value: '7', suit: 'spades', filename: '7_Spades.webp' },
-      { id: 9, value: '2', suit: 'diamonds', filename: '2_Diamonds.webp' },
-      { id: 10, value: '9', suit: 'diamonds', filename: '9_Diamonds.webp' }
-    ];
-
-    this.opponentCards = Array(10)
-      .fill(null)
-      .map((_, i) => ({
-        id: 100 + i,
-        faceDown: true,
-        filename: 'CardBack_Blue.webp'
-      }));
-
-    this.discardPile = [
-      { id: 11, value: '9', suit: 'diamonds', filename: '9_Diamonds.webp' }
-    ];
-    
-    return {
-      playerCards: this.playerCards,
-      opponentCards: this.opponentCards,
-      discardPile: this.discardPile
-    };
-  }
+  
 
   drawCardFromDeck() {
     const suits = ['clubs', 'diamonds', 'hearts', 'spades'];

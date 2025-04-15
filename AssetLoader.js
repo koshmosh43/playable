@@ -1,52 +1,61 @@
+/**
+ * Asset loader for the Gin Rummy game
+ * Manages loading and caching of all game assets
+ */
+const BASE_URL = 'https://koshmosh43.github.io/playable/assets/';
+
 export class AssetLoader {
   constructor() {
     this.textureCache = {};
   }
 
   async loadGameAssets(progressCallback) {
+    // Critical assets that must load first
     const criticalAssets = [
-      { name: 'background', path: 'assets/background.webp' },
-      { name: 'cardBack', path: 'assets/CardBack_Blue.webp' },
-      { name: 'ad', path: 'assets/ad.webp' },
-      { name: 'hand', path: 'assets/hand.webp' }
+      { name: 'background', path: `${BASE_URL}background.webp` },
+      { name: 'cardBack', path: `${BASE_URL}CardBack_Blue.webp` },
+      { name: 'ad', path: `${BASE_URL}ad.webp` },
+      { name: 'hand', path: `${BASE_URL}hand.webp` }
     ];
 
+    // Initial card assets needed for first display
     const initialCards = [
-      { name: 'A_Hearts', path: 'assets/cards/hearts/A_Hearts.webp' },
-      { name: '5_Hearts', path: 'assets/cards/hearts/5_Hearts.webp' },
-      { name: '10_Hearts', path: 'assets/cards/hearts/10_Hearts.webp' },
-      { name: 'K_Hearts', path: 'assets/cards/hearts/K_Hearts.webp' },
-      { name: 'A_Spades', path: 'assets/cards/spades/A_Spades.webp' },
-      { name: '5_Spades', path: 'assets/cards/spades/5_Spades.webp' },
-      { name: '10_Spades', path: 'assets/cards/spades/10_Spades.webp' },
-      { name: 'K_Spades', path: 'assets/cards/spades/K_Spades.webp' },
-      { name: 'A_Clubs', path: 'assets/cards/clubs/A_Clubs.webp' },
-      { name: '7_Clubs', path: 'assets/cards/clubs/7_Clubs.webp' },
-      { name: 'J_Clubs', path: 'assets/cards/clubs/J_Clubs.webp' },
-      { name: 'A_Diamonds', path: 'assets/cards/diamonds/A_Diamonds.webp' },
-      { name: '7_Diamonds', path: 'assets/cards/diamonds/7_Diamonds.webp' },
-      { name: 'J_Diamonds', path: 'assets/cards/diamonds/J_Diamonds.webp' }
+      { name: 'A_Hearts', path: `${BASE_URL}cards/hearts/A_Hearts.webp` },
+      { name: '5_Hearts', path: `${BASE_URL}cards/hearts/5_Hearts.webp` },
+      { name: '10_Hearts', path: `${BASE_URL}cards/hearts/10_Hearts.webp` },
+      { name: 'K_Hearts', path: `${BASE_URL}cards/hearts/K_Hearts.webp` },
+      { name: 'A_Spades', path: `${BASE_URL}cards/spades/A_Spades.webp` },
+      { name: '5_Spades', path: `${BASE_URL}cards/spades/5_Spades.webp` },
+      { name: '10_Spades', path: `${BASE_URL}cards/spades/10_Spades.webp` },
+      { name: 'K_Spades', path: `${BASE_URL}cards/spades/K_Spades.webp` },
+      { name: 'A_Clubs', path: `${BASE_URL}cards/clubs/A_Clubs.webp` },
+      { name: '7_Clubs', path: `${BASE_URL}cards/clubs/7_Clubs.webp` },
+      { name: 'J_Clubs', path: `${BASE_URL}cards/clubs/J_Clubs.webp` },
+      { name: 'A_Diamonds', path: `${BASE_URL}cards/diamonds/A_Diamonds.webp` },
+      { name: '7_Diamonds', path: `${BASE_URL}cards/diamonds/7_Diamonds.webp` },
+      { name: 'J_Diamonds', path: `${BASE_URL}cards/diamonds/J_Diamonds.webp` }
     ];
 
+    // Secondary assets that can load after critical ones
     const secondaryAssets = [
-      { name: 'blueAvatar', path: 'assets/blue_avatar.webp' },
-      { name: 'redAvatar', path: 'assets/red_avatar.webp' },
-      { name: 'settingsButton', path: 'assets/settingsButton.webp' },
-      { name: 'newGameButton', path: 'assets/newGameButton.webp' },
-      { name: 'topBanner', path: 'assets/TopBanner.webp' }
+      { name: 'blueAvatar', path: `${BASE_URL}blue_avatar.webp` },
+      { name: 'redAvatar', path: `${BASE_URL}red_avatar.webp` },
+      { name: 'settingsButton', path: `${BASE_URL}settingsButton.webp` },
+      { name: 'newGameButton', path: `${BASE_URL}newGameButton.webp` },
+      { name: 'topBanner', path: `${BASE_URL}TopBanner.webp` }
     ];
 
     let loadedCount = 0;
     const totalAssets = criticalAssets.length + initialCards.length + secondaryAssets.length;
 
-    // Load critical assets sequentially
+    // Load critical assets sequentially to ensure they're available first
     for (const asset of criticalAssets) {
       await this.loadTexture(asset.path);
       loadedCount++;
       progressCallback?.(loadedCount / totalAssets);
     }
 
-    // Load initial cards in parallel
+    // Load initial cards in parallel for better performance
     await Promise.all(initialCards.map(async asset => {
       await this.loadTexture(asset.path);
       loadedCount++;
@@ -64,6 +73,7 @@ export class AssetLoader {
   }
 
   async loadTexture(path) {
+    // Return cached texture if available
     if (this.textureCache[path]) {
       return this.textureCache[path];
     }
@@ -74,7 +84,10 @@ export class AssetLoader {
       return texture;
     } catch (error) {
       console.warn(`Failed to load texture at path: ${path}`, error);
-      return this.createFallbackTexture(path);
+      // Create fallback texture if loading fails
+      const fallbackTexture = this.createFallbackTexture(path);
+      this.textureCache[path] = fallbackTexture;
+      return fallbackTexture;
     }
   }
 
@@ -94,21 +107,16 @@ export class AssetLoader {
     if (path.includes('ad')) return this.createAdBannerFallback();
 
     return PIXI.Texture.WHITE;
-  
-    
-    // Store in cache
-    this.textureCache[path] = fallbackTexture;
-    return fallbackTexture;
   }
 
   createBackgroundFallback() {
-    // Создаем простой зеленый фон для карточного стола
+    // Create simple green background for card table
     const graphics = new PIXI.Graphics();
-    graphics.beginFill(0x0B5D2E); // Зеленый цвет карточного стола
+    graphics.beginFill(0x0B5D2E); // Green card table color
     graphics.drawRect(0, 0, 400, 600);
     graphics.endFill();
     
-    // Добавляем узор для большей реалистичности
+    // Add pattern for more realism
     graphics.lineStyle(1, 0x094823, 0.5);
     for (let i = 0; i < 20; i++) {
       graphics.moveTo(0, i * 30);
@@ -125,15 +133,15 @@ export class AssetLoader {
   }
 
   createAdBannerFallback() {
-    // Простой баннер для playable ad
+    // Simple banner for playable ad
     const graphics = new PIXI.Graphics();
     
-    // Фон баннера
+    // Banner background
     graphics.beginFill(0x666666);
     graphics.drawRect(0, 0, 320, 80);
     graphics.endFill();
     
-    // Текст "Gin Rummy"
+    // "Gin Rummy" text
     const bannerText = new PIXI.Text("Gin Rummy", {
       fontFamily: "Arial",
       fontSize: 24,
@@ -152,7 +160,6 @@ export class AssetLoader {
   }
 
   createCardBackFallback() {
-    // Create a graphics object for card back
     const graphics = new PIXI.Graphics();
     
     // Blue background with white border
@@ -169,7 +176,6 @@ export class AssetLoader {
       graphics.drawRoundedRect(10 + i * 5, 10 + i * 5, 40 - i * 10, 60 - i * 10, 3);
     }
     
-    // Convert to texture using render texture
     const renderTexture = PIXI.RenderTexture.create({ width: 60, height: 80 });
     const renderer = PIXI.autoDetectRenderer();
     renderer.render(graphics, { renderTexture });
@@ -178,7 +184,6 @@ export class AssetLoader {
   }
 
   createAvatarFallback(color) {
-    // Create a graphics object for avatar
     const graphics = new PIXI.Graphics();
     
     // Colored circle
@@ -192,7 +197,6 @@ export class AssetLoader {
     graphics.drawCircle(40, 25, 5);  // Right eye
     graphics.arc(30, 40, 10, 0, Math.PI);  // Smile
     
-    // Convert to texture using render texture
     const renderTexture = PIXI.RenderTexture.create({ width: 60, height: 60 });
     const renderer = PIXI.autoDetectRenderer();
     renderer.render(graphics, { renderTexture });
@@ -201,7 +205,6 @@ export class AssetLoader {
   }
 
   createHandCursorFallback() {
-    // Create a graphics object for hand cursor
     const graphics = new PIXI.Graphics();
     
     // Skin color hand
@@ -215,7 +218,6 @@ export class AssetLoader {
     graphics.drawRoundedRect(0, 50, 40, 20, 5);
     graphics.endFill();
     
-    // Convert to texture using render texture
     const renderTexture = PIXI.RenderTexture.create({ width: 60, height: 80 });
     const renderer = PIXI.autoDetectRenderer();
     renderer.render(graphics, { renderTexture });
@@ -224,7 +226,6 @@ export class AssetLoader {
   }
 
   createLightbulbFallback() {
-    // Create a graphics object for lightbulb
     const graphics = new PIXI.Graphics();
     
     // Yellow bulb
@@ -238,7 +239,6 @@ export class AssetLoader {
     graphics.drawRect(18, 40, 14, 5);
     graphics.endFill();
     
-    // Convert to texture using render texture
     const renderTexture = PIXI.RenderTexture.create({ width: 50, height: 50 });
     const renderer = PIXI.autoDetectRenderer();
     renderer.render(graphics, { renderTexture });
@@ -247,7 +247,6 @@ export class AssetLoader {
   }
 
   createCardFallback(value, suit) {
-    // Create a graphics object for card
     const graphics = new PIXI.Graphics();
     
     // White card background
@@ -296,7 +295,6 @@ export class AssetLoader {
     valueText2.position.set(55, 75);
     graphics.addChild(valueText2);
     
-    // Convert to texture using render texture
     const renderTexture = PIXI.RenderTexture.create({ width: 60, height: 80 });
     const renderer = PIXI.autoDetectRenderer();
     renderer.render(graphics, { renderTexture });
@@ -304,10 +302,9 @@ export class AssetLoader {
     return renderTexture;
   }
   
-  // Метод для динамической загрузки карт по требованию
   async loadCardOnDemand(value, suit) {
     const filename = `${value}_${suit.charAt(0).toUpperCase()}${suit.slice(1)}.webp`;
-    const path = `assets/cards/${suit}/${filename}`;
+    const path = `${BASE_URL}cards/${suit}/${filename}`;
     
     try {
       return await this.loadTexture(path);
