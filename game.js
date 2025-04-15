@@ -356,39 +356,113 @@ class GinRummyGame {
 }
 
   // Set up background
-  async setupBackground() {
+  // Updated setupBackground method to center-crop the background image
+// Complete replacement for setupBackground method with iPhone SE specific adjustments
+async setupBackground() {
+  try {
+    // Try to load the specified background image first
+    const bgTexture = await this.assetLoader.loadTexture('assets/background.png');
+    
+    // Create a background sprite that maintains aspect ratio
+    const bgSprite = new PIXI.Sprite(bgTexture);
+    
+    // Calculate the scaling to cover the entire screen while maintaining aspect ratio
+    const scaleX = this.app.screen.width / bgTexture.width;
+    const scaleY = this.app.screen.height / bgTexture.height;
+    const scale = Math.max(scaleX, scaleY); // Use the larger scale to ensure covering
+    
+    // Apply the calculated scale
+    bgSprite.scale.set(scale, scale);
+    
+    // Center the sprite horizontally
+    bgSprite.x = (this.app.screen.width - bgSprite.width) / 2;
+    
+    // Get device information for very specific adjustments
+    const height = this.app.screen.height;
+    const width = this.app.screen.width;
+    const aspectRatio = width / height;
+    
+    // Special case for iPhone SE and very small screens
+    // iPhone SE has height around 568px and an aspect ratio close to 0.56
+    if (height <= 568) {
+      // Apply a much larger shift for iPhone SE
+      bgSprite.y = (this.app.screen.height - bgSprite.height) / 2 + 180; // Much larger shift down
+      console.log("Applied iPhone SE specific positioning");
+    }
+    // Other small screens
+    else if (height < 670) {
+      // Intermediate adjustment for small screens
+      const cardHeight = this.config.cardHeight || 120;
+      bgSprite.y = (this.app.screen.height - bgSprite.height) / 2 + cardHeight;
+      console.log("Applied small screen positioning");
+    } 
+    else {
+      // Regular vertical centering for normal screens
+      bgSprite.y = (this.app.screen.height - bgSprite.height) / 2;
+      console.log("Applied standard positioning");
+    }
+    
+    this.containers.background.removeChildren();
+    this.containers.background.addChild(bgSprite);
+  } catch (err) {
+    console.warn("Using fallback background");
     try {
-      // Try to load the specified background image first
-      const bgTexture = await this.assetLoader.loadTexture('assets/background.png');
-      const bgSprite = new PIXI.Sprite(bgTexture);
-      bgSprite.width = this.app.screen.width;
-      bgSprite.height = this.app.screen.height;
+      // Try the webp version as a second option
+      const webpTexture = await this.assetLoader.loadTexture('assets/background.webp');
+      
+      // Create background sprite with center-crop approach
+      const webpSprite = new PIXI.Sprite(webpTexture);
+      
+      // Calculate the scaling to cover the entire screen while maintaining aspect ratio
+      const scaleX = this.app.screen.width / webpTexture.width;
+      const scaleY = this.app.screen.height / webpTexture.height;
+      const scale = Math.max(scaleX, scaleY); // Use the larger scale to ensure covering
+      
+      // Apply the calculated scale
+      webpSprite.scale.set(scale, scale);
+      
+      // Center the sprite horizontally
+      webpSprite.x = (this.app.screen.width - webpSprite.width) / 2;
+      
+      // Get device information for very specific adjustments
+      const height = this.app.screen.height;
+      const width = this.app.screen.width;
+      const aspectRatio = width / height;
+      
+      // Special case for iPhone SE and very small screens
+      // iPhone SE has height around 568px and an aspect ratio close to 0.56
+      if (height <= 568) {
+        // Apply a much larger shift for iPhone SE
+        webpSprite.y = (this.app.screen.height - webpSprite.height) / 2 + 180; // Much larger shift down
+        console.log("Applied iPhone SE specific positioning (webp)");
+      }
+      // Other small screens
+      else if (height < 670) {
+        // Intermediate adjustment for small screens
+        const cardHeight = this.config.cardHeight || 120;
+        webpSprite.y = (this.app.screen.height - webpSprite.height) / 2 + cardHeight;
+        console.log("Applied small screen positioning (webp)");
+      } 
+      else {
+        // Regular vertical centering for normal screens
+        webpSprite.y = (this.app.screen.height - webpSprite.height) / 2;
+        console.log("Applied standard positioning (webp)");
+      }
       
       this.containers.background.removeChildren();
-      this.containers.background.addChild(bgSprite);
-    } catch (err) {
-      console.warn("Using fallback background");
-      try {
-        // Try the webp version as a second option
-        const webpTexture = await this.assetLoader.loadTexture('assets/background.webp');
-        const webpSprite = new PIXI.Sprite(webpTexture);
-        webpSprite.width = this.app.screen.width;
-        webpSprite.height = this.app.screen.height;
-        
-        this.containers.background.removeChildren();
-        this.containers.background.addChild(webpSprite);
-      } catch (err2) {
-        // Create a fallback background if texture loading fails
-        const fallbackBg = new PIXI.Graphics();
-        fallbackBg.beginFill(0x0B5D2E); // Green table color
-        fallbackBg.drawRect(0, 0, this.app.screen.width, this.app.screen.height);
-        fallbackBg.endFill();
-        
-        this.containers.background.removeChildren();
-        this.containers.background.addChild(fallbackBg);
-      }
+      this.containers.background.addChild(webpSprite);
+    } catch (err2) {
+      // Create a fallback background if texture loading fails
+      const fallbackBg = new PIXI.Graphics();
+      fallbackBg.beginFill(0x0B5D2E); // Green table color
+      fallbackBg.drawRect(0, 0, this.app.screen.width, this.app.screen.height);
+      fallbackBg.endFill();
+      
+      this.containers.background.removeChildren();
+      this.containers.background.addChild(fallbackBg);
     }
   }
+}
 
   // Set up game screens
   async setupScreens() {
@@ -403,48 +477,76 @@ class GinRummyGame {
   }
 
   // Set up intro screen
-  setupIntroScreen() {
-    const introContainer = new PIXI.Container();
-    
-    // Загрузка фона
-    this.assetLoader.loadTexture('assets/Backgr.webp')
-      .then(bgTexture => {
-        const bgSprite = new PIXI.Sprite(bgTexture);
-        bgSprite.width = this.app.screen.width;
-        bgSprite.height = this.app.screen.height;
-        introContainer.addChild(bgSprite);
-        
-        // После загрузки фона загружаем остальные элементы обучения
-        this.setupTutorialElements(introContainer);
-      })
-      .catch(err => {
-        console.warn("Could not load background for intro screen", err);
-        
-        // Запасной фон
-        const fallbackBg = new PIXI.Graphics();
-        fallbackBg.beginFill(0x0B5D2E);
-        fallbackBg.drawRect(0, 0, this.app.screen.width, this.app.screen.height);
-        fallbackBg.endFill();
-        introContainer.addChild(fallbackBg);
-        
-        // Загрузка элементов обучения даже при ошибке фона
-        this.setupTutorialElements(introContainer);
-      });
-    
-    introContainer.visible = false;
-    this.app.stage.addChild(introContainer);
-    this.introContainer = introContainer;
-  }
+  // Updated setupIntroScreen method to use center-cropping for background
+// Updated setupIntroScreen method to use center-cropping for background
+setupIntroScreen() {
+  const introContainer = new PIXI.Container();
+  
+  // Загрузка фона
+  this.assetLoader.loadTexture('assets/Backgr.webp')
+    .then(bgTexture => {
+      // Create background sprite with center-crop approach
+      const bgSprite = new PIXI.Sprite(bgTexture);
+      
+      // Calculate the scaling to cover the entire screen while maintaining aspect ratio
+      const scaleX = this.app.screen.width / bgTexture.width;
+      const scaleY = this.app.screen.height / bgTexture.height;
+      const scale = Math.max(scaleX, scaleY); // Use the larger scale to ensure covering
+      
+      // Apply the calculated scale
+      bgSprite.scale.set(scale, scale);
+      
+      // Center the sprite horizontally
+      bgSprite.x = (this.app.screen.width - bgSprite.width) / 2;
+      
+      // Special positioning for height on small screens like iPhone SE
+      const isSmallScreen = this.app.screen.height < 570; // Approximate iPhone SE height threshold
+      
+      if (isSmallScreen) {
+        // Shift down by the height of a card to show better portion of background
+        const cardHeight = this.config.cardHeight || 120;
+        bgSprite.y = (this.app.screen.height - bgSprite.height) / 2 + cardHeight;
+      } else {
+        // Regular vertical centering for normal screens
+        bgSprite.y = (this.app.screen.height - bgSprite.height) / 2;
+      }
+      
+      introContainer.addChild(bgSprite);
+      
+      // После загрузки фона загружаем остальные элементы обучения
+      this.setupTutorialElements(introContainer);
+    })
+    .catch(err => {
+      console.warn("Could not load background for intro screen", err);
+      
+      // Запасной фон
+      const fallbackBg = new PIXI.Graphics();
+      fallbackBg.beginFill(0x0B5D2E);
+      fallbackBg.drawRect(0, 0, this.app.screen.width, this.app.screen.height);
+      fallbackBg.endFill();
+      introContainer.addChild(fallbackBg);
+      
+      // Загрузка элементов обучения даже при ошибке фона
+      this.setupTutorialElements(introContainer);
+    });
+  
+  introContainer.visible = false;
+  this.app.stage.addChild(introContainer);
+  this.introContainer = introContainer;
+}
 
 // Полностью переработанная функция setupTutorialElements в game.js
 setupTutorialElements(introContainer) {
   // Enable z-index sorting for the intro container
   introContainer.sortableChildren = true;
   
+  // Determine font size based on screen width
+  const fontSize = this.app.screen.width < 500 ? 40 : 48;
+  
   // Title "Make Set or Run!"
   const titleText = new PIXI.Text("Make SET or RUN!", {
     fontFamily: "Arial",
-    fontSize: 48,
+    fontSize: fontSize,
     fill: 0xFFFFFF,
     fontWeight: 'bold',
     stroke: 0x000000,
@@ -726,12 +828,6 @@ setupTutorialElements(introContainer) {
         // Create hand cursor directly in this function
         const handCursor = createHandCursor();
         
-       
-        // Function to update card z-indices based on position
-        /* Обновление z‑индексов карт согласно требуемому порядку */
-        // Обновление z‑индексов карт согласно требуемому порядку
-        // Обновление z‑индексов карт согласно требуемому порядку
-        // Обновление z‑индексов карт согласно требуемому порядку
         const updateCardZIndices = () => {
           let order = [];
           
@@ -3289,106 +3385,135 @@ updateEndScreen(playerScore) {
   }
 
   // Resize the game
-  resize() {
-    // Update renderer size to match window dimensions
-    const width = window.innerWidth;
-    const height = window.innerHeight;
+  // Updated resize method to maintain center-cropped background
+// Updated resize method to maintain center-cropped background
+resize() {
+  // Update renderer size to match window dimensions
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+  
+  this.app.renderer.resize(width, height);
+  
+  // Resize background with center-crop approach
+  if (this.containers.background.children[0]) {
+    const bg = this.containers.background.children[0];
     
-    this.app.renderer.resize(width, height);
-    
-    // Resize background
-    if (this.containers.background.children[0]) {
-      const bg = this.containers.background.children[0];
+    // If it's a sprite (image background), maintain aspect ratio with center-crop
+    if (bg instanceof PIXI.Sprite && bg.texture) {
+      // Calculate the scaling to cover the entire screen while maintaining aspect ratio
+      const scaleX = width / bg.texture.width;
+      const scaleY = height / bg.texture.height;
+      const scale = Math.max(scaleX, scaleY); // Use the larger scale to ensure covering
+      
+      // Apply the calculated scale
+      bg.scale.set(scale, scale);
+      
+      // Center the sprite horizontally
+      bg.x = (width - bg.width) / 2;
+      
+      // Special positioning for height on small screens like iPhone SE
+      const isSmallScreen = height < 570; // Approximate iPhone SE height threshold
+      
+      if (isSmallScreen) {
+        // Shift down by the height of a card to show better portion of background
+        const cardHeight = this.config.cardHeight || 120;
+        bg.y = (height - bg.height) / 2 + cardHeight;
+      } else {
+        // Regular vertical centering for normal screens
+        bg.y = (height - bg.height) / 2;
+      }
+    } 
+    // If it's a Graphics object (fallback background), just resize to fill
+    else if (bg instanceof PIXI.Graphics) {
       bg.width = width;
       bg.height = height;
     }
-    
-    // Resize UI elements
-    if (this.uiRenderer) {
-      this.uiRenderer.resize(width, height);
-    }
-    
-    // Reposition cards
-    if (this.cardRenderer) {
-      this.cardRenderer.updatePositions(
-        this.uiRenderer?.adHeight || 0,
-        this.uiRenderer?.navHeight || 0,
-        width,
-        height
-      );
-    }
-    
-    // Update intro screen elements
-    if (this.introContainer) {
-      this.introContainer.children.forEach(child => {
-        if (child instanceof PIXI.Text && child.text.includes("Welcome")) {
-          child.position.set(width / 2, height / 2);
-        } else if (child instanceof PIXI.Sprite) {
-          if (child.texture.textureCacheIds && child.texture.textureCacheIds[0]?.includes("ad")) {
-            child.position.set(width / 2, height / 2 - 100);
-          } else {
-            child.position.set(width / 2, height / 2 + 100);
-          }
-        } else if (child instanceof PIXI.Graphics && child.children[0] instanceof PIXI.Text) {
-          child.position.set(width / 2 - 75, height / 2 + 80);
-        }
-      });
-    }
-    
-    // Update end screen elements
-    if (this.endContainer) {
-      this.endContainer.children.forEach(child => {
-        if (child instanceof PIXI.Graphics && !child.children.length) {
-          child.clear();
-          child.beginFill(0x000000, 0.8);
-          child.drawRect(0, 0, width, height);
-          child.endFill();
-        } else if (child instanceof PIXI.Text) {
-          child.position.set(width / 2, height / 2 - 50);
-        } else if (child instanceof PIXI.Sprite || 
-                 (child instanceof PIXI.Graphics && child.children.length)) {
-          child.position.set(width / 2 - 75, height / 2 + 50);
-        }
-      });
-    }
-    
-    // Update error message if shown
-    if (this.errorContainer) {
-      this.errorContainer.children.forEach(child => {
-        if (child instanceof PIXI.Graphics && !child.children.length) {
-          child.clear();
-          child.beginFill(0x000000, 0.8);
-          child.drawRect(0, 0, width, height);
-          child.endFill();
-        } else if (child instanceof PIXI.Text) {
-          child.position.set(width / 2, height / 2);
-        } else if (child instanceof PIXI.Graphics && child.children.length) {
-          child.position.set(width / 2 - 75, height / 2 + 60);
-        }
-      });
-    }
-    
-    // Update loading screen if shown
-    if (this.loadingContainer) {
-      this.loadingContainer.children.forEach(child => {
-        if (child instanceof PIXI.Graphics && !child.children.length) {
-          if (child === this.progressBarFill) {
-            // Don't resize the progress fill, just reposition it
-            child.position.set((width - 300) / 2, height / 2);
-          } else if (child.width > 100) {
-            // This is the background
-            child.clear();
-            child.beginFill(0x000000, 0.7);
-            child.drawRect(0, 0, width, height);
-            child.endFill();
-          } else {
-            // This is the progress background
-            child.position.set((width - 300) / 2, height / 2);
-          }
-        } else if (child instanceof PIXI.Text) {
-          child.position.set(width / 2, height / 2 - 30);
-        }
-      });
-    }
   }
+  
+  // Resize UI elements
+  if (this.uiRenderer) {
+    this.uiRenderer.resize(width, height);
+  }
+  
+  // Reposition cards
+  if (this.cardRenderer) {
+    this.cardRenderer.updatePositions(
+      this.uiRenderer?.adHeight || 0,
+      this.uiRenderer?.navHeight || 0,
+      width,
+      height
+    );
+  }
+  
+  // Update intro screen elements
+  if (this.introContainer) {
+    this.introContainer.children.forEach(child => {
+      if (child instanceof PIXI.Text && child.text.includes("SET or RUN")) {
+        child.position.set(width / 2, height * 0.2);
+      } else if (child instanceof PIXI.Text && child.text.includes("Tap cards")) {
+        child.position.set(width / 2, height - 100);
+      } else if (child instanceof PIXI.Container && child.name === "cards-container") {
+        child.position.set(width / 2, height / 2);
+      }
+    });
+  }
+  
+  // Rest of the resize method remains the same...
+  
+  // Update end screen elements
+  if (this.endContainer) {
+    this.endContainer.children.forEach(child => {
+      if (child instanceof PIXI.Graphics && !child.children.length) {
+        child.clear();
+        child.beginFill(0x000000, 0.8);
+        child.drawRect(0, 0, width, height);
+        child.endFill();
+      } else if (child instanceof PIXI.Text) {
+        child.position.set(width / 2, height / 2 - 50);
+      } else if (child instanceof PIXI.Sprite || 
+               (child instanceof PIXI.Graphics && child.children.length)) {
+        child.position.set(width / 2 - 75, height / 2 + 50);
+      }
+    });
+  }
+  
+  // Update error message if shown
+  if (this.errorContainer) {
+    this.errorContainer.children.forEach(child => {
+      if (child instanceof PIXI.Graphics && !child.children.length) {
+        child.clear();
+        child.beginFill(0x000000, 0.8);
+        child.drawRect(0, 0, width, height);
+        child.endFill();
+      } else if (child instanceof PIXI.Text) {
+        child.position.set(width / 2, height / 2);
+      } else if (child instanceof PIXI.Graphics && child.children.length) {
+        child.position.set(width / 2 - 75, height / 2 + 60);
+      }
+    });
+  }
+  
+  // Update loading screen if shown
+  if (this.loadingContainer) {
+    this.loadingContainer.children.forEach(child => {
+      if (child instanceof PIXI.Graphics && !child.children.length) {
+        if (child === this.progressBarFill) {
+          // Don't resize the progress fill, just reposition it
+          child.position.set((width - 300) / 2, height / 2);
+        } else if (child.width > 100) {
+          // This is the background
+          child.clear();
+          child.beginFill(0x000000, 0.7);
+          child.drawRect(0, 0, width, height);
+          child.endFill();
+        } else {
+          // This is the progress background
+          child.position.set((width - 300) / 2, height / 2);
+        }
+      } else if (child instanceof PIXI.Text) {
+        child.position.set(width / 2, height / 2 - 30);
+      }
+    });
+  }
+}
 }
