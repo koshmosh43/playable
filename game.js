@@ -2995,36 +2995,29 @@ handleDrawFromDiscard(cardData) {
     if (!this.stateManager || this.stateManager.currentState !== 'play' || 
         !this.playerTurn || !this.cardManager.discardPile?.length) return;
     
-    if (this.uiManager && this.handCursor) {
+    if (this.handCursor) {
       const discardPos = {
         x: this.cardRenderer.discardContainer.x + this.config.cardWidth/2,
         y: this.cardRenderer.discardContainer.y + this.config.cardHeight/2
       };
       
-      this.uiManager.showTooltip("Tap to take this card", {
-        position: { 
-          x: discardPos.x, 
-          y: discardPos.y - 60 
-        }
-      }, 2000, () => {
-        // Show hand cursor animation tapping on discard pile
-        this.handCursor.tap(discardPos.x, discardPos.y, {
-          onComplete: () => {
-            // Highlight discard pile
-            if (this.cardRenderer.discardContainer.children.length > 0) {
-              const topCard = this.cardRenderer.discardContainer.children[
-                this.cardRenderer.discardContainer.children.length - 1
-              ];
-              
-              gsap.to(topCard.scale, {
-                x: 1.1, y: 1.1,
-                duration: 0.3,
-                repeat: 1,
-                yoyo: true
-              });
-            }
+      // Показываем только анимацию руки, без текстового тултипа
+      this.handCursor.tap(discardPos.x, discardPos.y, {
+        onComplete: () => {
+          // Highlight discard pile
+          if (this.cardRenderer.discardContainer.children.length > 0) {
+            const topCard = this.cardRenderer.discardContainer.children[
+              this.cardRenderer.discardContainer.children.length - 1
+            ];
+            
+            gsap.to(topCard.scale, {
+              x: 1.1, y: 1.1,
+              duration: 0.3,
+              repeat: 1,
+              yoyo: true
+            });
           }
-        });
+        }
       });
     }
   }
@@ -3128,12 +3121,12 @@ handleKnock() {
     ];
     
     // Run through tutorial steps
-    tutorialSteps.forEach((step, index) => {
-      setTimeout(() => {
-        this.showTutorialMessage(step.message, step.duration);
-        if (step.action) step.action();
-      }, step.delay);
-    });
+    // tutorialSteps.forEach((step, index) => {
+    //   setTimeout(() => {
+    //     this.showTutorialMessage(step.message, step.duration);
+    //     if (step.action) step.action();
+    //   }, step.delay);
+    // });
   }
 
   // Handle knock confirmation

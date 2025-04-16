@@ -819,12 +819,12 @@ async setupKnockButton() {
     dialogBg.endFill();
     
     // Arrow pointer
-    dialogBg.beginFill(0xFFF8E1, 0.9);
-    dialogBg.moveTo(175, 100);
-    dialogBg.lineTo(150, 120);
-    dialogBg.lineTo(200, 120);
-    dialogBg.closePath();
-    dialogBg.endFill();
+    dialogBg.beginFill(0xFFFBF0, 0.9);
+dialogBg.moveTo(175, 120); // Вершина треугольника внизу по центру
+dialogBg.lineTo(155, 100); // Левый верхний угол
+dialogBg.lineTo(195, 100); // Правый верхний угол
+dialogBg.closePath();
+dialogBg.endFill();
     
     // Dialog text
     const dialogText = new PIXI.Text(message, {
