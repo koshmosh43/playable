@@ -1496,6 +1496,9 @@ setupTutorialElements(introContainer) {
   showTutorial() {
     if (!this.handCursor || !this.cardRenderer || !this.playerTurn) return;
     
+    // ДОБАВЛЕНО: не показываем туториал если deadwood <= 10 или у оппонента нет карт
+    if (this.deadwood <= 10 || this.cardManager.opponentCards.length === 0) return;
+    
     // Позиция колоды
     const deckPosition = {
       x: this.cardRenderer.deckContainer.x + this.config.cardWidth / 2,
@@ -1549,10 +1552,35 @@ setupTutorialElements(introContainer) {
     // Сохраняем ссылку на туториал
     this.tutorialTitleContainer = titleContainer;
     
-    // Анимация руки
-    this.startHandAnimation(deckPosition, discardPosition);
+    // Вместо вызова startHandAnimation, который не существует,
+    // вызываем анимацию руки с использованием handCursor напрямую:
+    if (this.handCursor) {
+      // Если есть сброс, указываем на сброс и колоду попеременно
+      if (discardPosition) {
+        // Показываем анимацию руки между колодой и сбросом
+        this.handCursor.moveBetween(
+          deckPosition.x, deckPosition.y,
+          discardPosition.x, discardPosition.y,
+          { 
+            cycles: 2,
+            pauseDuration: 1,
+            moveDuration: 1.5,
+            onComplete: () => {
+              this.handCursor.fade();
+            }
+          }
+        );
+      } else {
+        // Если нет сброса, просто показываем руку, тапающую по колоде
+        this.handCursor.tap(deckPosition.x, deckPosition.y, {
+          repeat: 2,
+          onComplete: () => {
+            this.handCursor.fade();
+          }
+        });
+      }
+    }
   }
-  
 
   // Initialize game data
   initializeGameData() {
@@ -2009,6 +2037,19 @@ updateGamePositions() {
       // Регистрируем PixiPlugin для работы с PIXI.js
       gsap.registerPlugin(PixiPlugin);
       PixiPlugin.registerPIXI(PIXI);
+      
+      // Важно: добавляем плагин для 3D трансформаций
+      if (window.gsap.config) {
+        gsap.config({
+          nullTargetWarn: false
+        });
+      }
+      
+      // Регистрируем плагин для 3D-вращений, если он доступен
+      if (window.CSSPlugin) {
+        console.log("CSSPlugin registered successfully");
+      }
+      
       console.log("GSAP plugins registered successfully");
     } else {
       console.warn("GSAP or PixiPlugin not available, animations may not work correctly");
@@ -2095,19 +2136,27 @@ updateGamePositions() {
       this.uiRenderer.updateScores(this.playerScore, this.opponentScore);
       this.uiRenderer.updateDeadwood(this.deadwood);
       
-      // Показываем кнопку Gin когда deadwood = 0 и это ход игрока и фаза сброса
-      if (this.deadwood === 0 && this.playerTurn &&
-          this.gameStep % 2 === 1 &&
-          this.stateManager?.currentState === 'play') {
+      // Проверяем, показывать ли кнопки GIN и KNOCK
+      const isPlayerTurn = this.playerTurn;
+      const isDiscardPhase = this.gameStep % 2 === 1; // Фаза сброса - нечетный шаг
+      const isPlayState = this.stateManager?.currentState === 'play';
+      
+      console.log("Deadwood:", this.deadwood, "Player turn:", isPlayerTurn, 
+                  "Discard phase:", isDiscardPhase, "Play state:", isPlayState);
+      
+      // Показываем кнопку Gin когда deadwood = 0 и это ход игрока 
+      // И мы находимся в игровом состоянии (независимо от фазы)
+      if (this.deadwood === 0 && isPlayerTurn && isPlayState) {
+        console.log("Showing GIN button!");
         this.uiRenderer.showGinButton(true);
       } else {
         this.uiRenderer.showGinButton(false);
       }
       
-      // Показываем кнопку Knock когда 0 < deadwood <= 10 и это ход игрока и фаза сброса
-      if (this.deadwood > 0 && this.deadwood <= 10 && this.playerTurn &&
-          this.gameStep % 2 === 1 &&
-          this.stateManager?.currentState === 'play') {
+      // ИЗМЕНЕНО: Показываем кнопку Knock когда 0 < deadwood <= 10, ход игрока 
+      // И мы находимся в игровом состоянии (независимо от фазы)
+      if (this.deadwood > 0 && this.deadwood <= 10 && isPlayState) {
+        console.log("Showing KNOCK button!");
         this.uiRenderer.showKnockButton(true);
       } else {
         this.uiRenderer.showKnockButton(false);
@@ -2126,114 +2175,86 @@ updateGamePositions() {
         playerTurn: this.playerTurn
       });
     }
-    
-    // Если у оппонента закончились карты, скрываем подсказку и показываем оверлей
+    // Если у оппонента закончились карты, показываем оверлей
     if (this.cardManager.opponentCards.length === 0) {
-      // Показываем оверлей через UI-рендерер
       this.uiRenderer.showPlayNowOverlay();
-      
-      // Удаляем подсказку "Take a card: Deck or shown card"
+    }
+    // ДОБАВЛЕНО: Проверяем условия для скрытия туториала
+    // Если у оппонента закончились карты или deadwood <= 10, скрываем подсказку
+    if ((this.cardManager.opponentCards.length === 0 || this.deadwood <= 10) && this.tutorialTitleContainer) {
+      // Скрываем туториал и удаляем его со сцены
       this.hideTutorialElements();
+      
+      
     }
   }
   
-  // Обновленный метод hideTutorialElements для удаления подсказки
-  hideTutorialElements() {
-    // Флаг, чтобы отслеживать была ли удалена подсказка
-    let tutorialRemoved = false;
+// Calculate deadwood value
+calculateDeadwood() {
+  // Начальное логирование для отладки
+  console.log("Starting deadwood calculation...");
+  
+  if (!this.cardManager.playerCards || !this.possibleMelds) {
+    console.log("No player cards or possible melds, deadwood = 0");
+    return 0;
+  }
+  
+  // Логируем количество карт в руке
+  console.log(`Player has ${this.cardManager.playerCards.length} cards`);
+  
+  // Собираем ID карт, которые уже в мелдах
+  const meldCardIds = new Set();
+  
+  // Проверяем формат possibleMelds и собираем ID карт в мелдах
+  if (this.possibleMelds.sets && this.possibleMelds.runs) {
+    // Собираем ID карт из сетов
+    this.possibleMelds.sets.forEach(meld => {
+      console.log(`Found SET meld with ${meld.cards.length} cards`);
+      meld.cards.forEach(card => meldCardIds.add(card.id));
+    });
     
-    // Ищем и удаляем элементы туториала со сцены
-    if (this.app && this.app.stage) {
-      for (let i = this.app.stage.children.length - 1; i >= 0; i--) {
-        const child = this.app.stage.children[i];
-        
-        // Проверяем, является ли дочерний элемент контейнером с текстом туториала
-        if (child && child.children) {
-          const hasTutorialText = child.children.some(grandchild => 
-            grandchild instanceof PIXI.Text && 
-            grandchild.text && 
-            (grandchild.text.includes("Take a card") || 
-             grandchild.text.includes("Deck or") ||
-             grandchild.text.includes("shown card"))
-          );
-          
-          // Если это контейнер с текстом туториала, удаляем его
-          if (hasTutorialText) {
-            this.app.stage.removeChild(child);
-            tutorialRemoved = true;
-            console.log("Removed tutorial text");
-          }
-        }
-      }
-    }
+    // Собираем ID карт из ранов
+    this.possibleMelds.runs.forEach(meld => {
+      console.log(`Found RUN meld with ${meld.cards.length} cards`);
+      meld.cards.forEach(card => meldCardIds.add(card.id));
+    });
+  } 
+  // Для совместимости со старым форматом
+  else if (Array.isArray(this.possibleMelds)) {
+    console.log("Using legacy meld format");
+    this.possibleMelds.forEach(meld => {
+      meld.forEach(card => meldCardIds.add(card.id));
+    });
+  }
+  
+  // Логируем количество карт в мелдах
+  console.log(`Found ${meldCardIds.size} cards in melds`);
+  
+  // Считаем очки только для карт, которые НЕ входят в мелды
+  const deadwoodCards = this.cardManager.playerCards.filter(card => !meldCardIds.has(card.id));
+  console.log(`${deadwoodCards.length} cards not in melds (deadwood)`);
+  
+  // Подсчет суммы очков для свободных карт
+  const deadwoodValue = deadwoodCards.reduce((sum, card) => {
+    let cardValue = 0;
     
-    // Если у нас есть ссылка на конкретный контейнер с туториалом, удаляем его также
-    if (this.tutorialTitleContainer) {
-      this.app.stage.removeChild(this.tutorialTitleContainer);
-      this.tutorialTitleContainer = null;
-      tutorialRemoved = true;
-      console.log("Removed tutorialTitleContainer");
-    }
-    
-    // Если у нас есть ссылка на элемент tutorialTitle, удаляем его
-    if (this.tutorialTitle) {
-      this.app.stage.removeChild(this.tutorialTitle);
-      this.tutorialTitle = null;
-      tutorialRemoved = true;
-      console.log("Removed tutorialTitle");
-    }
-    
-    // Сбрасываем флаги туториала
-    this.takeCardTutorialShown = false;
-    
-    if (tutorialRemoved) {
-      console.log("Successfully removed all tutorial elements");
+    // Иначе считаем очки по правилам:
+    // Туз (A) = 1, картинки (J,Q,K) = 10, остальные = номинал
+    if (card.value === 'A') {
+      cardValue = 1;
+    } else if (['J', 'Q', 'K'].includes(card.value)) {
+      cardValue = 10;
     } else {
-      console.log("No tutorial elements found to remove");
+      cardValue = parseInt(card.value) || 0;
     }
-  }
+    
+    console.log(`Card ${card.value} ${card.suit} = ${cardValue} points`);
+    return sum + cardValue;
+  }, 0);
   
-
-  // Calculate deadwood value
-  calculateDeadwood() {
-    if (!this.cardManager.playerCards || !this.possibleMelds) return 0;
-    
-    // Собираем ID карт, которые уже в мелдах
-    const meldCardIds = new Set();
-    
-    // Проверяем формат possibleMelds
-    if (this.possibleMelds.sets && this.possibleMelds.runs) {
-      // Собираем ID карт из сетов
-      this.possibleMelds.sets.forEach(meld => {
-        meld.cards.forEach(card => meldCardIds.add(card.id));
-      });
-      
-      // Собираем ID карт из ранов
-      this.possibleMelds.runs.forEach(meld => {
-        meld.cards.forEach(card => meldCardIds.add(card.id));
-      });
-    } 
-    // Для совместимости со старым форматом
-    else if (Array.isArray(this.possibleMelds)) {
-      this.possibleMelds.forEach(meld => {
-        meld.forEach(card => meldCardIds.add(card.id));
-      });
-    }
-    
-    // Считаем очки только для карт, которые НЕ входят в мелды
-    const deadwoodValue = this.cardManager.playerCards.reduce((sum, card) => {
-      // Если карта в мелде, не учитываем ее
-      if (meldCardIds.has(card.id)) return sum;
-      
-      // Иначе считаем очки по правилам:
-      // Туз (A) = 1, картинки (J,Q,K) = 10, остальные = номинал
-      if (card.value === 'A') return sum + 1;
-      if (['J', 'Q', 'K'].includes(card.value)) return sum + 10;
-      return sum + (parseInt(card.value) || 0);
-    }, 0);
-    
-    return deadwoodValue;
-  }
+  console.log(`Total deadwood value: ${deadwoodValue}`);
+  return deadwoodValue;
+}
 
   setupMakeMeldText() {
     // Create a container for the text and background
@@ -2462,7 +2483,9 @@ handleCardClick(cardData, source) {
 
 showTakeCardTutorial() {
   // Пропускаем, если полное обучение показано или подсказка уже показана на этом ходу
-  if (this.tutorialShown || this.takeCardTutorialShown) return;
+  // ДОБАВЛЕНО: или если deadwood <= 10 или у оппонента нет карт
+  if (this.tutorialShown || this.takeCardTutorialShown || 
+      this.deadwood <= 10 || this.cardManager.opponentCards.length === 0) return;
   
   // Показываем подсказку
   this.showTutorial();
@@ -2470,30 +2493,58 @@ showTakeCardTutorial() {
 
 // Helper method to hide all tutorial elements
 hideTutorialElements() {
-  // Find and hide tutorial elements in the app stage
+  // Флаг, чтобы отслеживать была ли удалена подсказка
+  let tutorialRemoved = false;
+  
+  // Ищем и удаляем элементы туториала со сцены
   if (this.app && this.app.stage) {
-    this.app.stage.children.forEach(child => {
-      // Look for containers with tutorial text
-      if (child && child.children && child.children.some(grandchild => 
-        grandchild instanceof PIXI.Text && 
-        grandchild.text && 
-        (grandchild.text.includes("Take a card") || 
-         grandchild.text.includes("Deck or") ||
-         grandchild.text.includes("shown card"))
-      )) {
-        // Remove this container from stage
-        this.app.stage.removeChild(child);
+    for (let i = this.app.stage.children.length - 1; i >= 0; i--) {
+      const child = this.app.stage.children[i];
+      
+      // Проверяем, является ли дочерний элемент контейнером с текстом туториала
+      if (child && child.children) {
+        const hasTutorialText = child.children.some(grandchild => 
+          grandchild instanceof PIXI.Text && 
+          grandchild.text && 
+          (grandchild.text.includes("Take a card") || 
+           grandchild.text.includes("Deck or") ||
+           grandchild.text.includes("shown card"))
+        );
+        
+        // Если это контейнер с текстом туториала, удаляем его
+        if (hasTutorialText) {
+          this.app.stage.removeChild(child);
+          tutorialRemoved = true;
+          console.log("Removed tutorial text");
+        }
       }
-    });
+    }
   }
   
-  // Also hide any tutorial-related containers that might be part of this.container
-  if (this.tutorialContainer) {
-    this.tutorialContainer.visible = false;
+  // Если у нас есть ссылка на конкретный контейнер с туториалом, удаляем его также
+  if (this.tutorialTitleContainer) {
+    this.app.stage.removeChild(this.tutorialTitleContainer);
+    this.tutorialTitleContainer = null;
+    tutorialRemoved = true;
+    console.log("Removed tutorialTitleContainer");
   }
   
-  // Reset any tutorial flags
+  // Если у нас есть ссылка на элемент tutorialTitle, удаляем его
+  if (this.tutorialTitle) {
+    this.app.stage.removeChild(this.tutorialTitle);
+    this.tutorialTitle = null;
+    tutorialRemoved = true;
+    console.log("Removed tutorialTitle");
+  }
+  
+  // Сбрасываем флаги туториала
   this.takeCardTutorialShown = false;
+  
+  if (tutorialRemoved) {
+    console.log("Successfully removed all tutorial elements");
+  } else {
+    console.log("No tutorial elements found to remove");
+  }
 }
 
 // Update to handleDrawFromDeck method to remove tutorial text
@@ -2860,12 +2911,8 @@ handleDrawFromDiscard(cardData) {
     });
   }
   
-
-  // Play opponent's turn
-  // В game.js обновить метод playOpponentTurn
   // Play opponent's turn
   playOpponentTurn() {
-  
     // Отложенное выполнение
     setTimeout(() => {
       // ИИ решает, брать из колоды или из сброса
@@ -2889,9 +2936,10 @@ handleDrawFromDiscard(cardData) {
             this.gameStep = this.gameStep % 2 === 0 ? this.gameStep : this.gameStep + 1; // Гарантируем четный шаг в начале хода игрока
             this.updatePlayScreen();
             
-            // Показываем туториал "Take a card" в начале нового хода
+            // ИЗМЕНЕНО: Проверяем дополнительные условия перед показом туториала
             setTimeout(() => {
-              if (this.playerTurn && this.gameStep % 2 === 0) {
+              if (this.playerTurn && this.gameStep % 2 === 0 && 
+                  this.deadwood > 10 && this.cardManager.opponentCards.length > 0) {
                 this.showTutorial();
               }
             }, 500);
@@ -2904,9 +2952,10 @@ handleDrawFromDiscard(cardData) {
         this.gameStep = this.gameStep % 2 === 0 ? this.gameStep : this.gameStep + 1; // Гарантируем четный шаг в начале хода игрока
         this.updatePlayScreen();
         
-        // Показываем туториал "Take a card" в начале нового хода
+        // ИЗМЕНЕНО: Проверяем дополнительные условия перед показом туториала
         setTimeout(() => {
-          if (this.playerTurn && this.gameStep % 2 === 0) {
+          if (this.playerTurn && this.gameStep % 2 === 0 && 
+              this.deadwood > 10 && this.cardManager.opponentCards.length > 0) {
             this.showTutorial();
           }
         }, 500);

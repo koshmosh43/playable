@@ -896,8 +896,14 @@ dialogBg.endFill();
   }
 
   showKnockButton(visible) {
+    // Вспомогательная функция для логирования операций с кнопкой Knock
+    const logKnockButtonState = (action) => {
+      console.log(`KNOCK Button ${action} - visible: ${visible}`);
+    };
+  
     if (!this.knockButton) {
       // Create the button if it doesn't exist yet
+      logKnockButtonState("initializing");
       this.knockButton = new PIXI.Container();
       this.knockButton.interactive = true;
       this.knockButton.buttonMode = true;
@@ -908,6 +914,7 @@ dialogBg.endFill();
           const knockButtonSprite = new PIXI.Sprite(texture);
           knockButtonSprite.anchor.set(0.5);
           this.knockButton.addChild(knockButtonSprite);
+          logKnockButtonState("texture loaded");
         })
         .catch(err => {
           console.warn("Could not load Knock button asset, using fallback", err);
@@ -926,6 +933,7 @@ dialogBg.endFill();
           
           this.knockButton.addChild(knockBg);
           this.knockButton.addChild(knockText);
+          logKnockButtonState("fallback created");
         });
       
       // CRITICAL: Remove all old listeners before adding new one
@@ -933,6 +941,7 @@ dialogBg.endFill();
       
       // Add click handler that hides button first, then shows overlay
       this.knockButton.on('pointerdown', () => {
+        logKnockButtonState("clicked");
         // Stop all animations immediately
         gsap.killTweensOf(this.knockButton);
         gsap.killTweensOf(this.knockButton.scale);
@@ -955,16 +964,23 @@ dialogBg.endFill();
       // Add to UI container if not already added
       if (!this.uiButtonsContainer.children.includes(this.knockButton)) {
         this.uiButtonsContainer.addChild(this.knockButton);
+        logKnockButtonState("added to container");
       }
     }
     
-    // Always position at center of screen
+    // Явно устанавливаем позицию кнопки - всегда в центре экрана,
+    // немного ниже середины (чтобы была хорошо видна при deadwood <= 10)
     this.knockButton.x = this.app.screen.width / 2;
-    this.knockButton.y = this.app.screen.height / 2;
+    this.knockButton.y = this.app.screen.height * 0.7; // Позиционируем кнопку на 70% высоты экрана
     
-    if (visible && !this.knockButton.visible) {
-      // Show button with animation
-      this.knockButton.visible = true;
+    // Принудительно применяем видимость в зависимости от параметра
+    this.knockButton.visible = visible;
+    
+    if (visible && this.knockButton.alpha !== 1) {
+      // Логирование и отладка
+      logKnockButtonState("showing with animation");
+      
+      // Reset alpha to ensure button is visible
       this.knockButton.alpha = 0;
       
       // Fade in animation
@@ -992,6 +1008,9 @@ dialogBg.endFill();
         ease: "sine.inOut"
       });
     } else if (!visible && this.knockButton.visible) {
+      // Логирование и отладка
+      logKnockButtonState("hiding with animation");
+      
       // Stop all animations
       gsap.killTweensOf(this.knockButton);
       gsap.killTweensOf(this.knockButton.scale);
@@ -1003,6 +1022,7 @@ dialogBg.endFill();
         ease: "power2.in",
         onComplete: () => {
           this.knockButton.visible = false;
+          logKnockButtonState("hidden completely");
         }
       });
     }
