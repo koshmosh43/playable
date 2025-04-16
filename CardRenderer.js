@@ -464,6 +464,39 @@ applySpecialHighlight(sprite, color, alpha) {
     // Add container to card
     sprite.addChild(countContainer);
   }
+
+  showDiscardMessage() {
+    this.dialogContainer.removeChildren();
+    
+    // Dialog background - use a design that matches the screenshot
+    const dialogBg = new PIXI.Graphics();
+    dialogBg.beginFill(0xFFFBF0, 0.9); // Light cream color
+    dialogBg.drawRoundedRect(0, 0, 350, 70, 20); // Thinner dialog to match screenshot
+    dialogBg.endFill();
+    
+    // Dialog text - match the style from screenshot
+    const dialogText = new PIXI.Text("Discard a card !", {
+      fontFamily: "Arial",
+      fontSize: 24,
+      fontWeight: "bold",
+      fill: 0x4E342E, // Dark brown color
+      align: "center"
+    });
+    dialogText.anchor.set(0.5);
+    dialogText.x = 175;
+    dialogText.y = 35;
+    
+    dialogBg.addChild(dialogText);
+    
+    // Position dialog in the center of the table
+    dialogBg.x = (this.app.screen.width - 350) / 2;
+    dialogBg.y = (this.app.screen.height / 2) - 35; // Center vertically on the table
+    
+    this.dialogContainer.addChild(dialogBg);
+    this.dialogContainer.visible = true;
+    
+    return dialogBg;
+  }
   
   // Render the discard pile
   async renderDiscardPile(discardPile) {

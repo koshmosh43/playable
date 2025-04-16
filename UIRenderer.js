@@ -31,9 +31,12 @@ export class UIRenderer {
     // UI components
     this.knockButton = null;
     this.meldButton = null;
+    this.ginButton = null;
+    this.onGinClick = null;
     this.deadwoodText = null;
     this.blueScoreText = null;
     this.redScoreText = null;
+    
     
     // Event callbacks
     this.onKnockClick = null;
@@ -70,7 +73,6 @@ export class UIRenderer {
   
   // Setup all UI components
   async setupUI() {
-    await this.setupLightbulbButton();
     await this.setupGameActions();
     await this.setupAvatars();
     
@@ -340,110 +342,131 @@ async createButton(texturePath, type) {
     return fallback;
   }
 }
+
+  async setupGinButton() {
+    // Create the Gin button using the provided asset
+    this.ginButton = new PIXI.Container();
+    this.ginButton.interactive = true;
+    this.ginButton.buttonMode = true;
     
+    // Load the Gin button texture
+    this.assetLoader.loadTexture('assets/Gin_button.webp')
+      .then(texture => {
+        const ginButtonSprite = new PIXI.Sprite(texture);
+        ginButtonSprite.anchor.set(0.5);
+        this.ginButton.addChild(ginButtonSprite);
+      })
+      .catch(err => {
+        console.warn("Could not load Gin button asset, using fallback", err);
+        // Fallback if asset loading fails
+        const ginBg = new PIXI.Graphics();
+        ginBg.beginFill(0x2196F3); // Blue color
+        ginBg.drawRoundedRect(-60, -20, 120, 40, 10);
+        ginBg.endFill();
+        
+        const ginText = new PIXI.Text("GIN", {
+          fontFamily: "Arial",
+          fontSize: 20,
+          fontWeight: "bold",
+          fill: 0xFFFFFF
+        });
+        ginText.anchor.set(0.5);
+        
+        this.ginButton.addChild(ginBg);
+        this.ginButton.addChild(ginText);
+      });
+    
+    // Position button in the center of the screen at card level, like in the reference screenshot
+    this.ginButton.x = this.app.screen.width / 2 - 50; // Slight offset to the left for the Gin button
+    this.ginButton.y = this.app.screen.height * 0.70; // Position at the level of player's cards
+    
+    // Initially hide the button
+    this.ginButton.visible = false;
+    
+    // Add click handler
+    this.ginButton.on('pointerdown', () => {
+      if (this.onGinClick) this.onGinClick();
+    });
+    
+    // Add button to UI container
+    this.uiButtonsContainer.addChild(this.ginButton);
+  }
   
-  // Setup lightbulb button
-  async setupLightbulbButton() {
-    try {
-      const lightbulbButton = await this.createButton('assets/lightbulb.webp', 'lightbulb');
-      lightbulbButton.x = 40;
-      lightbulbButton.y = this.app.screen.height * 0.78;
+  // Add this method to UIRenderer.js class
+  showGinButton(visible) {
+    if (!this.ginButton) return;
+    
+    if (visible && !this.ginButton.visible) {
+      // Show button with animation - with slight floating animation like in the reference
+      this.ginButton.visible = true;
+      this.ginButton.alpha = 0;
       
-      this.uiButtonsContainer.addChild(lightbulbButton);
+      // Fade in animation
+      gsap.to(this.ginButton, {
+        alpha: 1,
+        duration: 0.3,
+        ease: "back.out"
+      });
       
-      return lightbulbButton;
-    } catch (err) {
-      console.warn("Using fallback lightbulb button");
+      // Add floating animation to draw attention (like hand hovering in second screenshot)
+      gsap.to(this.ginButton, {
+        y: this.ginButton.y - 5, // Subtle float up and down
+        duration: 0.8,
+        repeat: -1, // Infinite repeat
+        yoyo: true, // Go back and forth
+        ease: "sine.inOut" // Smooth sine wave movement
+      });
       
-      const fallbackButton = new PIXI.Graphics();
-      fallbackButton.buttonType = 'lightbulb';
-      fallbackButton.interactive = true;
-      fallbackButton.buttonMode = true;
+      // Add subtle pulse as well
+      gsap.to(this.ginButton.scale, {
+        x: 1.05, y: 1.05, // Subtle scale change
+        duration: 1.2,
+        repeat: -1,
+        yoyo: true,
+        ease: "sine.inOut"
+      });
+    } else if (!visible && this.ginButton.visible) {
+      // Stop all animations
+      gsap.killTweensOf(this.ginButton);
+      gsap.killTweensOf(this.ginButton.scale);
       
-      fallbackButton.beginFill(0x006400);
-      fallbackButton.drawCircle(0, 0, 27);
-      fallbackButton.endFill();
-      
-      fallbackButton.lineStyle(2, 0xFFFFFF);
-      fallbackButton.beginFill(0xFFFFFF, 0.5);
-      fallbackButton.drawCircle(0, -5, 10);
-      fallbackButton.endFill();
-      fallbackButton.moveTo(-5, 5);
-      fallbackButton.lineTo(5, 5);
-      fallbackButton.moveTo(-3, 10);
-      fallbackButton.lineTo(3, 10);
-      
-      fallbackButton.x = 40;
-      fallbackButton.y = this.app.screen.height - 60;
-      
-      this.uiButtonsContainer.addChild(fallbackButton);
-      
-      return fallbackButton;
+      // Hide button with animation
+      gsap.to(this.ginButton, {
+        alpha: 0,
+        duration: 0.3,
+        ease: "power2.in",
+        onComplete: () => {
+          this.ginButton.visible = false;
+        }
+      });
     }
   }
   
   // Setup game actions (knock and meld buttons)
   async setupGameActions() {
-    // Knock button
+    // Создаем кнопки, но не добавляем их в контейнер
     this.knockButton = new PIXI.Container();
-    this.knockButton.interactive = true;
-    this.knockButton.buttonMode = true;
+    this.meldButton = new PIXI.Container();
     
-    const knockBg = new PIXI.Graphics();
-    knockBg.beginFill(0xFFC107);
-    knockBg.drawRoundedRect(0, 0, 120, 40, 10);
-    knockBg.endFill();
+    // Установим visible = false для обеих кнопок
+    this.knockButton.visible = false;
+    this.meldButton.visible = false;
     
-    const knockText = new PIXI.Text("Стук", {
-      fontFamily: "Arial",
-      fontSize: 18,
-      fontWeight: "bold",
-      fill: 0x000000
-    });
-    knockText.anchor.set(0.5);
-    knockText.x = 60;
-    knockText.y = 20;
-    
-    this.knockButton.addChild(knockBg);
-    this.knockButton.addChild(knockText);
-    this.knockButton.x = this.app.screen.width - 140;
-    this.knockButton.y = this.app.screen.height - 60;
-    
+    // Обработчики событий можно оставить, хотя они никогда не будут вызваны
     this.knockButton.on('pointerdown', () => {
       if (this.onKnockClick) this.onKnockClick();
     });
-    
-    // Meld button
-    this.meldButton = new PIXI.Container();
-    this.meldButton.interactive = true;
-    this.meldButton.buttonMode = true;
-    
-    const meldBg = new PIXI.Graphics();
-    meldBg.beginFill(0x4CAF50);
-    meldBg.drawRoundedRect(0, 0, 120, 40, 10);
-    meldBg.endFill();
-    
-    const meldText = new PIXI.Text("Мелд", {
-      fontFamily: "Arial",
-      fontSize: 18,
-      fontWeight: "bold",
-      fill: 0xFFFFFF
-    });
-    meldText.anchor.set(0.5);
-    meldText.x = 60;
-    meldText.y = 20;
-    
-    this.meldButton.addChild(meldBg);
-    this.meldButton.addChild(meldText);
-    this.meldButton.x = this.app.screen.width - 140;
-    this.meldButton.y = this.app.screen.height - 110;
     
     this.meldButton.on('pointerdown', () => {
       if (this.onMeldClick) this.onMeldClick();
     });
     
-    this.uiButtonsContainer.addChild(this.knockButton);
-    this.uiButtonsContainer.addChild(this.meldButton);
+    // Кнопки не добавляются в this.uiButtonsContainer
+    // this.uiButtonsContainer.addChild(this.knockButton);
+    // this.uiButtonsContainer.addChild(this.meldButton);
+    
+    // Если необходимо вызвать setupGinButton, оставьте эту строку
+    await this.setupGinButton();
   }
   
   createMeldDisplay() {
@@ -793,6 +816,11 @@ if (this.adContainer.children[0]) {
       if (this.deadwoodText) {
         this.deadwoodText.x = width - 60;
         this.deadwoodText.y = this.app.screen.height - 210;
+      }
+
+      if (this.ginButton) {
+        this.ginButton.x = this.app.screen.width / 2;
+        this.ginButton.y = this.app.screen.height / 2.5;
       }
     
       // Dialog

@@ -1726,6 +1726,48 @@ setupTutorialElements(introContainer) {
     this.cardManager.discardPile = [];
   }
 
+  // Handle Gin action
+handleGin() {
+  if (!this.playerTurn || this.deadwood !== 0) return;
+  
+  // Show confirmation dialog
+  if (this.uiManager) {
+    this.uiManager.createDialog('Gin Confirmation', 'Do you want to call Gin?', 'gin');
+  }
+}
+
+// Handle Gin confirmation
+handleGinConfirm(confirmed) {
+  if (confirmed) {
+    // Calculate bonus points (25 is standard bonus for Gin)
+    const ginBonus = 25;
+    
+    // Add bonus to player's score
+    this.playerScore += ginBonus;
+    
+    // Show success message
+    this.showTooltip(`Gin! Perfect hand with no deadwood. +${ginBonus} bonus points!`, null);
+    
+    // Check if game should end
+    if (this.dealCount < 2) {
+      // Move to next deal
+      setTimeout(() => {
+        this.initializeGame();
+        this.startGame();
+        this.dealCount++;
+      }, 2500);
+    } else {
+      // End game after 3 deals
+      if (this.stateManager) {
+        setTimeout(() => {
+          this.stateManager.changeState('end');
+          this.updateEndScreen(this.playerScore);
+        }, 2500);
+      }
+    }
+  }
+}
+
   // Set up event handlers
   setupEventHandlers() {
     // Card click handler
@@ -1736,11 +1778,13 @@ setupTutorialElements(introContainer) {
     this.uiManager.onDialogConfirm = (type, confirmed) => {
       if (type === 'knock') this.handleKnockConfirm(confirmed);
       else if (type === 'meld') this.handleMeldConfirm(confirmed);
+      else if (type === 'gin') this.handleGinConfirm(confirmed);
     };
     
     // Action button handlers
     this.uiRenderer.onKnockClick = () => this.handleKnock();
     this.uiRenderer.onMeldClick = () => this.handleMeld();
+    this.uiRenderer.onGinClick = () => this.handleGin();
   }
 
   // Start the game
@@ -2211,10 +2255,10 @@ updateGamePositions() {
       if (this.deadwood < 10 && this.playerTurn && 
           this.gameStep % 2 === 1 && // проверяем, что это фаза сброса карты
           this.stateManager?.currentState === 'play') {
-        this.uiRenderer.showKnockButton(true);
-      } else {
-        this.uiRenderer.showKnockButton(false);
-      }
+            this.uiRenderer.showGinButton(true);
+          } else {
+            this.uiRenderer.showGinButton(false);
+          }
     }
     
     // Логика для Pass кнопки (не меняем)
