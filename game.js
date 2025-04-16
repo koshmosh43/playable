@@ -2127,18 +2127,69 @@ updateGamePositions() {
       });
     }
     
-    // Если у оппонента закончилось карт, показываем оверлей playNowOverlay
-    // и удаляем подсказки (элемент с текстом "Take a card: Deck or\nshown card")
+    // Если у оппонента закончились карты, скрываем подсказку и показываем оверлей
     if (this.cardManager.opponentCards.length === 0) {
-      // Показываем оверлей через UI-регистратор
+      // Показываем оверлей через UI-рендерер
       this.uiRenderer.showPlayNowOverlay();
       
-      // Если контейнер подсказки создан, скрываем его
-      if (this.tutorialTitleContainer) {
-        this.app.stage.removeChild(this.tutorialTitle);
-         this.tutorialTitle = null;
-        // Либо можно удалить его с базы: this.app.stage.removeChild(this.tutorialTitleContainer);
+      // Удаляем подсказку "Take a card: Deck or shown card"
+      this.hideTutorialElements();
+    }
+  }
+  
+  // Обновленный метод hideTutorialElements для удаления подсказки
+  hideTutorialElements() {
+    // Флаг, чтобы отслеживать была ли удалена подсказка
+    let tutorialRemoved = false;
+    
+    // Ищем и удаляем элементы туториала со сцены
+    if (this.app && this.app.stage) {
+      for (let i = this.app.stage.children.length - 1; i >= 0; i--) {
+        const child = this.app.stage.children[i];
+        
+        // Проверяем, является ли дочерний элемент контейнером с текстом туториала
+        if (child && child.children) {
+          const hasTutorialText = child.children.some(grandchild => 
+            grandchild instanceof PIXI.Text && 
+            grandchild.text && 
+            (grandchild.text.includes("Take a card") || 
+             grandchild.text.includes("Deck or") ||
+             grandchild.text.includes("shown card"))
+          );
+          
+          // Если это контейнер с текстом туториала, удаляем его
+          if (hasTutorialText) {
+            this.app.stage.removeChild(child);
+            tutorialRemoved = true;
+            console.log("Removed tutorial text");
+          }
+        }
       }
+    }
+    
+    // Если у нас есть ссылка на конкретный контейнер с туториалом, удаляем его также
+    if (this.tutorialTitleContainer) {
+      this.app.stage.removeChild(this.tutorialTitleContainer);
+      this.tutorialTitleContainer = null;
+      tutorialRemoved = true;
+      console.log("Removed tutorialTitleContainer");
+    }
+    
+    // Если у нас есть ссылка на элемент tutorialTitle, удаляем его
+    if (this.tutorialTitle) {
+      this.app.stage.removeChild(this.tutorialTitle);
+      this.tutorialTitle = null;
+      tutorialRemoved = true;
+      console.log("Removed tutorialTitle");
+    }
+    
+    // Сбрасываем флаги туториала
+    this.takeCardTutorialShown = false;
+    
+    if (tutorialRemoved) {
+      console.log("Successfully removed all tutorial elements");
+    } else {
+      console.log("No tutorial elements found to remove");
     }
   }
   

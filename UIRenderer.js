@@ -612,6 +612,7 @@ async setupKnockButton() {
         logo.anchor.set(0.5);
         logo.x = this.app.screen.width / 2;
         logo.y = this.app.screen.height / 2;
+        logo.alpha = 0; // Start with alpha 0 for fade-in
         overlayContainer.addChild(logo);
         
         // Make interactive for click to open URL
@@ -620,6 +621,36 @@ async setupKnockButton() {
         overlayContainer.on('pointerdown', () => {
           window.open('https://apps.apple.com/app/gin-rummy-stars-card-game/id1467143758', '_blank');
           this.app.stage.removeChild(overlayContainer);
+        });
+        
+        // Add the overlay to stage first
+        this.app.stage.addChild(overlayContainer);
+        
+        // НОВАЯ АНИМАЦИЯ: аналогичная кнопкам knock/gin
+        
+        // Fade in animation
+        gsap.to(logo, {
+          alpha: 1,
+          duration: 0.3,
+          ease: "back.out"
+        });
+        
+        // Subtle float animation
+        gsap.to(logo, {
+          y: logo.y - 5,
+          duration: 0.8,
+          repeat: -1,
+          yoyo: true,
+          ease: "sine.inOut"
+        });
+        
+        // Subtle pulse animation
+        gsap.to(logo.scale, {
+          x: 1.05, y: 1.05,
+          duration: 1.2,
+          repeat: -1,
+          yoyo: true,
+          ease: "sine.inOut"
         });
       })
       .catch(error => {
@@ -639,6 +670,7 @@ async setupKnockButton() {
         fallbackText.anchor.set(0.5);
         fallbackText.x = this.app.screen.width / 2;
         fallbackText.y = this.app.screen.height / 2;
+        fallbackText.alpha = 0; // Start with alpha 0 for fade-in
         overlayContainer.addChild(fallbackText);
         
         // Make interactive
@@ -648,10 +680,37 @@ async setupKnockButton() {
           window.open('https://apps.apple.com/app/gin-rummy-stars-card-game/id1467143758', '_blank');
           this.app.stage.removeChild(overlayContainer);
         });
+        
+        // Add the overlay to stage
+        this.app.stage.addChild(overlayContainer);
+        
+        // НОВАЯ АНИМАЦИЯ для fallback текста
+        
+        // Fade in animation
+        gsap.to(fallbackText, {
+          alpha: 1,
+          duration: 0.3,
+          ease: "back.out"
+        });
+        
+        // Subtle float animation
+        gsap.to(fallbackText, {
+          y: fallbackText.y - 5,
+          duration: 0.8,
+          repeat: -1,
+          yoyo: true,
+          ease: "sine.inOut"
+        });
+        
+        // Subtle pulse animation
+        gsap.to(fallbackText.scale, {
+          x: 1.05, y: 1.05,
+          duration: 1.2,
+          repeat: -1,
+          yoyo: true,
+          ease: "sine.inOut"
+        });
       });
-    
-    // Add to stage
-    this.app.stage.addChild(overlayContainer);
     
     return overlayContainer;
   }

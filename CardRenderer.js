@@ -289,7 +289,7 @@ applySpecialHighlight(sprite, color, alpha) {
   animateCardTake(cardData, source, destIndex) {
     if (!cardData) return;
     
-    // Determine starting position (deck or discard)
+    // Определяем начальную позицию
     const startX = source === 'deck' 
       ? this.deckContainer.x + this.config.cardWidth / 2
       : this.discardContainer.x + this.config.cardWidth / 2;
@@ -298,12 +298,11 @@ applySpecialHighlight(sprite, color, alpha) {
       ? this.deckContainer.y + this.config.cardHeight / 2
       : this.discardContainer.y + this.config.cardHeight / 2;
     
-    // Calculate final position in player's hand
+    // Расчет конечной позиции в руке игрока
     const spacing = this.config.fanDistance || 30;
     const totalCards = this.playerHandContainer.children.length;
     const fanAngle = this.config.fanAngle || 10;
     
-    // Calculate position for this card in hand
     const anglePerCard = totalCards > 1 ? fanAngle / (totalCards - 1) : 0;
     const rotation = -fanAngle/2 + destIndex * anglePerCard;
     const finalRotation = -(rotation * Math.PI / 180);
@@ -311,16 +310,15 @@ applySpecialHighlight(sprite, color, alpha) {
     const finalX = this.playerHandContainer.x - ((totalCards - 1) * spacing / 2) + destIndex * spacing;
     const finalY = this.playerHandContainer.y + Math.sin(rotation * Math.PI / 180) * 10;
     
-    // Create card sprite for animation
+    // Создаем спрайт для анимации
     this.createCardSprite(cardData, false)
       .then(sprite => {
-        // Setup sprite
         sprite.anchor.set(0.5, 0.9);
         sprite.width = this.config.cardWidth;
         sprite.height = this.config.cardHeight;
         sprite.cardData = cardData;
         
-        // Initial position and settings
+        // Начальные настройки
         sprite.x = startX;
         sprite.y = startY;
         sprite.rotation = 0;
@@ -328,38 +326,37 @@ applySpecialHighlight(sprite, color, alpha) {
         sprite.alpha = 1;
         sprite.zIndex = 200;
         
-        // Add to animation container
+        // Добавляем в контейнер анимации
         this.animationContainer.addChild(sprite);
         
-        // Create arc animation
+        // Создаем анимацию по дуге
         const timeline = gsap.timeline({
           onComplete: () => {
-            // Remove animation sprite when complete
             this.animationContainer.removeChild(sprite);
           }
         });
         
-        // Calculate arc points
+        // Расчет точек дуги
         const midX = startX + (finalX - startX) * 0.5;
-        const highPoint = Math.min(startY, finalY) - 150; // High arc point
+        const highPoint = Math.min(startY, finalY) - 100; // Высокая точка дуги
         
-        // First part - moving up along arc
+        // Первая часть анимации - движение вверх по дуге
         timeline.to(sprite, {
           x: midX,
           y: highPoint,
           rotation: finalRotation * 0.5,
-          scale: 1.1, // Slightly enlarge card at highest point
-          duration: 0.4,
+          scale: 1.05, // Небольшое увеличение в высшей точке
+          duration: 0.3,
           ease: "power1.out"
         });
         
-        // Second part - moving down into hand
+        // Вторая часть - движение вниз в руку
         timeline.to(sprite, {
           x: finalX,
           y: finalY,
           rotation: finalRotation,
           scale: 1,
-          duration: 0.3,
+          duration: 0.2,
           ease: "power1.in"
         });
       })
@@ -689,18 +686,18 @@ applySpecialHighlight(sprite, color, alpha) {
       return;
     }
     
-    // Use actual deck position
+    // Используем реальную позицию колоды
     const deckX = this.deckContainer.x + this.config.cardWidth / 2;
     const deckY = this.deckContainer.y + this.config.cardHeight / 2;
     
-    // Determine final position
+    // Определяем конечную позицию
     let targetContainer, finalX, finalY, finalRotation;
     const spacing = this.config.fanDistance || 30;
     const fanAngle = this.config.fanAngle || 10;
     
     if (target === 'player') {
       targetContainer = this.playerHandContainer;
-      const totalCards = 10; // Standard hand size
+      const totalCards = 10; // Стандартный размер руки
       const anglePerCard = totalCards > 1 ? fanAngle / (totalCards - 1) : 0;
       const rotation = -fanAngle/2 + index * anglePerCard;
       
@@ -718,7 +715,7 @@ applySpecialHighlight(sprite, color, alpha) {
       finalRotation = rotation * Math.PI / 180;
     }
     
-    // Create card sprite
+    // Создаем спрайт карты для анимации
     this.createCardSprite(cardData, cardData.faceDown)
       .then(sprite => {
         sprite.anchor.set(0.5, 0.9);
@@ -726,15 +723,9 @@ applySpecialHighlight(sprite, color, alpha) {
         sprite.height = this.config.cardHeight;
         sprite.cardData = cardData;
         
-        // Global coordinates
-        const startX = deckX;
-        const startY = deckY;
-        const endX = targetContainer.x + finalX;
-        const endY = targetContainer.y + finalY;
-        
-        // Initial settings
-        sprite.x = startX;
-        sprite.y = startY;
+        // Начальная позиция - колода
+        sprite.x = deckX;
+        sprite.y = deckY;
         sprite.rotation = 0;
         sprite.scale.set(0.9);
         sprite.alpha = 1;
@@ -742,12 +733,13 @@ applySpecialHighlight(sprite, color, alpha) {
         
         this.animationContainer.addChild(sprite);
         
-        // Enhanced animation with natural arc
+        // Создаем анимацию с естественной дугой
         const timeline = gsap.timeline({
           onComplete: () => {
+            // Удаляем временный спрайт
             this.animationContainer.removeChild(sprite);
             
-            // Create permanent sprite in hand
+            // Создаем постоянный спрайт в руке игрока/оппонента
             const permanentSprite = new PIXI.Sprite(sprite.texture);
             permanentSprite.anchor.set(0.5, 0.9);
             permanentSprite.width = this.config.cardWidth;
@@ -770,23 +762,23 @@ applySpecialHighlight(sprite, color, alpha) {
           }
         });
         
-        // Calculate intermediate point with arc
-        const midX = startX + (endX - startX) * 0.5;
-        const midY = startY + (endY - startY) * 0.3 - 30; // Arc upward
+        // Расчет промежуточной точки дуги
+        const midX = deckX + (finalX - deckX) * 0.5;
+        const midY = deckY + (finalY - deckY) * 0.3 - 30; // Точка дуги выше прямой
         
-        // First part - movement to intermediate point
+        // Анимация движения к промежуточной точке с поворотом
         timeline.to(sprite, {
           x: midX,
           y: midY,
-          rotation: finalRotation * 0.3,
+          rotation: finalRotation * 0.5,
           duration: 0.15,
           ease: "power1.out"
         });
         
-        // Second part - completing movement
+        // Анимация движения к конечной точке
         timeline.to(sprite, {
-          x: endX,
-          y: endY,
+          x: finalX,
+          y: finalY,
           rotation: finalRotation,
           scale: 1,
           duration: 0.15,
@@ -801,43 +793,53 @@ applySpecialHighlight(sprite, color, alpha) {
   
   // Animate discarding a card
   animateCardDiscard(cardData, sourceIndex) {
-    // Starting position in player's hand
+    // Начальная позиция в руке игрока
     const spacing = this.config.fanDistance || 30;
     const totalCards = this.playerHandContainer.children.length;
     const startX = this.playerHandContainer.x - ((totalCards - 1) * spacing / 2) + sourceIndex * spacing;
     const startY = this.playerHandContainer.y;
     
-    // Final position (discard) - ALWAYS CENTER
+    // Фанангл для начального поворота
+    const fanAngle = this.config.fanAngle || 10;
+    const anglePerCard = totalCards > 1 ? fanAngle / (totalCards - 1) : 0;
+    const rotation = -fanAngle/2 + sourceIndex * anglePerCard;
+    const startRotation = -(rotation * Math.PI / 180);
+    
+    // Конечная позиция (отбой) - ЦЕНТР отбоя
     const endX = this.discardContainer.x + this.config.cardWidth / 2;
     const endY = this.discardContainer.y + this.config.cardHeight / 2;
     
-    // Create card sprite
+    // Создаем спрайт карты для анимации
     this.createCardSprite(cardData, false)
       .then(sprite => {
-        // Set anchor to center for proper positioning
+        // Настройка спрайта
         sprite.anchor.set(0.5);
-        
-        // Set exact dimensions
         sprite.width = this.config.cardWidth;
         sprite.height = this.config.cardHeight;
+        sprite.cardData = cardData;
         
-        // Set initial position
+        // Начальная позиция
         sprite.x = startX;
         sprite.y = startY;
+        sprite.rotation = startRotation;
         sprite.zIndex = 150;
         
-        // Add to animation container
+        // Добавляем в контейнер анимации
         this.animationContainer.addChild(sprite);
         
-        // Animate movement while maintaining dimensions
+        // Анимируем движение в отбой
         gsap.to(sprite, {
-          duration: 0.5,
           x: endX,
           y: endY,
-          ease: "power2.out",
+          rotation: 0, // Выравниваем карту горизонтально
+          duration: 0.5,
+          ease: "power2.inOut",
           onComplete: () => {
-            // Remove sprite from animation when complete
+            // Удаляем анимационный спрайт
             this.animationContainer.removeChild(sprite);
+            
+            // Здесь мы НЕ добавляем карту в отбой, это должно быть сделано в game.js
+            // после завершения анимации
           }
         });
       })
@@ -848,7 +850,7 @@ applySpecialHighlight(sprite, color, alpha) {
   
   // Animate opponent taking a card
   animateOpponentCardTake(source) {
-    // Starting position
+    // Начальная позиция
     const startX = source === 'deck'
       ? this.deckContainer.x + this.config.cardWidth / 2
       : this.discardContainer.x + this.config.cardWidth / 2;
@@ -856,39 +858,64 @@ applySpecialHighlight(sprite, color, alpha) {
       ? this.deckContainer.y + this.config.cardHeight / 2
       : this.discardContainer.y + this.config.cardHeight / 2;
     
-    // Target position in opponent's hand
+    // Конечная позиция в руке оппонента
     const spacing = this.config.fanDistance || 30;
     const totalCards = this.opponentHandContainer.children.length + 1;
     const endX = this.opponentHandContainer.x + (totalCards - 1) * spacing / 2 - (totalCards - 1) * spacing;
     const endY = this.opponentHandContainer.y;
     
-    // Create animation card (face down)
+    // Поворот для конечной позиции
+    const fanAngle = this.config.fanAngle || 10;
+    const anglePerCard = totalCards > 1 ? fanAngle / (totalCards - 1) : 0;
+    const rotation = -fanAngle/2 + (totalCards - 1) * anglePerCard;
+    const finalRotation = rotation * Math.PI / 180;
+    
+    // Создаем карту для анимации
     const cardData = { faceDown: true };
     
-    // Create sprite with card back
+    // Создаем спрайт
     this.createCardSprite(cardData, true)
       .then(sprite => {
-        // Set exact dimensions
+        sprite.anchor.set(0.5, 0.9);
         sprite.width = this.config.cardWidth;
         sprite.height = this.config.cardHeight;
         
-        // Set position
+        // Начальные настройки
         sprite.x = startX;
         sprite.y = startY;
+        sprite.rotation = 0;
         sprite.zIndex = 150;
         
-        // Add to animation container
+        // Добавляем в контейнер анимации
         this.animationContainer.addChild(sprite);
         
-        // Animate with GSAP
-        gsap.to(sprite, {
-          duration: 0.5,
-          x: endX,
-          y: endY,
-          ease: "power2.out",
+        // Анимация по дуге
+        const timeline = gsap.timeline({
           onComplete: () => {
             this.animationContainer.removeChild(sprite);
           }
+        });
+        
+        // Промежуточная точка дуги
+        const midX = (startX + endX) / 2;
+        const midY = Math.min(startY, endY) - 40; // Дуга вверх
+        
+        // Анимация к промежуточной точке
+        timeline.to(sprite, {
+          x: midX,
+          y: midY,
+          rotation: finalRotation / 2,
+          duration: 0.25,
+          ease: "power2.out"
+        });
+        
+        // Анимация к конечной точке
+        timeline.to(sprite, {
+          x: endX,
+          y: endY,
+          rotation: finalRotation,
+          duration: 0.25,
+          ease: "power2.in"
         });
       })
       .catch(error => {
@@ -898,108 +925,120 @@ applySpecialHighlight(sprite, color, alpha) {
   
   // Animate opponent card discard
   animateOpponentCardDiscard(cardData, sourceIndex) {
-    // Starting position in opponent's hand
+    // Начальная позиция в руке оппонента
     const spacing = this.config.fanDistance || 30;
     const totalCards = this.opponentHandContainer.children.length;
     const startX = this.opponentHandContainer.x + (totalCards - 1) * spacing / 2 - sourceIndex * spacing;
     const startY = this.opponentHandContainer.y;
     
-    // Final position (discard)
+    // Расчет начального поворота исходя из положения в веере
+    const fanAngle = this.config.fanAngle || 10;
+    const anglePerCard = totalCards > 1 ? fanAngle / (totalCards - 1) : 0;
+    const rotation = -fanAngle/2 + (totalCards - 1 - sourceIndex) * anglePerCard;
+    const startRotation = rotation * Math.PI / 180;
+    
+    // Конечная позиция (отбой)
     const endX = this.discardContainer.x + this.config.cardWidth / 2;
     const endY = this.discardContainer.y + this.config.cardHeight / 2;
     
-    // Use provided card data or generate random card
+    // Используем предоставленные данные карты или генерируем случайную
     const cardToUse = cardData || {
       value: ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'][Math.floor(Math.random() * 13)],
       suit: ['hearts', 'diamonds', 'clubs', 'spades'][Math.floor(Math.random() * 4)],
       filename: null
     };
     
-    // Generate filename if missing
+    // Генерируем filename если отсутствует
     if (!cardToUse.filename && cardToUse.value && cardToUse.suit) {
       cardToUse.filename = `${cardToUse.value}_${cardToUse.suit.charAt(0).toUpperCase()}${cardToUse.suit.slice(1)}.webp`;
     }
     
-    // Create both face up and face down card sides
+    // Создаем обе стороны карты для эффекта переворота
     Promise.all([
-      this.createCardSprite(cardToUse, false), // Face up
-      this.createCardSprite({...cardToUse, faceDown: true}, true) // Face down
+      this.createCardSprite(cardToUse, false), // Лицо карты
+      this.createCardSprite({...cardToUse, faceDown: true}, true) // Рубашка
     ]).then(([faceUpCard, faceDownCard]) => {
-      // Create container for animation
+      // Создаем контейнер для анимации
       const flipContainer = new PIXI.Container();
       flipContainer.x = startX;
       flipContainer.y = startY;
       flipContainer.zIndex = 200;
       
-      // Set anchor points to center for proper flipping
-      faceUpCard.anchor.set(0.5);
-      faceDownCard.anchor.set(0.5);
+      // Настраиваем якоря в центр для корректного поворота
+      faceUpCard.anchor.set(0.5, 0.9);
+      faceDownCard.anchor.set(0.5, 0.9);
       
-      // CRITICAL: Set fixed dimensions for both card sides
+      // Задаем фиксированные размеры
       faceUpCard.width = this.config.cardWidth;
       faceUpCard.height = this.config.cardHeight;
       faceDownCard.width = this.config.cardWidth;
       faceDownCard.height = this.config.cardHeight;
       
-      // Position both cards in center of container
+      // Начальная позиция обеих карт в центре контейнера
       faceUpCard.x = 0;
       faceUpCard.y = 0;
       faceDownCard.x = 0;
       faceDownCard.y = 0;
       
-      // Start with back visible
+      // Начинаем с рубашкой видимой
       faceUpCard.visible = false;
       faceDownCard.visible = true;
-      faceDownCard.scale.x = 1; // Initial back scale
-      faceUpCard.scale.x = 0;  // Initial front scale (compressed)
       
-      // Add both card sides to container
+      // Поворачиваем контейнер согласно исходному положению в веере
+      flipContainer.rotation = startRotation;
+      
+      // Добавляем карты в контейнер
       flipContainer.addChild(faceUpCard);
       flipContainer.addChild(faceDownCard);
       this.animationContainer.addChild(flipContainer);
       
-      // Create animation with proportion preservation
+      // Создаем анимацию в 3 этапа
       const timeline = gsap.timeline({
         onComplete: () => {
           this.animationContainer.removeChild(flipContainer);
         }
       });
       
-      // Move to middle point
+      // 1. Движение к середине пути
       timeline.to(flipContainer, {
         x: (startX + endX) / 2,
-        y: (startY + endY) / 2,
+        y: (startY + endY) / 2 - 20, // Небольшая дуга
+        rotation: startRotation / 2, // Постепенный поворот
         duration: 0.3,
         ease: "power2.out"
       });
       
-      // Flip card - hide back
-      timeline.to(faceDownCard.scale, {
-        x: 0,
+      // 2. Эффект переворота карты
+      // Вместо изменения scale.x, используем rotationY для более реалистичного 3D-эффекта
+      timeline.to(flipContainer, {
+        rotationY: 90, // Поворачиваем на 90 градусов (ребро карты)
         duration: 0.15,
         ease: "sine.in",
-        onComplete: () => {
-          faceDownCard.visible = false;
-          faceUpCard.visible = true;
+        onUpdate: function() {
+          // Когда достигаем половины поворота (около 90 градусов)
+          if (this.progress() >= 0.5 && faceDownCard.visible) {
+            faceDownCard.visible = false;
+            faceUpCard.visible = true;
+          }
         }
       });
       
-      // Show front side
-      timeline.to(faceUpCard.scale, {
-        x: 1,
+      timeline.to(flipContainer, {
+        rotationY: 180, // Завершаем поворот до 180 градусов (лицо карты)
         duration: 0.15,
         ease: "sine.out"
       });
       
-      // Move to final position
+      // 3. Движение к отбою и финальное выравнивание
       timeline.to(flipContainer, {
         x: endX,
         y: endY,
+        rotation: 0, // Финальное выравнивание
         duration: 0.3,
         ease: "power2.in"
       });
     }).catch(error => {
-      console.error("Error in card flip animation:", error);
+      console.error("Error in opponent card discard animation:", error);
     });
   }
   
