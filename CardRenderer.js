@@ -241,15 +241,23 @@ applySpecialHighlight(sprite, color, alpha) {
   enhanceCardClickFeedback(sprite) {
     if (!sprite) return;
     
+    // Сохраняем оригинальные размеры
+    const originalScaleX = sprite.scale.x;
+    const originalScaleY = sprite.scale.y;
+    const originalX = sprite.x;
+    const originalY = sprite.y;
+    
     // Apply a subtle pop effect
     gsap.timeline()
       .to(sprite.scale, {
-        x: 1.1, y: 1.1,
+        x: originalScaleX * 1.1, 
+        y: originalScaleY * 1.1,
         duration: 0.1,
         ease: "power1.out"
       })
       .to(sprite.scale, {
-        x: 1, y: 1,
+        x: originalScaleX, 
+        y: originalScaleY,
         duration: 0.1,
         ease: "power1.in"
       });

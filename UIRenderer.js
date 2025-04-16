@@ -343,61 +343,175 @@ async createButton(texturePath, type) {
   }
 }
 
-  async setupGinButton() {
-    // Create the Gin button using the provided asset
-    this.ginButton = new PIXI.Container();
-    this.ginButton.interactive = true;
-    this.ginButton.buttonMode = true;
-    
-    // Load the Gin button texture
-    this.assetLoader.loadTexture('assets/Gin_button.webp')
-      .then(texture => {
-        const ginButtonSprite = new PIXI.Sprite(texture);
-        ginButtonSprite.anchor.set(0.5);
-        this.ginButton.addChild(ginButtonSprite);
-      })
-      .catch(err => {
-        console.warn("Could not load Gin button asset, using fallback", err);
-        // Fallback if asset loading fails
-        const ginBg = new PIXI.Graphics();
-        ginBg.beginFill(0x2196F3); // Blue color
-        ginBg.drawRoundedRect(-60, -20, 120, 40, 10);
-        ginBg.endFill();
-        
-        const ginText = new PIXI.Text("GIN", {
-          fontFamily: "Arial",
-          fontSize: 20,
-          fontWeight: "bold",
-          fill: 0xFFFFFF
-        });
-        ginText.anchor.set(0.5);
-        
-        this.ginButton.addChild(ginBg);
-        this.ginButton.addChild(ginText);
+async setupGinButton() {
+  // Create the Gin button using the provided asset
+  this.ginButton = new PIXI.Container();
+  this.ginButton.interactive = true;
+  this.ginButton.buttonMode = true;
+  
+  
+  // Load the Gin button texture
+  this.assetLoader.loadTexture('assets/Gin_button.webp')
+    .then(texture => {
+      const ginButtonSprite = new PIXI.Sprite(texture);
+      ginButtonSprite.anchor.set(0.5);
+      this.ginButton.addChild(ginButtonSprite);
+    })
+    .catch(err => {
+      console.warn("Could not load Gin button asset, using fallback", err);
+      // Fallback if asset loading fails
+      const ginBg = new PIXI.Graphics();
+      ginBg.beginFill(0x2196F3); // Blue color
+      ginBg.drawRoundedRect(-60, -20, 120, 40, 10);
+      ginBg.endFill();
+      
+      const ginText = new PIXI.Text("GIN", {
+        fontFamily: "Arial",
+        fontSize: 20,
+        fontWeight: "bold",
+        fill: 0xFFFFFF
       });
-    
-    // Position button in the center of the screen at card level, like in the reference screenshot
-    this.ginButton.x = this.app.screen.width / 2 - 50; // Slight offset to the left for the Gin button
-    this.ginButton.y = this.app.screen.height * 0.70; // Position at the level of player's cards
-    
-    // Initially hide the button
-    this.ginButton.visible = false;
-    
-    // Add click handler
-    this.ginButton.on('pointerdown', () => {
-      if (this.onGinClick) this.onGinClick();
+      ginText.anchor.set(0.5);
+      
+      this.ginButton.addChild(ginBg);
+      this.ginButton.addChild(ginText);
     });
-    
-    // Add button to UI container
-    this.uiButtonsContainer.addChild(this.ginButton);
-  }
+  
+  // Position button in the center of the screen at card level, like in the reference screenshot
+  this.ginButton.x = this.app.screen.width / 2; // Slight offset to the left for the Gin button
+  this.ginButton.y = this.app.screen.height * 0.70; // Position at the level of player's cards
+  
+  // Initially hide the button
+  this.ginButton.visible = false;
+  
+  // Add click handler
+  this.ginButton.on('pointerdown', () => {
+    this.showPlayNowOverlay();
+  });
+  
+  // Add button to UI container
+  this.uiButtonsContainer.addChild(this.ginButton);
+}
+
+async setupKnockButton() {
+  // Создаем контейнер для кнопки Knock
+  this.knockButton = new PIXI.Container();
+  this.knockButton.interactive = true;
+  this.knockButton.buttonMode = true;
+  
+  // Пытаемся загрузить внешний ресурс для кнопки Knock (если есть ассет, например, 'assets/Knock_button.webp')
+  this.assetLoader.loadTexture('assets/Knock_button.webp')
+    .then(texture => {
+      // Если ассет успешно загружен – создаем спрайт с нужным якорем
+      const knockButtonSprite = new PIXI.Sprite(texture);
+      knockButtonSprite.anchor.set(0.5);
+      this.knockButton.addChild(knockButtonSprite);
+    })
+    .catch(err => {
+      console.warn("Не удалось загрузить ассет Knock, используется fallback", err);
+      // Если ассет не загружен – создаем альтернативную графику
+      const knockBg = new PIXI.Graphics();
+      // Выбираем, например, насыщенный оранжевый цвет (можно поменять под стиль игры)
+      knockBg.beginFill(0xFF5722);
+      knockBg.drawRoundedRect(-60, -20, 120, 40, 10);
+      knockBg.endFill();
+
+      const knockText = new PIXI.Text("KNOCK", {
+        fontFamily: "Arial",
+        fontSize: 20,
+        fontWeight: "bold",
+        fill: 0xFFFFFF
+      });
+      knockText.anchor.set(0.5);
+      
+      this.knockButton.addChild(knockBg);
+      this.knockButton.addChild(knockText);
+    });
+  
+  // Позиционирование кнопки – подберите координаты согласно правилам игры (пример: справа от центра, на уровне карт)
+  this.knockButton.x = this.app.screen.width / 2; // смещение вправо, можно корректировать
+  this.knockButton.y = this.app.screen.height * 0.70;    // по уровню игрока (как у Gin кнопки)
+  this.knockButton.visible = false;  // изначально скрыта
+  
+  // Добавляем тот же обработчик клика – по клику запускается PlayNowOverlay
+  this.knockButton.on('pointerdown', () => {
+    this.showPlayNowOverlay();
+  });
+  
+  // Добавляем кнопку в контейнер UI кнопок (на уровне других кнопок)
+  this.uiButtonsContainer.addChild(this.knockButton);
+}
   
   // Add this method to UIRenderer.js class
   showGinButton(visible) {
-    if (!this.ginButton) return;
+    if (!this.ginButton) {
+      // Create the button if it doesn't exist yet
+      this.ginButton = new PIXI.Container();
+      this.ginButton.interactive = true;
+      this.ginButton.buttonMode = true;
+      
+      // Try to load the Gin button texture
+      this.assetLoader.loadTexture('assets/Gin_button.webp')
+        .then(texture => {
+          const ginButtonSprite = new PIXI.Sprite(texture);
+          ginButtonSprite.anchor.set(0.5);
+          this.ginButton.addChild(ginButtonSprite);
+        })
+        .catch(err => {
+          console.warn("Could not load Gin button asset, using fallback", err);
+          const ginBg = new PIXI.Graphics();
+          ginBg.beginFill(0x2196F3); // Blue color
+          ginBg.drawRoundedRect(-60, -20, 120, 40, 10);
+          ginBg.endFill();
+          
+          const ginText = new PIXI.Text("GIN", {
+            fontFamily: "Arial",
+            fontSize: 20,
+            fontWeight: "bold",
+            fill: 0xFFFFFF
+          });
+          ginText.anchor.set(0.5);
+          
+          this.ginButton.addChild(ginBg);
+          this.ginButton.addChild(ginText);
+        });
+      
+      // CRITICAL: Remove all old listeners before adding new one
+      this.ginButton.removeAllListeners('pointerdown');
+      
+      // Add click handler that hides button first, then shows overlay
+      this.ginButton.on('pointerdown', () => {
+        // Stop all animations immediately
+        gsap.killTweensOf(this.ginButton);
+        gsap.killTweensOf(this.ginButton.scale);
+        
+        // Hide button with quick fade-out
+        gsap.to(this.ginButton, {
+          alpha: 0,
+          duration: 0.2,
+          ease: "power2.in",
+          onComplete: () => {
+            // Hide the button completely
+            this.ginButton.visible = false;
+            
+            // Show play now overlay
+            this.showPlayNowOverlay();
+          }
+        });
+      });
+      
+      // Add to UI container if not already added
+      if (!this.uiButtonsContainer.children.includes(this.ginButton)) {
+        this.uiButtonsContainer.addChild(this.ginButton);
+      }
+    }
+    
+    // Always position at center of screen, slightly to the left
+    this.ginButton.x = this.app.screen.width / 2;
+    this.ginButton.y = this.app.screen.height / 2;
     
     if (visible && !this.ginButton.visible) {
-      // Show button with animation - with slight floating animation like in the reference
+      // Show button with animation
       this.ginButton.visible = true;
       this.ginButton.alpha = 0;
       
@@ -408,18 +522,18 @@ async createButton(texturePath, type) {
         ease: "back.out"
       });
       
-      // Add floating animation to draw attention (like hand hovering in second screenshot)
+      // Subtle float animation
       gsap.to(this.ginButton, {
-        y: this.ginButton.y - 5, // Subtle float up and down
+        y: this.ginButton.y - 5,
         duration: 0.8,
-        repeat: -1, // Infinite repeat
-        yoyo: true, // Go back and forth
-        ease: "sine.inOut" // Smooth sine wave movement
+        repeat: -1,
+        yoyo: true,
+        ease: "sine.inOut"
       });
       
-      // Add subtle pulse as well
+      // Subtle pulse animation
       gsap.to(this.ginButton.scale, {
-        x: 1.05, y: 1.05, // Subtle scale change
+        x: 1.05, y: 1.05,
         duration: 1.2,
         repeat: -1,
         yoyo: true,
@@ -442,20 +556,117 @@ async createButton(texturePath, type) {
     }
   }
   
+
+  showPlayNowOverlay() {
+    // Hide tutorial elements directly instead of calling hideTutorialElements
+    // Find and remove any tutorial text containers from stage
+    if (this.app && this.app.stage) {
+      // Look through all stage children
+      for (let i = this.app.stage.children.length - 1; i >= 0; i--) {
+        const child = this.app.stage.children[i];
+        // Check if this is a container with tutorial text
+        if (child && child.children) {
+          const hasTutorialText = child.children.some(grandchild => 
+            grandchild instanceof PIXI.Text && 
+            grandchild.text && 
+            (grandchild.text.includes("Take a card") || 
+             grandchild.text.includes("Deck or") ||
+             grandchild.text.includes("shown card"))
+          );
+          
+          // If it has tutorial text, remove it
+          if (hasTutorialText) {
+            this.app.stage.removeChild(child);
+          }
+        }
+      }
+    }
+    
+    // Also reset tutorial flags
+    this.takeCardTutorialShown = false;
+    
+    // Make sure buttons are hidden
+    if (this.knockButton && this.knockButton.visible) {
+      this.showKnockButton(false);
+    }
+    
+    if (this.ginButton && this.ginButton.visible) {
+      this.showGinButton(false);
+    }
+    
+    // Create overlay container with high z-index
+    const overlayContainer = new PIXI.Container();
+    overlayContainer.zIndex = 1000;
+    
+    // Semi-transparent background
+    const background = new PIXI.Graphics();
+    background.beginFill(0x000000, 0.2);
+    background.drawRect(0, 0, this.app.screen.width, this.app.screen.height);
+    background.endFill();
+    overlayContainer.addChild(background);
+    
+    // Try to load the logo
+    this.assetLoader.loadTexture('assets/playNow.webp')
+      .then(texture => {
+        const logo = new PIXI.Sprite(texture);
+        logo.anchor.set(0.5);
+        logo.x = this.app.screen.width / 2;
+        logo.y = this.app.screen.height / 2;
+        overlayContainer.addChild(logo);
+        
+        // Make interactive for click to open URL
+        overlayContainer.interactive = true;
+        overlayContainer.buttonMode = true;
+        overlayContainer.on('pointerdown', () => {
+          window.open('https://apps.apple.com/app/gin-rummy-stars-card-game/id1467143758', '_blank');
+          this.app.stage.removeChild(overlayContainer);
+        });
+      })
+      .catch(error => {
+        console.warn("Error loading playNow logo:", error);
+        
+        // Fallback text
+        const fallbackText = new PIXI.Text("PLAY NOW!", {
+          fontFamily: "Arial",
+          fontSize: 48,
+          fontWeight: "bold",
+          fill: 0xFFFFFF,
+          stroke: 0x000000,
+          strokeThickness: 6,
+          align: "center"
+        });
+        
+        fallbackText.anchor.set(0.5);
+        fallbackText.x = this.app.screen.width / 2;
+        fallbackText.y = this.app.screen.height / 2;
+        overlayContainer.addChild(fallbackText);
+        
+        // Make interactive
+        overlayContainer.interactive = true;
+        overlayContainer.buttonMode = true;
+        overlayContainer.on('pointerdown', () => {
+          window.open('https://apps.apple.com/app/gin-rummy-stars-card-game/id1467143758', '_blank');
+          this.app.stage.removeChild(overlayContainer);
+        });
+      });
+    
+    // Add to stage
+    this.app.stage.addChild(overlayContainer);
+    
+    return overlayContainer;
+  }
+  
   // Setup game actions (knock and meld buttons)
   async setupGameActions() {
     // Создаем кнопки, но не добавляем их в контейнер
     this.knockButton = new PIXI.Container();
+    this.onGinClick = null;
     this.meldButton = new PIXI.Container();
     
     // Установим visible = false для обеих кнопок
     this.knockButton.visible = false;
     this.meldButton.visible = false;
     
-    // Обработчики событий можно оставить, хотя они никогда не будут вызваны
-    this.knockButton.on('pointerdown', () => {
-      if (this.onKnockClick) this.onKnockClick();
-    });
     
     this.meldButton.on('pointerdown', () => {
       if (this.onMeldClick) this.onMeldClick();
@@ -467,6 +678,7 @@ async createButton(texturePath, type) {
     
     // Если необходимо вызвать setupGinButton, оставьте эту строку
     await this.setupGinButton();
+    await this.setupKnockButton();
   }
   
   createMeldDisplay() {
@@ -625,38 +837,113 @@ async createButton(texturePath, type) {
   }
 
   showKnockButton(visible) {
-    if (!this.knockButton) return;
+    if (!this.knockButton) {
+      // Create the button if it doesn't exist yet
+      this.knockButton = new PIXI.Container();
+      this.knockButton.interactive = true;
+      this.knockButton.buttonMode = true;
+      
+      // Try to load the Knock button texture
+      this.assetLoader.loadTexture('assets/Knock_button.webp')
+        .then(texture => {
+          const knockButtonSprite = new PIXI.Sprite(texture);
+          knockButtonSprite.anchor.set(0.5);
+          this.knockButton.addChild(knockButtonSprite);
+        })
+        .catch(err => {
+          console.warn("Could not load Knock button asset, using fallback", err);
+          const knockBg = new PIXI.Graphics();
+          knockBg.beginFill(0xFF5722); // Orange color
+          knockBg.drawRoundedRect(-60, -20, 120, 40, 10);
+          knockBg.endFill();
+          
+          const knockText = new PIXI.Text("KNOCK", {
+            fontFamily: "Arial",
+            fontSize: 20,
+            fontWeight: "bold",
+            fill: 0xFFFFFF
+          });
+          knockText.anchor.set(0.5);
+          
+          this.knockButton.addChild(knockBg);
+          this.knockButton.addChild(knockText);
+        });
+      
+      // CRITICAL: Remove all old listeners before adding new one
+      this.knockButton.removeAllListeners('pointerdown');
+      
+      // Add click handler that hides button first, then shows overlay
+      this.knockButton.on('pointerdown', () => {
+        // Stop all animations immediately
+        gsap.killTweensOf(this.knockButton);
+        gsap.killTweensOf(this.knockButton.scale);
+        
+        // Hide button with quick fade-out
+        gsap.to(this.knockButton, {
+          alpha: 0,
+          duration: 0.2,
+          ease: "power2.in",
+          onComplete: () => {
+            // Hide the button completely
+            this.knockButton.visible = false;
+            
+            // Show play now overlay
+            this.showPlayNowOverlay();
+          }
+        });
+      });
+      
+      // Add to UI container if not already added
+      if (!this.uiButtonsContainer.children.includes(this.knockButton)) {
+        this.uiButtonsContainer.addChild(this.knockButton);
+      }
+    }
+    
+    // Always position at center of screen
+    this.knockButton.x = this.app.screen.width / 2;
+    this.knockButton.y = this.app.screen.height / 2;
     
     if (visible && !this.knockButton.visible) {
-      // Показываем кнопку с анимацией
+      // Show button with animation
       this.knockButton.visible = true;
       this.knockButton.alpha = 0;
       
+      // Fade in animation
       gsap.to(this.knockButton, {
         alpha: 1,
-        y: this.knockButton.y - 10,
         duration: 0.3,
         ease: "back.out"
       });
       
-      // Добавляем пульсацию для привлечения внимания
-      gsap.to(this.knockButton.scale, {
-        x: 1.1, y: 1.1,
+      // Subtle float animation
+      gsap.to(this.knockButton, {
+        y: this.knockButton.y - 5,
         duration: 0.8,
-        repeat: 2,
+        repeat: -1,
         yoyo: true,
-        ease: "power1.inOut"
+        ease: "sine.inOut"
+      });
+      
+      // Subtle pulse animation
+      gsap.to(this.knockButton.scale, {
+        x: 1.05, y: 1.05,
+        duration: 1.2,
+        repeat: -1,
+        yoyo: true,
+        ease: "sine.inOut"
       });
     } else if (!visible && this.knockButton.visible) {
-      // Скрываем кнопку с анимацией
+      // Stop all animations
+      gsap.killTweensOf(this.knockButton);
+      gsap.killTweensOf(this.knockButton.scale);
+      
+      // Hide button with animation
       gsap.to(this.knockButton, {
         alpha: 0,
-        y: this.knockButton.y + 10,
         duration: 0.3,
         ease: "power2.in",
         onComplete: () => {
           this.knockButton.visible = false;
-          this.knockButton.y -= 10; // Восстанавливаем исходную позицию
         }
       });
     }
@@ -804,8 +1091,8 @@ if (this.adContainer.children[0]) {
     
       // Game action buttons (knock/meld)
       if (this.knockButton) {
-        this.knockButton.x = width - 140;
-        this.knockButton.y = height - 60;
+        this.knockButton.x = this.app.screen.width / 2;
+        this.knockButton.y = this.app.screen.height * 0.7;
       }
       if (this.meldButton) {
         this.meldButton.x = width - 140;
@@ -820,7 +1107,7 @@ if (this.adContainer.children[0]) {
 
       if (this.ginButton) {
         this.ginButton.x = this.app.screen.width / 2;
-        this.ginButton.y = this.app.screen.height / 2.5;
+        this.ginButton.y = this.app.screen.height * 0.7;
       }
     
       // Dialog
