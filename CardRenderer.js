@@ -295,20 +295,20 @@ setupDragAndDrop(sprite, cardData) {
       gsap.to(sprite.scale, {
         x: 0.6, 
         y: 0.6,
-        duration: 0.2, // Быстрая анимация для отзывчивости
+        duration: 0.6, // Быстрая анимация для отзывчивости
         ease: "power2.out"
       });
     } 
     // Если карта не над отбоем и уже уменьшена, возвращаем увеличенный размер
-    else if (!isOverDiscard && sprite.scale.x < 1.29) {
-      // Возвращаем увеличенный масштаб
-      gsap.to(sprite.scale, {
-        x: 1.3, 
-        y: 1.3,
-        duration: 0.2,
-        ease: "power2.out"
-      });
-    }
+  //   else if (!isOverDiscard && sprite.scale.x < 1.29) {
+  //     // Возвращаем увеличенный масштаб
+  //     gsap.to(sprite.scale, {
+  //       x: 0.8, 
+  //       y: 0.8,
+  //       duration: 0.5,
+  //       ease: "power2.out"
+  //     });
+  //   }
   };
   
   const onDragEnd = (event) => {
@@ -381,12 +381,12 @@ startCardDragging(cardData, source) {
       sprite.y = this.discardContainer.y + this.config.cardHeight / 2;
     }
     
-    // Немного увеличиваем карту для обратной связи
-    gsap.to(sprite.scale, {
-      x: 1.001, y: 1.001, // Уменьшаем масштаб в ~3 раза (было 1.1)
-      duration: 0.2,
-      ease: "back.out"
-    });
+    // // Немного увеличиваем карту для обратной связи
+    // gsap.to(sprite.scale, {
+    //   x: 0.8, y: 0.8, // Уменьшаем масштаб в ~3 раза (было 1.1)
+    //   duration: 0.8,
+    //   ease: "back.out"
+    // });
     
     // Удаляем предыдущие обработчики, если они были
     window.removeEventListener('mousemove', this.moveCardHandler);
@@ -657,8 +657,8 @@ snapCardBack(sprite) {
   
   // ИЗМЕНЕНО: Плавная анимация возврата к исходному масштабу
   gsap.to(sprite.scale, {
-    x: 1.0,
-    y: 1.0,
+    x: 0.6,
+    y: 0.6,
     duration: 0.25,
     ease: "power2.out"
   });
@@ -736,9 +736,9 @@ applySpecialHighlight(sprite, color, alpha) {
     // Apply a subtle pop effect
     gsap.timeline()
       .to(sprite.scale, {
-        x: originalScaleX * 1.1, 
-        y: originalScaleY * 1.1,
-        duration: 0.1,
+        x: originalScaleX * 0.8, 
+        y: originalScaleY * 0.8,
+        duration: 0.4,
         ease: "power1.out"
       })
       .to(sprite.scale, {

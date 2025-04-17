@@ -108,41 +108,49 @@ export class UIRenderer {
       }
     }
 
-async setupAvatars() {
-try {
-  // Load textures for avatars
-  const [blueTex, redTex] = await Promise.all([
-    this.assetLoader.loadTexture("assets/blue_avatar.webp"),
-    this.assetLoader.loadTexture("assets/red_avatar.webp"),
-  ]);
-
-  // Create avatar sprites
-  this.blueAvatar = new PIXI.Sprite(blueTex);
-  this.redAvatar = new PIXI.Sprite(redTex);
-
-  // Set anchor to the center for proper positioning
-  this.blueAvatar.anchor.set(0.5);
-  this.redAvatar.anchor.set(0.5);
-
-  // Set initial scale
-  this.blueAvatar.scale.set(0.2);
-  this.redAvatar.scale.set(0.2);
-
-  // Position avatars
-  // Note: These positions are relative to the UI renderer container.
-  // They will appear at the appropriate vertical positions.
-  this.redAvatar.x = this.app.screen.width / 2;
-  this.redAvatar.y = this.app.screen.height * 0.18;
-  this.blueAvatar.x = this.app.screen.width / 2;
-  this.blueAvatar.y = this.app.screen.height * 0.765;
-
-  // Add avatars to the avatars container inside UI renderer
-  this.avatarsContainer.addChild(this.blueAvatar);
-  this.avatarsContainer.addChild(this.redAvatar);
-} catch (err) {
-  console.warn("Could not load avatars", err);
-}
-}
+    async setupAvatars() {
+      try {
+        // Load textures for avatars
+        const [blueTex, redTex] = await Promise.all([
+          this.assetLoader.loadTexture("assets/blue_avatar.webp"),
+          this.assetLoader.loadTexture("assets/red_avatar.webp"),
+        ]);
+      
+        // Create avatar sprites
+        this.blueAvatar = new PIXI.Sprite(blueTex);
+        this.redAvatar = new PIXI.Sprite(redTex);
+      
+        // Set anchor to the center for proper positioning
+        this.blueAvatar.anchor.set(0.5);
+        this.redAvatar.anchor.set(0.5);
+      
+        // Set initial scale
+        this.blueAvatar.scale.set(0.2);
+        this.redAvatar.scale.set(0.2);
+      
+        // Position avatars based on screen height
+        // For iPhone SE (height < 667px), position avatars closer to the table
+        if (this.app.screen.height < 667) {
+          // Closer to the table positions for smaller screens
+          this.redAvatar.y = this.app.screen.height * 0.30;  // Move red avatar down closer to table
+          this.blueAvatar.y = this.app.screen.height * 0.65; // Move blue avatar up closer to table
+        } else {
+          // Default positions for regular screens
+          this.redAvatar.y = this.app.screen.height * 0.23;
+          this.blueAvatar.y = this.app.screen.height * 0.7;
+        }
+        
+        // Center horizontally
+        this.redAvatar.x = this.app.screen.width / 2;
+        this.blueAvatar.x = this.app.screen.width / 2;
+      
+        // Add avatars to the avatars container inside UI renderer
+        this.avatarsContainer.addChild(this.blueAvatar);
+        this.avatarsContainer.addChild(this.redAvatar);
+      } catch (err) {
+        console.warn("Could not load avatars", err);
+      }
+      }
 
   
   // Setup score display

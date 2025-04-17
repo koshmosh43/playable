@@ -3673,7 +3673,7 @@ updateEndScreen(playerScore) {
       
       // Additional highlight animation
       gsap.to(cardSprite.scale, {
-        x: 1.1, y: 1.1, duration: 0.2, repeat: 3, yoyo: true
+        x: 0.8, y: 0.8, duration: 0.2, repeat: 3, yoyo: true
       });
     }
     
