@@ -1753,6 +1753,9 @@ document.addEventListener('cardAddedToHand', (event) => {
   const { cardData, source } = event.detail;
   console.log(`Card added to hand from ${source}:`, cardData);
   
+  // Hide tutorial message when card is added to hand, regardless of source
+  this.hideTutorialElements();
+  
   // Handle adding the card based on its source
   if (source === 'deck') {
     // Check if we have a pre-drawn card from dragging
@@ -2036,6 +2039,7 @@ document.addEventListener('cardAddedToHand', (event) => {
     let playerIndex = 0;
     let opponentIndex = 0;
     
+    // Create a proper sequence that alternates between player and opponent
     while (playerIndex < originalPlayerCards.length || opponentIndex < originalOpponentCards.length) {
       if (playerIndex < originalPlayerCards.length) {
         sequence.push({ 
@@ -2121,7 +2125,7 @@ document.addEventListener('cardAddedToHand', (event) => {
         this.cardManager.opponentCards.push(card);
       }
       
-      // Анимируем раздачу карты
+      // Анимируем раздачу карты к правильному получателю
       this.cardRenderer.animateDealingCard(card, target, index, () => {
         setTimeout(dealNext, 150);
       });
@@ -2759,13 +2763,23 @@ hideTutorialElements() {
 handleDrawFromDeck() {
   console.log('Player draws from deck');
   
-  // Скрываем туториал "Take a card"
+  // Скрываем туториал "Take a card" - это уже есть, но убедимся, что вызывается правильно
   this.hideTutorialElements();
   
   // Только разрешаем, если это фаза взятия
   if (!this.playerTurn || this.gameStep % 2 !== 0) return;
   
   const newCard = this.drawCardFromDeck();
+  
+  // Add animation before updating the player's hand
+  if (this.cardRenderer) {
+    // Calculate the target position in player's hand
+    const destIndex = this.cardManager.playerCards.length;
+    
+    // Start the animation
+    this.cardRenderer.animateCardTake(newCard, 'deck', destIndex);
+  }
+  
   this.cardManager.playerCards.push(newCard);
   
   // Сортируем карты с мелдами
@@ -2778,13 +2792,15 @@ handleDrawFromDeck() {
   // Устанавливаем флаг, что игрок взял карту
   this.hasDrawnCard = true;
   
-  // Обновляем экран игры
-  this.updatePlayScreen();
-  
-  // Ждем завершения анимации, прежде чем показывать подсказку сброса
+  // Обновляем экран игры после небольшой задержки, чтобы анимация успела начаться
   setTimeout(() => {
-    this.showDiscardHint();
-  }, 800);
+    this.updatePlayScreen();
+    
+    // Ждем завершения анимации, прежде чем показывать подсказку сброса
+    setTimeout(() => {
+      this.showDiscardHint();
+    }, 800);
+  }, 300);
 }
 
 handleDrawFromDiscard(cardData) {
@@ -3127,6 +3143,7 @@ handleDrawFromDiscard(cardData) {
     if (this.cardRenderer) {
       this.cardRenderer.enableDragging(false);
     }
+    
     // Отложенное выполнение
     setTimeout(() => {
       // ИИ решает, брать из колоды или из сброса
@@ -3135,30 +3152,52 @@ handleDrawFromDiscard(cardData) {
       if ((takeFromDeck && this.deckCount > 0) || this.cardManager.discardPile?.length) {
         const source = takeFromDeck ? 'deck' : 'discard';
         
-        if (takeFromDeck) this.deckCount--;
+        // Get or create a card for the opponent
+        let newCard;
+        if (takeFromDeck) {
+          // Take a new card from the deck
+          newCard = this.drawCardFromDeck();
+          newCard.faceDown = true; // Make sure it's face down for opponent
+          this.deckCount--;
+        } else {
+          // Take top card from discard pile
+          newCard = this.cardManager.discardPile.pop();
+          newCard.faceDown = true; // Make sure it's face down once in opponent's hand
+        }
+        
+        // Add card to opponent's hand first (for proper indexing in animation)
+        this.cardManager.opponentCards.push(newCard);
+        
+        // Calculate the index for where the card will go (at the end of the hand)
+        const newCardIndex = this.cardManager.opponentCards.length - 1;
         
         if (this.cardRenderer) {
-          // Анимация взятия карты
-          this.cardRenderer.animateOpponentCardTake(source);
+          // Animate showing the card being taken
+          this.cardRenderer.animateOpponentCardTake(source, newCardIndex);
           
-          // Быстрый сброс для playable ad
+          // Wait for animation to complete before showing discard
           setTimeout(() => {
-            this.opponentDiscard();
-            
-            // Переход хода
-            this.playerTurn = true;
-            this.gameStep = this.gameStep % 2 === 0 ? this.gameStep : this.gameStep + 1; // Гарантируем четный шаг в начале хода игрока
+            // IMPORTANT: Update the display first to show the new card in opponent's hand
             this.updatePlayScreen();
             
-            // ИЗМЕНЕНО: Проверяем дополнительные условия перед показом туториала
+            // Slight delay before discarding to make it feel natural
             setTimeout(() => {
-              if (this.playerTurn && this.gameStep % 2 === 0 && 
-                  this.deadwood > 10 && this.cardManager.opponentCards.length > 0) {
-                this.showTutorial();
-              }
-            }, 500);
-            
-          }, 800);
+              this.opponentDiscard();
+              
+              // Переход хода
+              this.playerTurn = true;
+              this.gameStep = this.gameStep % 2 === 0 ? this.gameStep : this.gameStep + 1; // Гарантируем четный шаг в начале хода игрока
+              this.updatePlayScreen();
+              
+              // ИЗМЕНЕНО: Проверяем дополнительные условия перед показом туториала
+              setTimeout(() => {
+                if (this.playerTurn && this.gameStep % 2 === 0 && 
+                    this.deadwood > 10 && this.cardManager.opponentCards.length > 0) {
+                  this.showTutorial();
+                }
+              }, 500);
+            }, 800); // Time before discarding
+          }, 600); // Time to see the card in opponent's hand
         }
       } else {
         // Если карт нет

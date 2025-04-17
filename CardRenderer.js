@@ -1371,7 +1371,7 @@ if (i === visibleDiscards - 1) {
   }
   
   // Animate opponent taking a card
-  animateOpponentCardTake(source) {
+  animateOpponentCardTake(source, newCardIndex) {
     // Начальная позиция
     const startX = source === 'deck'
       ? this.deckContainer.x + this.config.cardWidth / 2
@@ -1383,16 +1383,18 @@ if (i === visibleDiscards - 1) {
     // Конечная позиция в руке оппонента
     const spacing = this.config.fanDistance || 30;
     const totalCards = this.opponentHandContainer.children.length + 1;
-    const endX = this.opponentHandContainer.x + (totalCards - 1) * spacing / 2 - (totalCards - 1) * spacing;
-    const endY = this.opponentHandContainer.y;
     
-    // Поворот для конечной позиции
+    // Calculate fan parameters (similar to renderOpponentHand)
     const fanAngle = this.config.fanAngle || 10;
     const anglePerCard = totalCards > 1 ? fanAngle / (totalCards - 1) : 0;
-    const rotation = -fanAngle/2 + (totalCards - 1) * anglePerCard;
-    const finalRotation = rotation * Math.PI / 180;
+    const rotation = -fanAngle/2 + newCardIndex * anglePerCard;
     
-    // Создаем карту для анимации
+    // Calculate final position in the fan
+    const finalX = this.opponentHandContainer.x - ((totalCards - 1) * spacing / 2) + newCardIndex * spacing;
+    const finalY = this.opponentHandContainer.y + Math.sin(rotation * Math.PI / 180) * 10;
+    const finalRotation = -(rotation * Math.PI / 180);
+    
+    // Создаем карту для анимации (всегда рубашкой вверх для оппонента)
     const cardData = { faceDown: true };
     
     // Создаем спрайт
@@ -1414,13 +1416,28 @@ if (i === visibleDiscards - 1) {
         // Анимация по дуге
         const timeline = gsap.timeline({
           onComplete: () => {
+            // Remove the animated sprite
             this.animationContainer.removeChild(sprite);
+            
+            // Create a permanent card sprite in opponent's hand
+            const permanentSprite = new PIXI.Sprite(sprite.texture);
+            permanentSprite.anchor.set(0.5, 0.9);
+            permanentSprite.width = this.config.cardWidth;
+            permanentSprite.height = this.config.cardHeight;
+            permanentSprite.x = finalX;
+            permanentSprite.y = finalY;
+            permanentSprite.rotation = finalRotation;
+            permanentSprite.zIndex = newCardIndex;
+            
+            // Add to opponent's hand container
+            this.opponentHandContainer.addChild(permanentSprite);
+            this.opponentHandContainer.sortChildren();
           }
         });
         
         // Промежуточная точка дуги
-        const midX = (startX + endX) / 2;
-        const midY = Math.min(startY, endY) - 40; // Дуга вверх
+        const midX = (startX + finalX) / 2;
+        const midY = Math.min(startY, finalY) - 40; // Дуга вверх
         
         // Анимация к промежуточной точке
         timeline.to(sprite, {
@@ -1433,8 +1450,8 @@ if (i === visibleDiscards - 1) {
         
         // Анимация к конечной точке
         timeline.to(sprite, {
-          x: endX,
-          y: endY,
+          x: finalX,
+          y: finalY,
           rotation: finalRotation,
           duration: 0.25,
           ease: "power2.in"
