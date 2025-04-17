@@ -290,15 +290,15 @@ setupDragAndDrop(sprite, cardData) {
     const isOverDiscard = this.isOverDiscardPile(globalPos);
     
     // Если карта над отбоем, плавно уменьшаем ее до нормального размера
-    if (isOverDiscard && sprite.scale.x > 1.0) {
-      // Плавно уменьшаем масштаб до нормального (1.0)
-      gsap.to(sprite.scale, {
-        x: 0.6, 
-        y: 0.6,
-        duration: 0.6, // Быстрая анимация для отзывчивости
-        ease: "power2.out"
-      });
-    } 
+    // if (isOverDiscard && sprite.scale.x > 1.0) {
+    //   // Плавно уменьшаем масштаб до нормального (1.0)
+    //   gsap.to(sprite.scale, {
+    //     x: 0.6, 
+    //     y: 0.6,
+    //     duration: 0.6, // Быстрая анимация для отзывчивости
+    //     ease: "power2.out"
+    //   });
+    // } 
     // Если карта не над отбоем и уже уменьшена, возвращаем увеличенный размер
   //   else if (!isOverDiscard && sprite.scale.x < 1.29) {
   //     // Возвращаем увеличенный масштаб
@@ -441,8 +441,8 @@ moveCardHandler = (event) => {
   if ((isOverDiscard || isOverPlayerHand) && this.draggingCard.scale.x > 1.0) {
     // Плавно уменьшаем масштаб до нормального (1.0)
     gsap.to(this.draggingCard.scale, {
-      x: 1.0, 
-      y: 1.0,
+      x: 0.7, 
+      y: 0.7,
       duration: 0.2, // Быстрая анимация для отзывчивости
       ease: "power2.out"
     });
@@ -451,8 +451,8 @@ moveCardHandler = (event) => {
   else if (!isOverDiscard && !isOverPlayerHand && this.draggingCard.scale.x < 1.29) {
     // Возвращаем увеличенный масштаб
     gsap.to(this.draggingCard.scale, {
-      x: 1.3, 
-      y: 1.3,
+      x: 0.65, 
+      y: 0.65,
       duration: 0.2,
       ease: "power2.out"
     });
@@ -895,9 +895,12 @@ applySpecialHighlight(sprite, color, alpha) {
     for (let i = 0; i < visibleCount; i++) {
       const sprite = await this.createCardSprite({ faceDown: true }, true);
       
-      // Offset each card slightly
-      sprite.x = 0;
-      sprite.y = -3 * i;
+      // Set anchor to center for proper scaling animations
+      sprite.anchor.set(0.5, 0.5);
+      
+      // Position card at center of deck, with slight offset for stacking
+      sprite.x = this.config.cardWidth / 2;
+      sprite.y = this.config.cardHeight / 2 - 3 * i;
       sprite.zIndex = i;
       
       // If this is the top card and deck is not empty, make it interactive
@@ -968,8 +971,10 @@ applySpecialHighlight(sprite, color, alpha) {
     countContainer.addChild(countText);
     
     // Position container in center of card
-    countContainer.x = this.config.cardWidth * 2.3;
-    countContainer.y = this.config.cardHeight * 2.1;
+    // Since we've already set the card's anchor to center (0.5, 0.5),
+    // setting x,y to 0,0 will position the counter at the card's center
+    countContainer.x = 0;
+    countContainer.y = 0;
     
     // Add container to card
     sprite.addChild(countContainer);

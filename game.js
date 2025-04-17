@@ -1509,6 +1509,12 @@ setupTutorialElements(introContainer) {
     // ДОБАВЛЕНО: не показываем туториал если deadwood <= 10 или у оппонента нет карт
     if (this.deadwood <= 10 || this.cardManager.opponentCards.length === 0) return;
     
+    // Analyze discard pile top card
+    const discardAnalysis = this.analyzeDiscardPileTopCard();
+    
+    // Determine which source to highlight
+    const highlightDiscard = discardAnalysis.useful && this.cardManager.discardPile.length > 0;
+    
     // Позиция колоды
     const deckPosition = {
       x: this.cardRenderer.deckContainer.x + this.config.cardWidth / 2,
@@ -1523,9 +1529,9 @@ setupTutorialElements(introContainer) {
     // Создаем контейнер для элементов туториала
     const titleContainer = new PIXI.Container();
     titleContainer.zIndex = 200;
-
+  
     titleContainer.interactive = false;
-titleContainer.interactiveChildren = false;
+    titleContainer.interactiveChildren = false;
     
     // Создаем фон
     const gradientBg = new PIXI.Graphics();
@@ -1565,33 +1571,82 @@ titleContainer.interactiveChildren = false;
     // Сохраняем ссылку на туториал
     this.tutorialTitleContainer = titleContainer;
     
-    // Вместо вызова startHandAnimation, который не существует,
-    // вызываем анимацию руки с использованием handCursor напрямую:
-    if (this.handCursor) {
-      // Если есть сброс, указываем на сброс и колоду попеременно
-      if (discardPosition) {
-        // Показываем анимацию руки между колодой и сбросом
-        this.handCursor.moveBetween(
-          deckPosition.x, deckPosition.y,
-          discardPosition.x, discardPosition.y,
-          { 
-            cycles: 2,
-            pauseDuration: 1,
-            moveDuration: 1.5,
-            onComplete: () => {
-              this.handCursor.fade();
-            }
-          }
-        );
-      } else {
-        // Если нет сброса, просто показываем руку, тапающую по колоде
-        this.handCursor.tap(deckPosition.x, deckPosition.y, {
-          repeat: 2,
+    // Highlight the recommended source
+    if (highlightDiscard && discardPosition) {
+      // Highlight the discard pile
+      this.highlightCardSource('discard');
+      
+      // Show hand going to discard pile
+      this.handCursor.tap(
+        discardPosition.x, 
+        discardPosition.y, 
+        { 
+          duration: 1.5,
           onComplete: () => {
             this.handCursor.fade();
           }
-        });
-      }
+        }
+      );
+    } else {
+      // Highlight the deck
+      this.highlightCardSource('deck');
+      
+      // Show hand going to deck
+      this.handCursor.tap(
+        deckPosition.x, 
+        deckPosition.y, 
+        { 
+          duration: 1.5,
+          onComplete: () => {
+            this.handCursor.fade();
+          }
+        }
+      );
+    }
+  }
+
+  highlightCardSource(source) {
+    if (!this.cardRenderer) return;
+    
+    if (source === 'deck' && this.cardRenderer.deckContainer.children.length > 0) {
+      // Get the top card in the deck
+      const topDeckCard = this.cardRenderer.deckContainer.children[
+        this.cardRenderer.deckContainer.children.length - 1
+      ];
+      
+      // Apply special highlight to the top deck card
+      this.cardRenderer.applySpecialHighlight(topDeckCard, 0x9C27B0, 0.3);
+      
+      // Add more subtle pulsing animation (max 15% increase)
+      gsap.to(topDeckCard.scale, {
+        x: 0.25, y: 0.25, // Changed from 1.1 to 1.15 (15% max increase)
+        duration: 0.5,
+        repeat: -1,
+        yoyo: true
+      });
+      
+      // Store reference to remove animation later
+      this.highlightedSource = { source: 'deck', sprite: topDeckCard };
+    } 
+    else if (source === 'discard' && this.cardRenderer.discardContainer.children.length > 0) {
+      // Get the top card in the discard pile
+      const topDiscardCard = this.cardRenderer.discardContainer.children[
+        this.cardRenderer.discardContainer.children.length - 1
+      ];
+      
+      // Apply special highlight to the top discard card
+      this.cardRenderer.applySpecialHighlight(topDiscardCard, 0x9C27B0, 0.3);
+      
+      // Add more subtle pulsing animation (max 15% increase)
+      gsap.to(topDiscardCard.scale, {
+        x: 0.65, y: 0.65, // Changed from 1.1 to 1.15 (15% max increase)
+        duration: 0.5,
+        repeat: -1,
+        yoyo: true
+      });
+      
+      // Store reference to remove animation later
+      this.highlightedSource = { source: 'discard', sprite: topDiscardCard };
     }
   }
 
@@ -1753,6 +1808,10 @@ document.addEventListener('cardAddedToHand', (event) => {
   const { cardData, source } = event.detail;
   console.log(`Card added to hand from ${source}:`, cardData);
   
+  // Hide tutorial message and remove highlighting when card is added to hand
+  this.hideTutorialElements();
+  this.removeCardHighlighting();
+  
   // Hide tutorial message when card is added to hand, regardless of source
   this.hideTutorialElements();
   
@@ -1791,6 +1850,50 @@ document.addEventListener('cardAddedToHand', (event) => {
     this.handleDrawFromDiscard(cardData);
   }
 });
+}
+
+removeCardHighlighting() {
+  // Remove any source highlighting
+  if (this.highlightedSource && this.highlightedSource.sprite) {
+    // Stop any animations on the sprite
+    gsap.killTweensOf(this.highlightedSource.sprite);
+    gsap.killTweensOf(this.highlightedSource.sprite.scale);
+    
+    // Remove highlight
+    if (this.highlightedSource.sprite.filters) {
+      this.highlightedSource.sprite.filters = null;
+    }
+    
+    // Reset scale
+    this.highlightedSource.sprite.scale.set(1, 1);
+    
+    // Clear reference
+    this.highlightedSource = null;
+  }
+  
+  // Also check deck container for any highlighted cards
+  if (this.cardRenderer && this.cardRenderer.deckContainer) {
+    this.cardRenderer.deckContainer.children.forEach(sprite => {
+      if (sprite.filters) {
+        gsap.killTweensOf(sprite);
+        gsap.killTweensOf(sprite.scale);
+        sprite.filters = null;
+        sprite.scale.set(1, 1);
+      }
+    });
+  }
+  
+  // And check discard container for any highlighted cards
+  if (this.cardRenderer && this.cardRenderer.discardContainer) {
+    this.cardRenderer.discardContainer.children.forEach(sprite => {
+      if (sprite.filters) {
+        gsap.killTweensOf(sprite);
+        gsap.killTweensOf(sprite.scale);
+        sprite.filters = null;
+        sprite.scale.set(1, 1);
+      }
+    });
+  }
 }
 
   // Start the game
@@ -2468,6 +2571,228 @@ calculateDeadwood() {
   return deadwoodValue;
 }
 
+wouldCardCompleteMeld(card, excludeCard = null) {
+  if (!card) return false;
+  
+  // Make a copy of player cards (excluding card to discard if provided)
+  const playerCards = [...this.cardManager.playerCards];
+  if (excludeCard) {
+    const index = playerCards.findIndex(c => c.id === excludeCard.id);
+    if (index !== -1) {
+      playerCards.splice(index, 1);
+    }
+  }
+  
+  // Add the test card if it's not already in the hand
+  if (!playerCards.some(c => c.id === card.id)) {
+    playerCards.push(card);
+  }
+  
+  // The value order for checking sequences
+  const valueOrder = {
+    'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7,
+    '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13
+  };
+  
+  // Check for sets (3+ cards with same value)
+  const valueGroups = {};
+  playerCards.forEach(c => {
+    if (!valueGroups[c.value]) valueGroups[c.value] = [];
+    valueGroups[c.value].push(c);
+  });
+  
+  // Check if card creates a set
+  if (valueGroups[card.value] && valueGroups[card.value].length >= 3) {
+    return { type: 'set', cards: valueGroups[card.value] };
+  }
+  
+  // Check for runs (3+ consecutive cards in same suit)
+  const suitGroups = {};
+  playerCards.forEach(c => {
+    if (!suitGroups[c.suit]) suitGroups[c.suit] = [];
+    suitGroups[c.suit].push(c);
+  });
+  
+  // Check if card creates a run
+  if (suitGroups[card.suit] && suitGroups[card.suit].length >= 3) {
+    // Sort cards by value
+    const sortedCards = suitGroups[card.suit].sort((a, b) => 
+      valueOrder[a.value] - valueOrder[b.value]
+    );
+    
+    // Find consecutive sequences
+    let run = [sortedCards[0]];
+    for (let i = 1; i < sortedCards.length; i++) {
+      const prevValue = valueOrder[sortedCards[i-1].value];
+      const currValue = valueOrder[sortedCards[i].value];
+      
+      if (currValue === prevValue + 1) {
+        run.push(sortedCards[i]);
+      } else {
+        if (run.length >= 3 && run.some(c => c.id === card.id)) {
+          return { type: 'run', cards: [...run] };
+        }
+        run = [sortedCards[i]];
+      }
+    }
+    
+    if (run.length >= 3 && run.some(c => c.id === card.id)) {
+      return { type: 'run', cards: [...run] };
+    }
+  }
+  
+  return false;
+}
+
+getCardMeldPotential(card) {
+  if (!card) return 0;
+  
+  let potential = 0;
+  const playerCards = this.cardManager.playerCards;
+  
+  // The value order for checking sequences
+  const valueOrder = {
+    'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7,
+    '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13
+  };
+  
+  // Check set potential (cards with same value)
+  const sameValueCards = playerCards.filter(c => 
+    c.id !== card.id && c.value === card.value
+  );
+  
+  // If we have 1 matching card, that's ok. If we have 2+, that's great!
+  if (sameValueCards.length === 1) potential += 3;
+  if (sameValueCards.length >= 2) potential += 8;
+  
+  // Check run potential (consecutive cards in same suit)
+  const sameSuitCards = playerCards.filter(c => 
+    c.id !== card.id && c.suit === card.suit
+  );
+  
+  if (sameSuitCards.length > 0) {
+    const cardValue = valueOrder[card.value];
+    
+    // Check for adjacent values (card value +1, card value -1)
+    const hasValueMinus1 = sameSuitCards.some(c => valueOrder[c.value] === cardValue - 1);
+    const hasValueMinus2 = sameSuitCards.some(c => valueOrder[c.value] === cardValue - 2);
+    const hasValuePlus1 = sameSuitCards.some(c => valueOrder[c.value] === cardValue + 1);
+    const hasValuePlus2 = sameSuitCards.some(c => valueOrder[c.value] === cardValue + 2);
+    
+    // Different scenarios for run potential
+    if (hasValueMinus1 && hasValuePlus1) {
+      // Card bridges a gap (e.g., we have 3♠, 5♠ and this is 4♠)
+      potential += 10;
+    } else if ((hasValueMinus1 && hasValueMinus2) || (hasValuePlus1 && hasValuePlus2)) {
+      // Card extends a sequence of 2 to make a run
+      potential += 8;
+    } else if (hasValueMinus1 || hasValuePlus1) {
+      // Card is adjacent to one other card
+      potential += 4;
+    } else if (hasValueMinus2 || hasValuePlus2) {
+      // Card is 2 away from another card (e.g., 3♠ and 5♠)
+      potential += 2;
+    }
+  }
+  
+  return potential;
+}
+
+findOptimalDiscardCard() {
+  if (!this.cardManager.playerCards || this.cardManager.playerCards.length === 0) {
+    return null;
+  }
+  
+  // Collect IDs of cards in melds to exclude them
+  const meldCardIds = new Set();
+  
+  if (this.possibleMelds.sets) {
+    this.possibleMelds.sets.forEach(meld => {
+      meld.cards.forEach(card => meldCardIds.add(card.id));
+    });
+  }
+  
+  if (this.possibleMelds.runs) {
+    this.possibleMelds.runs.forEach(meld => {
+      meld.cards.forEach(card => meldCardIds.add(card.id));
+    });
+  }
+  
+  // Filter to cards not in melds
+  const nonMeldCards = this.cardManager.playerCards.filter(card => 
+    !meldCardIds.has(card.id)
+  );
+  
+  if (nonMeldCards.length === 0) {
+    // If all cards are in melds, we'll have to break a meld
+    // For simplicity, return the highest value card
+    const valueMap = {
+      'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7,
+      '8': 8, '9': 9, '10': 10, 'J': 10, 'Q': 10, 'K': 10
+    };
+    
+    return [...this.cardManager.playerCards].sort((a, b) => 
+      valueMap[b.value] - valueMap[a.value]
+    )[0];
+  }
+  
+  // Calculate meld potential for each non-meld card
+  const cardsWithPotential = nonMeldCards.map(card => ({
+    card,
+    potential: this.getCardMeldPotential(card),
+    value: this.getCardValue(card)
+  }));
+  
+  // Sort by potential (ascending), then by value (descending)
+  cardsWithPotential.sort((a, b) => {
+    if (a.potential !== b.potential) {
+      return a.potential - b.potential; // Lowest potential first
+    }
+    return b.value - a.value; // Then highest value first
+  });
+  
+  // Return the card with the lowest meld potential (and highest value if tied)
+  return cardsWithPotential[0].card;
+}
+
+// Helper to get a card's deadwood value
+getCardValue(card) {
+  if (card.value === 'A') return 1;
+  if (['J', 'Q', 'K'].includes(card.value)) return 10;
+  return parseInt(card.value) || 0;
+}
+
+// 4. Analyze if discard pile top card would help complete a meld
+analyzeDiscardPileTopCard() {
+  if (!this.cardManager.discardPile || this.cardManager.discardPile.length === 0) {
+    return { useful: false, reason: "No cards in discard pile" };
+  }
+  
+  const topCard = this.cardManager.discardPile[this.cardManager.discardPile.length - 1];
+  
+  // Check if the card would complete a meld
+  const meldResult = this.wouldCardCompleteMeld(topCard);
+  if (meldResult) {
+    return { 
+      useful: true, 
+      reason: `Would complete a ${meldResult.type}`, 
+      meldType: meldResult.type 
+    };
+  }
+  
+  // Even if it doesn't complete a meld, check its potential
+  const potential = this.getCardMeldPotential(topCard);
+  if (potential >= 5) {
+    return { 
+      useful: true, 
+      reason: "High meld potential", 
+      potential 
+    };
+  }
+  
+  return { useful: false, reason: "Low meld potential", potential };
+}
+
   setupMakeMeldText() {
     // Create a container for the text and background
     const textContainer = new PIXI.Container();
@@ -2708,6 +3033,24 @@ hideTutorialElements() {
   // Флаг, чтобы отслеживать была ли удалена подсказка
   let tutorialRemoved = false;
   
+  // Remove any source highlighting
+  if (this.highlightedSource && this.highlightedSource.sprite) {
+    // Stop any animations on the sprite
+    gsap.killTweensOf(this.highlightedSource.sprite);
+    gsap.killTweensOf(this.highlightedSource.sprite.scale);
+    
+    // Remove highlight
+    if (this.highlightedSource.sprite.filters) {
+      this.highlightedSource.sprite.filters = null;
+    }
+    
+    // Reset scale
+    this.highlightedSource.sprite.scale.set(1, 1);
+    
+    // Clear reference
+    this.highlightedSource = null;
+  }
+  
   // Ищем и удаляем элементы туториала со сцены
   if (this.app && this.app.stage) {
     for (let i = this.app.stage.children.length - 1; i >= 0; i--) {
@@ -2763,8 +3106,11 @@ hideTutorialElements() {
 handleDrawFromDeck() {
   console.log('Player draws from deck');
   
-  // Скрываем туториал "Take a card" - это уже есть, но убедимся, что вызывается правильно
+  // Скрываем туториал "Take a card"
   this.hideTutorialElements();
+  
+  // IMPORTANT: Also remove any highlighting specifically (in case hideTutorialElements missed it)
+  this.removeCardHighlighting();
   
   // Только разрешаем, если это фаза взятия
   if (!this.playerTurn || this.gameStep % 2 !== 0) return;
@@ -2808,6 +3154,9 @@ handleDrawFromDiscard(cardData) {
   
   // Скрываем туториал "Take a card"
   this.hideTutorialElements();
+  
+  // IMPORTANT: Also remove any highlighting specifically (in case hideTutorialElements missed it)
+  this.removeCardHighlighting();
   
   // Только разрешаем, если это фаза взятия
   if (!this.playerTurn || this.gameStep % 2 !== 0) return;
@@ -3641,54 +3990,24 @@ updateEndScreen(playerScore) {
     if (!this.hasDrawnCard) return;
     
     if (!this.handCursor || !this.cardManager.playerCards.length || !this.cardRenderer) return;
-
+  
     // Add this check: don't show discard hint if deadwood is 10 or less (when KNOCK would be available)
-  if (this.deadwood <= 10) {
-    // If the discard dialog is already showing, hide it
-    if (this.uiRenderer) {
-      this.uiRenderer.hideDialog();
-    }
-    return; // Exit early, don't show the discard hint
-  }
-    
-    // Get all cards that are not in melds
-    const setCardIds = new Set();
-    const runCardIds = new Set();
-    
-    if (this.possibleMelds.sets) {
-      this.possibleMelds.sets.forEach(meld => {
-        meld.cards.forEach(card => setCardIds.add(card.id));
-      });
+    if (this.deadwood <= 10) {
+      // If the discard dialog is already showing, hide it
+      if (this.uiRenderer) {
+        this.uiRenderer.hideDialog();
+      }
+      return; // Exit early, don't show the discard hint
     }
     
-    if (this.possibleMelds.runs) {
-      this.possibleMelds.runs.forEach(meld => {
-        meld.cards.forEach(card => runCardIds.add(card.id));
-      });
-    }
+    // Find the optimal card to discard
+    const optimalCard = this.findOptimalDiscardCard();
     
-    // Filter out cards that are not in melds
-    const nonMeldCards = this.cardManager.playerCards.filter(card => 
-      !setCardIds.has(card.id) && !runCardIds.has(card.id)
-    );
-    
-    if (nonMeldCards.length === 0) return;
-    
-    // Find the card with highest value among non-meld cards
-    const valueMap = {
-      'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7,
-      '8': 8, '9': 9, '10': 10, 'J': 10, 'Q': 10, 'K': 10
-    };
-    
-    // Sort non-meld cards by value (descending)
-    nonMeldCards.sort((a, b) => valueMap[b.value] - valueMap[a.value]);
-    
-    // Get highest value card (first in sorted array)
-    const highestCard = nonMeldCards[0];
+    if (!optimalCard) return;
     
     // Get index of this card in the player's hand
     const cardIndex = this.cardManager.playerCards.findIndex(card => 
-      card.id === highestCard.id
+      card.id === optimalCard.id
     );
     
     // IMPORTANT: Show "Discard a card" message IMMEDIATELY when highlighting the card
