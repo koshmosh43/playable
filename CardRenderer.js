@@ -3,6 +3,11 @@ export class CardRenderer {
     this.app = app;
     this.assetLoader = assetLoader;
     this.config = config;
+    this.isDragEnabled = true;
+    this.draggingCard = null;  // Текущая перетаскиваемая карта
+this.draggingCardSource = null; // Источник карты (deck/discard)
+this.draggingCardData = null;  // Данные карты
+this.playerHandZone = null;    // Зона веера карт игрока
     
     // Card containers
     this.container = new PIXI.Container();
@@ -68,7 +73,7 @@ export class CardRenderer {
   async updateDisplay(gameState) {
     if (!gameState) return;
     
-    // Clear all containers
+    // Clear all containers - IMPORTANT: This ensures we don't get duplicates
     this.playerHandContainer.removeChildren();
     this.opponentHandContainer.removeChildren();
     this.deckContainer.removeChildren();
@@ -94,8 +99,6 @@ export class CardRenderer {
   // Render player's hand of cards with fan effect
   async renderPlayerHand(playerCards, selectedCard, possibleMelds) {
     if (!playerCards || !playerCards.length) return;
-
-    
     
     // Use cards as is, sorting happens in game.js
     const sortedCards = playerCards;
@@ -152,11 +155,16 @@ export class CardRenderer {
       sprite.y = yPos;
       sprite.rotation = -(rotation * Math.PI / 180);
       
-      // Interactive properties
+      // Store original position for drag and drop
+      sprite.originalPosition = { x: xPos, y: yPos, rotation: -(rotation * Math.PI / 180) };
+      
+      // Make card interactive - DRAG AND DROP SUPPORT
       sprite.interactive = true;
       sprite.buttonMode = true;
       sprite.cardData = cardData;
-      sprite.on('pointerdown', this.handleCardClick.bind(this, cardData, 'player'));
+      
+      // Add drag and drop functionality
+      this.setupDragAndDrop(sprite, cardData);
       
       // Default z-index
       sprite.zIndex = index;
@@ -177,6 +185,33 @@ export class CardRenderer {
       this.playerHandContainer.addChild(sprite);
     }
   }
+
+  isOverPlayerHand(position) {
+    if (!this.playerHandContainer) return false;
+    
+    // Получаем границы контейнера с веером карт
+    const handBounds = this.playerHandContainer.getBounds();
+    
+    // Расширяем зону для удобства использования
+    const padding = 60; // Увеличиваем до 60 (было 50) для лучшего эффекта
+    const handZone = {
+      left: handBounds.x - padding,
+      right: handBounds.x + handBounds.width + padding,
+      top: handBounds.y - padding * 1.5, // Делаем зону шире сверху для удобства
+      bottom: handBounds.y + handBounds.height + padding
+    };
+    
+    // Сохраняем зону веера для дальнейшего использования
+    this.playerHandZone = handZone;
+    
+    // Проверяем, находится ли позиция внутри зоны веера
+    return (
+      position.x >= handZone.left &&
+      position.x <= handZone.right &&
+      position.y >= handZone.top &&
+      position.y <= handZone.bottom
+    );
+  }
   
   // Apply highlight for selected card with more subtle effect
 applySelectedHighlight(sprite) {
@@ -194,6 +229,453 @@ applySelectedHighlight(sprite) {
   
   // Slightly raise the card
   sprite.y -= 10;
+}
+
+setupDragAndDrop(sprite, cardData) {
+  // Variables to track dragging state
+  let isDragging = false;
+  let dragStartData = null;
+  let originalZIndex = sprite.zIndex;
+  
+  // Event handlers
+  const onDragStart = (event) => {
+    if (!this.isDragEnabled) return;
+    
+    isDragging = true;
+    dragStartData = {
+      x: event.data.global.x,
+      y: event.data.global.y,
+      spriteX: sprite.x,
+      spriteY: sprite.y,
+      spriteRotation: sprite.rotation
+    };
+    
+    // Bring the card to the front while dragging
+    originalZIndex = sprite.zIndex;
+    sprite.zIndex = 1000;
+    this.playerHandContainer.sortChildren();
+    
+    // Enlarge card slightly for better visibility
+    sprite.scale.set(0.7);
+    
+    // Apply visual feedback that indicates dragging
+    this.applySelectedHighlight(sprite);
+    
+    // Emit custom event that game can listen to
+    const dragStartEvent = new CustomEvent('cardDragStart', { 
+      detail: { cardData, sprite }
+    });
+    document.dispatchEvent(dragStartEvent);
+  };
+  
+  const onDragMove = (event) => {
+    if (!isDragging) return;
+    
+    // Calculate the new position based on the mouse/touch movement
+    const newPosition = event.data.global;
+    
+    // Convert global coordinates to local container coordinates
+    const newLocalPos = this.playerHandContainer.toLocal(newPosition);
+    
+    // Update sprite position
+    sprite.x = newLocalPos.x;
+    sprite.y = newLocalPos.y;
+    
+    // Keep the card upright while dragging
+    sprite.rotation = 0;
+    
+    // ВАЖНОЕ ДОБАВЛЕНИЕ: Проверить, находится ли карта над отбоем
+    // Преобразуем локальные координаты в глобальные для проверки
+    const globalPos = sprite.toGlobal(new PIXI.Point(0, 0));
+    const isOverDiscard = this.isOverDiscardPile(globalPos);
+    
+    // Если карта над отбоем, плавно уменьшаем ее до нормального размера
+    if (isOverDiscard && sprite.scale.x > 1.0) {
+      // Плавно уменьшаем масштаб до нормального (1.0)
+      gsap.to(sprite.scale, {
+        x: 0.6, 
+        y: 0.6,
+        duration: 0.2, // Быстрая анимация для отзывчивости
+        ease: "power2.out"
+      });
+    } 
+    // Если карта не над отбоем и уже уменьшена, возвращаем увеличенный размер
+    else if (!isOverDiscard && sprite.scale.x < 1.29) {
+      // Возвращаем увеличенный масштаб
+      gsap.to(sprite.scale, {
+        x: 1.3, 
+        y: 1.3,
+        duration: 0.2,
+        ease: "power2.out"
+      });
+    }
+  };
+  
+  const onDragEnd = (event) => {
+    if (!isDragging) return;
+    isDragging = false;
+    
+    // Get the sprite's global position
+    const globalPos = sprite.toGlobal(new PIXI.Point(0, 0));
+    
+    // Check if the card was dropped over discard pile
+    const isOverDiscard = this.isOverDiscardPile(globalPos);
+    
+    // Emit custom event that game can listen to
+    const dragEndEvent = new CustomEvent('cardDragEnd', { 
+      detail: { 
+        cardData, 
+        sprite, 
+        targetArea: isOverDiscard ? 'discard' : 'hand',
+        position: globalPos
+      }
+    });
+    document.dispatchEvent(dragEndEvent);
+    
+    // Let the game handle the rest - it will decide what to do
+    // If game doesn't handle it, the card will snap back
+    this.snapCardBack(sprite);
+  };
+  
+  // Add event listeners
+  sprite
+    .on('pointerdown', (event) => {
+      event.stopPropagation();
+      sprite.data = event.data;
+      onDragStart(event);
+    })
+    .on('pointermove', onDragMove)
+    .on('pointerup', onDragEnd)
+    .on('pointerupoutside', onDragEnd);
+}
+
+startCardDragging(cardData, source) {
+  if (this.draggingCard) return; // Уже перетаскиваем карту
+  
+  console.log(`Starting to drag card from ${source}`);
+  
+  // Сохраняем информацию о перетаскиваемой карте
+  this.draggingCardSource = source;
+  this.draggingCardData = cardData;
+  
+  // Создаем спрайт карты для перетаскивания
+  this.createCardSprite(cardData, false).then(sprite => {
+    this.draggingCard = sprite;
+    
+    // Настраиваем внешний вид перетаскиваемой карты
+    sprite.anchor.set(0.5);
+    sprite.width = this.config.cardWidth;
+    sprite.height = this.config.cardHeight;
+    sprite.alpha = 1;
+    sprite.zIndex = 1000; // Поверх всех остальных элементов
+    
+    // Добавляем в контейнер анимаций
+    this.animationContainer.addChild(sprite);
+    
+    // Определяем начальную позицию в зависимости от источника
+    if (source === 'deck') {
+      sprite.x = this.deckContainer.x + this.config.cardWidth / 2;
+      sprite.y = this.deckContainer.y + this.config.cardHeight / 2;
+    } else if (source === 'discard') {
+      sprite.x = this.discardContainer.x + this.config.cardWidth / 2;
+      sprite.y = this.discardContainer.y + this.config.cardHeight / 2;
+    }
+    
+    // Немного увеличиваем карту для обратной связи
+    gsap.to(sprite.scale, {
+      x: 1.001, y: 1.001, // Уменьшаем масштаб в ~3 раза (было 1.1)
+      duration: 0.2,
+      ease: "back.out"
+    });
+    
+    // Удаляем предыдущие обработчики, если они были
+    window.removeEventListener('mousemove', this.moveCardHandler);
+    window.removeEventListener('touchmove', this.moveCardHandler);
+    window.removeEventListener('mouseup', this.releaseCardHandler);
+    window.removeEventListener('touchend', this.releaseCardHandler);
+    
+    // Устанавливаем обработчики событий
+    window.addEventListener('mousemove', this.moveCardHandler);
+    window.addEventListener('touchmove', this.moveCardHandler);
+    window.addEventListener('mouseup', this.releaseCardHandler);
+    window.addEventListener('touchend', this.releaseCardHandler);
+    
+    // Вызываем событие начала перетаскивания
+    document.dispatchEvent(new CustomEvent('cardDragStarted', {
+      detail: { cardData, source }
+    }));
+  }).catch(err => {
+    console.error("Error creating dragging card sprite:", err);
+  });
+}
+
+moveCardHandler = (event) => {
+  if (!this.draggingCard) return;
+  
+  // Получаем координаты курсора/касания
+  let clientX, clientY;
+  
+  if (event.type === 'touchmove') {
+    clientX = event.touches[0].clientX;
+    clientY = event.touches[0].clientY;
+  } else {
+    clientX = event.clientX;
+    clientY = event.clientY;
+  }
+  
+  // Конвертируем координаты экрана в координаты внутри игры
+  const rect = this.app.view.getBoundingClientRect();
+  const x = (clientX - rect.left) * (this.app.screen.width / rect.width);
+  const y = (clientY - rect.top) * (this.app.screen.height / rect.height);
+  
+  // Обновляем позицию карты
+  this.draggingCard.x = x;
+  this.draggingCard.y = y;
+  
+  // ВАЖНОЕ ИЗМЕНЕНИЕ: Проверяем, находится ли карта над отбоем ИЛИ над веером игрока
+  const position = { x, y };
+  const isOverDiscard = this.isOverDiscardPile(position);
+  const isOverPlayerHand = this.isOverPlayerHand(position);
+  
+  // Если карта над отбоем или над веером, плавно уменьшаем ее до нормального размера
+  if ((isOverDiscard || isOverPlayerHand) && this.draggingCard.scale.x > 1.0) {
+    // Плавно уменьшаем масштаб до нормального (1.0)
+    gsap.to(this.draggingCard.scale, {
+      x: 1.0, 
+      y: 1.0,
+      duration: 0.2, // Быстрая анимация для отзывчивости
+      ease: "power2.out"
+    });
+  } 
+  // Если карта НЕ над отбоем И НЕ над веером и уже уменьшена, возвращаем увеличенный размер
+  else if (!isOverDiscard && !isOverPlayerHand && this.draggingCard.scale.x < 1.29) {
+    // Возвращаем увеличенный масштаб
+    gsap.to(this.draggingCard.scale, {
+      x: 1.3, 
+      y: 1.3,
+      duration: 0.2,
+      ease: "power2.out"
+    });
+  }
+};
+
+releaseCardHandler = (event) => {
+  if (!this.draggingCard) return;
+  
+  // Получаем координаты отпускания (оставляем как есть)
+  let clientX, clientY;
+  
+  if (event.type === 'touchend') {
+    const touch = event.changedTouches[0];
+    clientX = touch.clientX;
+    clientY = touch.clientY;
+  } else {
+    clientX = event.clientX;
+    clientY = event.clientY;
+  }
+  
+  // Конвертируем координаты экрана в координаты внутри игры
+  const rect = this.app.view.getBoundingClientRect();
+  const x = (clientX - rect.left) * (this.app.screen.width / rect.width);
+  const y = (clientY - rect.top) * (this.app.screen.height / rect.height);
+  
+  const position = { x, y };
+  
+  // Проверяем, находится ли карта над веером игрока
+  const isOverHand = this.isOverPlayerHand(position);
+  const isOverDiscard = this.isOverDiscardPile(position);
+  
+  // Вызываем событие окончания перетаскивания
+  document.dispatchEvent(new CustomEvent('cardDragReleased', {
+    detail: {
+      cardData: this.draggingCardData,
+      source: this.draggingCardSource,
+      targetArea: isOverHand ? 'hand' : (isOverDiscard ? 'discard' : 'none'),
+      position: position
+    }
+  }));
+  
+  // Удаляем обработчики событий
+  window.removeEventListener('mousemove', this.moveCardHandler);
+  window.removeEventListener('touchmove', this.moveCardHandler);
+  window.removeEventListener('mouseup', this.releaseCardHandler);
+  window.removeEventListener('touchend', this.releaseCardHandler);
+  
+  // ИЗМЕНЕНО: Обрабатываем каждый случай отдельно с плавной анимацией
+  if (isOverHand) {
+    // Анимируем добавление карты в веер с уменьшением до нормального размера
+    gsap.to(this.draggingCard.scale, {
+      x: 1.0, y: 1.0,
+      duration: 0.15,
+      ease: "power2.out",
+      onComplete: () => {
+        this.addDraggingCardToHand();
+      }
+    });
+  } else if (isOverDiscard) {
+    // Анимируем добавление карты в отбой
+    gsap.to(this.draggingCard.scale, {
+      x: 1.0, y: 1.0,
+      duration: 0.15,
+      ease: "power2.out",
+      onComplete: () => {
+        // Удаляем карту после уменьшения
+        if (this.draggingCard) {
+          this.animationContainer.removeChild(this.draggingCard);
+          this.draggingCard = null;
+        }
+        
+        // Вызываем событие для игровой логики
+        document.dispatchEvent(new CustomEvent('cardDragEnd', {
+          detail: {
+            cardData: this.draggingCardData,
+            targetArea: 'discard',
+            position: position
+          }
+        }));
+        
+        // Сбрасываем данные
+        this.draggingCardData = null;
+        this.draggingCardSource = null;
+      }
+    });
+  } else {
+    // Анимируем возврат карты
+    this.returnDraggingCard();
+  }
+};
+
+returnDraggingCard() {
+  if (!this.draggingCard) return;
+  
+  // Определяем конечную позицию в зависимости от источника
+  let targetX, targetY;
+  if (this.draggingCardSource === 'deck') {
+    targetX = this.deckContainer.x + this.config.cardWidth / 2;
+    targetY = this.deckContainer.y + this.config.cardHeight / 2;
+  } else if (this.draggingCardSource === 'discard') {
+    targetX = this.discardContainer.x + this.config.cardWidth / 2;
+    targetY = this.discardContainer.y + this.config.cardHeight / 2;
+  }
+  
+  // Анимируем возврат карты
+  gsap.to(this.draggingCard, {
+    x: targetX,
+    y: targetY,
+    scale: 1,
+    duration: 0.3,
+    ease: "power2.inOut",
+    onComplete: () => {
+      // Удаляем карту после возврата
+      if (this.draggingCard) {
+        this.animationContainer.removeChild(this.draggingCard);
+        this.draggingCard = null;
+        this.draggingCardData = null;
+        this.draggingCardSource = null;
+      }
+    }
+  });
+}
+
+// 7. Метод для добавления карты в веер
+addDraggingCardToHand() {
+  if (!this.draggingCard || !this.draggingCardData) return;
+  
+  // Определяем индекс, куда добавить карту в веере
+  const newIndex = this.calculateNewCardIndex();
+  
+  // Вызываем событие успешного добавления карты в руку
+  document.dispatchEvent(new CustomEvent('cardAddedToHand', {
+    detail: {
+      cardData: this.draggingCardData,
+      source: this.draggingCardSource,
+      index: newIndex
+    }
+  }));
+  
+  // Удаляем перетаскиваемую карту
+  this.animationContainer.removeChild(this.draggingCard);
+  this.draggingCard = null;
+  this.draggingCardData = null;
+  this.draggingCardSource = null;
+}
+
+cleanup() {
+  // Clear any dragging state
+  if (this.draggingCard) {
+    this.animationContainer.removeChild(this.draggingCard);
+    this.draggingCard = null;
+    this.draggingCardData = null;
+    this.draggingCardSource = null;
+  }
+  
+  // Remove event listeners
+  window.removeEventListener('mousemove', this.moveCardHandler);
+  window.removeEventListener('touchmove', this.moveCardHandler);
+  window.removeEventListener('mouseup', this.releaseCardHandler);
+  window.removeEventListener('touchend', this.releaseCardHandler);
+}
+
+// 8. Вспомогательный метод для расчёта позиции новой карты в веере
+calculateNewCardIndex() {
+  // По умолчанию добавляем карту в конец веера
+  if (!this.playerHandContainer || !this.playerHandContainer.children) {
+    return 0;
+  }
+  return this.playerHandContainer.children.length;
+}
+
+
+isOverDiscardPile(position) {
+  if (!this.discardContainer) return false;
+  
+  // Get discard container bounds
+  const discardBounds = this.discardContainer.getBounds();
+  
+  // Enlarge the drop zone a bit for ease of use
+  const padding = 30;
+  const dropZone = {
+    left: discardBounds.x - padding,
+    right: discardBounds.x + discardBounds.width + padding,
+    top: discardBounds.y - padding,
+    bottom: discardBounds.y + discardBounds.height + padding
+  };
+  
+  // Check if position is within drop zone
+  return (
+    position.x >= dropZone.left &&
+    position.x <= dropZone.right &&
+    position.y >= dropZone.top &&
+    position.y <= dropZone.bottom
+  );
+}
+
+snapCardBack(sprite) {
+  // Restore original z-index
+  sprite.zIndex = sprite.zIndex < 100 ? sprite.zIndex : sprite.originalPosition.zIndex || sprite.zIndex;
+  this.playerHandContainer.sortChildren();
+  
+  // ИЗМЕНЕНО: Плавная анимация возврата к исходному масштабу
+  gsap.to(sprite.scale, {
+    x: 1.0,
+    y: 1.0,
+    duration: 0.25,
+    ease: "power2.out"
+  });
+  
+  // Clear any highlights
+  if (sprite.filters) {
+    sprite.filters = null;
+  }
+  
+  // Animate back to original position
+  gsap.to(sprite, {
+    x: sprite.originalPosition.x,
+    y: sprite.originalPosition.y,
+    rotation: sprite.originalPosition.rotation,
+    duration: 0.3,
+    ease: "back.out"
+  });
 }
 
 // Apply special highlight with more subtle effect
@@ -235,6 +717,10 @@ applySpecialHighlight(sprite, color, alpha) {
         }
       });
     }
+  }
+
+  setDeckDragCallback(callback) {
+    this.deckDragCallback = callback;
   }
 
   // Add visual feedback when a card is clicked
@@ -415,6 +901,7 @@ applySpecialHighlight(sprite, color, alpha) {
       sprite.zIndex = i;
       
       // If this is the top card and deck is not empty, make it interactive
+      // Make top card interactive
       if (i === visibleCount - 1 && deckCount > 0) {
         // Add card counter
         this.addDeckCounter(sprite, deckCount);
@@ -422,8 +909,26 @@ applySpecialHighlight(sprite, color, alpha) {
         // Make top card interactive
         sprite.interactive = true;
         sprite.buttonMode = true;
-        sprite.on('pointerdown', () => {
-          this.handleCardClick({ faceDown: true }, 'deck');
+        sprite.zIndex = 5000;
+        
+        // Очищаем все предыдущие обработчики
+        sprite.removeAllListeners();
+        
+        // Replace this entire handler:
+        sprite.on('pointerdown', (event) => {
+          // Предотвращаем всплытие события
+          event.stopPropagation();
+          
+          // Get a real card from the game if callback is available
+          const cardToDrag = this.deckDragCallback ? this.deckDragCallback() : null;
+          
+          if (cardToDrag) {
+            // Start dragging with the real card data
+            this.startCardDragging(cardToDrag, 'deck');
+          } else {
+            // Fallback to placeholder if no callback or it returns null
+            this.startCardDragging({ faceDown: false, value: '?', suit: '?', filename: '' }, 'deck');
+          }
         });
       }
       
@@ -544,11 +1049,24 @@ applySpecialHighlight(sprite, color, alpha) {
         sprite.zIndex = i;
         
         // Make top card interactive
-        if (i === visibleDiscards - 1) {
-          sprite.interactive = true;
-          sprite.buttonMode = true;
-          sprite.on('pointerdown', this.handleCardClick.bind(this, discard, 'discard'));
-        }
+        // Make top card interactive
+        // Make top card interactive
+if (i === visibleDiscards - 1) {
+  sprite.interactive = true;
+  sprite.buttonMode = true;
+  
+  // Очищаем все предыдущие обработчики
+  sprite.removeAllListeners();
+  
+  // Добавляем обработчик клика для начала перетаскивания
+  sprite.on('pointerdown', (event) => {
+    // Предотвращаем всплытие события
+    event.stopPropagation();
+    
+    // Начинаем перетаскивание карты из отбоя
+    this.startCardDragging(discard, 'discard');
+  });
+}
         
         this.discardContainer.addChild(sprite);
       }
@@ -677,6 +1195,10 @@ applySpecialHighlight(sprite, color, alpha) {
     if (this.onCardClick) {
       this.onCardClick(cardData, source);
     }
+  }
+
+  enableDragging(enabled) {
+    this.isDragEnabled = enabled;
   }
   
   // Animate card dealing

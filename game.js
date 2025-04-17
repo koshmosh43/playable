@@ -190,7 +190,15 @@ class GinRummyGame {
     
     return sortedCards;
   }
+
+  preDragCardFromDeck() {
+  if (!this.playerTurn || this.gameStep % 2 !== 0) return null;
   
+  // Pre-draw a card from the deck to show during dragging
+  const newCard = this.drawCardFromDeck();
+  this.preDrawnCard = newCard;
+  return newCard;
+}
 
   sortCardsBySuitAndRank(cards) {
     // Custom sort order to match the screenshot exactly
@@ -289,15 +297,17 @@ class GinRummyGame {
     // Create UI and card renderers
     this.uiRenderer   = new UIRenderer(this.app, this.assetLoader, this.config);
     this.cardRenderer = new CardRenderer(this.app, this.assetLoader, this.config);
-
+  
+    // Add this line right after creating the cardRenderer
+    this.cardRenderer.setDeckDragCallback(this.preDragCardFromDeck.bind(this));
+  
     /* --- порядок слоёв ---
       uiRenderer  z‑index 100  (TopBanner, реклама, кнопки и т.д.)
       cardRenderer z‑index  10 (все карты, анимации)
     */
     this.uiRenderer.container.zIndex   = 20;
     this.cardRenderer.container.zIndex = 10;
-
-    
+  
     // Create hand cursor for tutorials
     this.handCursor = new HandCursor(this.app, this.assetLoader);
     
@@ -1513,6 +1523,9 @@ setupTutorialElements(introContainer) {
     // Создаем контейнер для элементов туториала
     const titleContainer = new PIXI.Container();
     titleContainer.zIndex = 200;
+
+    titleContainer.interactive = false;
+titleContainer.interactiveChildren = false;
     
     // Создаем фон
     const gradientBg = new PIXI.Graphics();
@@ -1638,27 +1651,152 @@ handleGinConfirm(confirmed) {
 }
 
   // Set up event handlers
-  setupEventHandlers() {
-    // Card click handler
-    this.cardRenderer.setCardClickHandler((card, source) => this.handleCardClick(card, source));
+  // Set up event handlers
+setupEventHandlers() {
+  // Card click handler
+  this.cardRenderer.setCardClickHandler((card, source) => this.handleCardClick(card, source));
 
+  // Dialog confirmation handler
+  this.uiManager.onDialogConfirm = (type, confirmed) => {
+    if (type === 'knock') this.handleKnockConfirm(confirmed);
+    else if (type === 'meld') this.handleMeldConfirm(confirmed);
+    else if (type === 'gin') this.handleGinConfirm(confirmed);
+  };
+  
+  // Action button handlers
+  this.uiRenderer.onKnockClick = () => this.handleKnock();
+  this.uiRenderer.onMeldClick = () => this.handleMeld();
+  this.uiRenderer.onGinClick = () => this.handleGin();
+  
+  // ДОБАВИТЬ ОБРАБОТЧИКИ DRAG-AND-DROP ЗДЕСЬ
+  // Setup drag and drop event listeners
+  document.addEventListener('cardDragStart', (event) => {
+    // Можно добавить логику для начала перетаскивания
+    console.log('Card drag started:', event.detail.cardData);
+  });
+
+  // Setup drag and drop event listeners
+  document.addEventListener('cardDragStart', (event) => {
+    // Можно добавить логику для начала перетаскивания
+    console.log('Card drag started:', event.detail.cardData);
+  });
+
+  document.addEventListener('cardDragEnd', (event) => {
+    const { cardData, targetArea, position } = event.detail;
     
-    // Dialog confirmation handler
-    this.uiManager.onDialogConfirm = (type, confirmed) => {
-      if (type === 'knock') this.handleKnockConfirm(confirmed);
-      else if (type === 'meld') this.handleMeldConfirm(confirmed);
-      else if (type === 'gin') this.handleGinConfirm(confirmed);
-    };
-    
-    // Action button handlers
-    this.uiRenderer.onKnockClick = () => this.handleKnock();
-    this.uiRenderer.onMeldClick = () => this.handleMeld();
-    this.uiRenderer.onGinClick = () => this.handleGin();
+    // Если карта брошена на отбой и это допустимое игровое действие
+    if (targetArea === 'discard' && this.playerTurn && this.gameStep % 2 === 1) {
+      // Обработка сброса карты
+      this.selectedCard = cardData;
+      console.log('Card dropped on discard:', cardData);
+      
+      // Check if the card is in a meld
+      const meldResult = this.isCardInMeld(cardData);
+      if (meldResult) {
+        // Ask for confirmation before breaking a meld
+        this.showMeldBreakConfirmation(meldResult.meld);
+        return;
+      }
+      
+      // Установим флаг, что карта была перетащена
+      this.wasDragged = true;
+      
+      // IMPORTANT: Make sure we're not rendering the card twice
+      // by clearing the player hand container before updating
+      if (this.cardRenderer) {
+        this.cardRenderer.playerHandContainer.removeChildren();
+      }
+      
+      // Process the discard
+      this.handleDiscard();
+    } else {
+      // Если не на отбой, просто возвращаем карту
+      console.log('Card dropped elsewhere, returning to hand');
+    }
+  });
+  
+  // ДОБАВЬТЕ ОБРАБОТЧИКИ ДЛЯ ВЗЯТИЯ КАРТ ИЗ КОЛОДЫ И СБРОСА
+  
+  // Обработчик драг-энд-дроп для колоды
+  document.addEventListener('deckDrag', (event) => {
+    // Если это этап взятия карты
+    if (this.playerTurn && this.gameStep % 2 === 0) {
+      console.log('Deck card dragged and dropped');
+      this.handleDrawFromDeck();
+    }
+  });
+  
+  // Обработчик драг-энд-дроп для сброса
+  document.addEventListener('discardDrag', (event) => {
+    const cardData = event.detail?.cardData;
+    // Если это этап взятия карты
+    if (this.playerTurn && this.gameStep % 2 === 0 && cardData) {
+      console.log('Discard card dragged and dropped');
+      this.handleDrawFromDiscard(cardData);
+    }
+  });
+  // Обработчик начала перетаскивания карты из колоды/отбоя
+document.addEventListener('cardDragStarted', (event) => {
+  const { cardData, source } = event.detail;
+  console.log(`Card drag started from ${source}:`, cardData);
+});
+// Обработчик отпускания перетаскиваемой карты
+document.addEventListener('cardDragReleased', (event) => {
+  const { cardData, source, targetArea } = event.detail;
+  console.log(`Card drag released from ${source} to ${targetArea}:`, cardData);
+  
+  // Здесь пока ничего не делаем - основная логика в cardAddedToHand
+});
+
+// Обработчик успешного добавления карты в руку
+document.addEventListener('cardAddedToHand', (event) => {
+  const { cardData, source } = event.detail;
+  console.log(`Card added to hand from ${source}:`, cardData);
+  
+  // Handle adding the card based on its source
+  if (source === 'deck') {
+    // Check if we have a pre-drawn card from dragging
+    if (this.preDrawnCard) {
+      // Use the pre-drawn card instead of drawing a new one
+      this.cardManager.playerCards.push(this.preDrawnCard);
+      
+      // Sort cards with melds
+      this.cardManager.playerCards = this.sortCardsWithMelds();
+      
+      // Decrease deck count
+      this.deckCount--;
+      this.gameStep++;
+      
+      // Set flag that player has drawn a card
+      this.hasDrawnCard = true;
+      
+      // Clear the pre-drawn card reference
+      this.preDrawnCard = null;
+      
+      // Update the game display
+      this.updatePlayScreen();
+      
+      // Wait for animation to complete before showing discard hint
+      setTimeout(() => {
+        this.showDiscardHint();
+      }, 800);
+    } else {
+      // Fall back to regular method if no pre-drawn card exists
+      this.handleDrawFromDeck();
+    }
+  } else if (source === 'discard') {
+    this.handleDrawFromDiscard(cardData);
   }
+});
+}
 
   // Start the game
   startGame() {
     console.log('Starting game...');
+
+    if (this.handCursor && this.handCursor.container) {
+      this.handCursor.container.visible = false;
+    }
   
     if (this.makeMeldText) {
       this.makeMeldText.visible = false;
@@ -1879,26 +2017,25 @@ handleGinConfirm(confirmed) {
     return deck;
   }
 
-  // В game.js заменить метод dealAllCards
   dealAllCards(onComplete) {
     // НЕ очищаем карты здесь! они уже инициализированы ранее.
-  
+    
     // Сохраняем карты, подготовленные в initializeCards()
     const originalPlayerCards = [...this.cardManager.playerCards];
     const originalOpponentCards = [...this.cardManager.opponentCards];
-  
+    
     // Но очистим визуальное отображение (руки должны быть пустыми перед анимацией)
     this.cardRenderer.playerHandContainer.removeChildren();
     this.cardRenderer.opponentHandContainer.removeChildren();
-  
+    
     // ВАЖНО: очищаем текущие карты, но не трогаем оригиналы (чтобы не было дублей)
     this.cardManager.playerCards = [];
     this.cardManager.opponentCards = [];
-  
+    
     const sequence = [];
     let playerIndex = 0;
     let opponentIndex = 0;
-  
+    
     while (playerIndex < originalPlayerCards.length || opponentIndex < originalOpponentCards.length) {
       if (playerIndex < originalPlayerCards.length) {
         sequence.push({ 
@@ -1917,29 +2054,79 @@ handleGinConfirm(confirmed) {
         opponentIndex++;
       }
     }
-  
+    
     let sequenceIndex = 0;
-  
+    let dealingInProgress = true;
+    
+    // ДОБАВЛЕНО: Флаг, который показывает было ли прервано
+    let wasInterrupted = false;
+    
+    // ДОБАВЛЕНО: Функция для мгновенной раздачи оставшихся карт
+    const finishDealingImmediately = () => {
+      // Отмечаем, что раздача была прервана
+      wasInterrupted = true;
+      
+      // Раздаем все оставшиеся карты сразу без анимации
+      while (sequenceIndex < sequence.length) {
+        const { target, card, index } = sequence[sequenceIndex++];
+        
+        if (target === 'player') {
+          this.cardManager.playerCards.push(card);
+        } else {
+          this.cardManager.opponentCards.push(card);
+        }
+      }
+      
+      // Обновляем отображение карт без анимации
+      this.updatePlayScreen();
+      
+      // Завершаем раздачу
+      dealingInProgress = false;
+      if (onComplete) onComplete();
+      
+      // Удаляем обработчик клика
+      this.app.stage.off('pointerdown', skipDealingHandler);
+    };
+    
+    // ДОБАВЛЕНО: Обработчик клика для пропуска анимации
+    const skipDealingHandler = () => {
+      if (dealingInProgress) {
+        console.log("Skipping dealing animation...");
+        finishDealingImmediately();
+      }
+    };
+    
+    // ДОБАВЛЕНО: Добавляем обработчик клика на глобальный контейнер
+    this.app.stage.interactive = true;
+    this.app.stage.on('pointerdown', skipDealingHandler);
+    
     const dealNext = () => {
+      // Если раздача была прервана, просто выходим из функции
+      if (wasInterrupted) return;
+      
       if (sequenceIndex >= sequence.length) {
+        // Удаляем обработчик клика, когда раздача завершена
+        this.app.stage.off('pointerdown', skipDealingHandler);
+        dealingInProgress = false;
+        
         if (onComplete) onComplete();
         return;
       }
-  
+      
       const { target, card, index } = sequence[sequenceIndex++];
-  
+      
       if (target === 'player') {
         this.cardManager.playerCards.push(card);
       } else {
         this.cardManager.opponentCards.push(card);
       }
-  
+      
       // Анимируем раздачу карты
       this.cardRenderer.animateDealingCard(card, target, index, () => {
         setTimeout(dealNext, 150);
       });
     };
-  
+    
     // Начинаем раздачу карт
     dealNext();
   }
@@ -1999,6 +2186,11 @@ updateGamePositions() {
     this.gameStep = 0;
     this.deckCount = 31;
     this.hasDrawnCard = false;
+
+    // Отключаем drag-and-drop в начале игры - когда игрок еще не взял карту
+  if (this.cardRenderer) {
+    this.cardRenderer.enableDragging(false);
+  }
   
   // Явно сбрасываем флаги туториала с каждой инициализацией
   this.tutorialShown = false;
@@ -2135,6 +2327,22 @@ updateGamePositions() {
     if (this.uiRenderer) {
       this.uiRenderer.updateScores(this.playerScore, this.opponentScore);
       this.uiRenderer.updateDeadwood(this.deadwood);
+
+      // IMPORTANT: Clear containers before updating to prevent duplicates
+  if (this.cardRenderer) {
+    this.cardRenderer.playerHandContainer.removeChildren();
+    this.cardRenderer.opponentHandContainer.removeChildren();
+    this.cardRenderer.discardContainer.removeChildren();
+    this.cardRenderer.deckContainer.removeChildren();
+  }
+
+      // Управление drag-and-drop в зависимости от состояния игры
+  if (this.cardRenderer) {
+    // Включаем drag-and-drop только когда ход игрока
+    // или когда игрок должен выбрать карту из колоды/сброса или сбросить карту
+    const enableDrag = this.playerTurn;
+    this.cardRenderer.enableDragging(enableDrag);
+  }
       
       // Проверяем, показывать ли кнопки GIN и KNOCK
       const isPlayerTurn = this.playerTurn;
@@ -2551,7 +2759,7 @@ hideTutorialElements() {
 handleDrawFromDeck() {
   console.log('Player draws from deck');
   
-  // Скрываем туториал "Take a card" (но не устанавливаем tutorialShown = true)
+  // Скрываем туториал "Take a card"
   this.hideTutorialElements();
   
   // Только разрешаем, если это фаза взятия
@@ -2570,27 +2778,19 @@ handleDrawFromDeck() {
   // Устанавливаем флаг, что игрок взял карту
   this.hasDrawnCard = true;
   
-  // Находим позицию новой карты после сортировки
-  const cardIndex = this.cardManager.playerCards.findIndex(card => card.id === newCard.id);
-  
-  // Используем улучшенную анимацию взятия карты
-  if (this.cardRenderer) {
-    this.cardRenderer.animateCardTake(newCard, 'deck', cardIndex);
-  }
+  // Обновляем экран игры
+  this.updatePlayScreen();
   
   // Ждем завершения анимации, прежде чем показывать подсказку сброса
   setTimeout(() => {
     this.showDiscardHint();
   }, 800);
-  
-  // Обновляем экран игры
-  this.updatePlayScreen();
 }
 
 handleDrawFromDiscard(cardData) {
   console.log('Player draws from discard pile');
   
-  // Скрываем туториал "Take a card" (но не устанавливаем tutorialShown = true)
+  // Скрываем туториал "Take a card"
   this.hideTutorialElements();
   
   // Только разрешаем, если это фаза взятия
@@ -2613,26 +2813,13 @@ handleDrawFromDiscard(cardData) {
   // Устанавливаем флаг, что игрок взял карту
   this.hasDrawnCard = true;
   
-  // Находим позицию новой карты после сортировки
-  const cardIndex = this.cardManager.playerCards.findIndex(card => card.id === discardCard.id);
-  
-  // Скрываем существующие элементы туториала
-  if (this.handCursor) {
-    this.handCursor.hide();
-  }
-  
-  // Используем улучшенную анимацию взятия карты
-  if (this.cardRenderer) {
-    this.cardRenderer.animateCardTake(discardCard, 'discard', cardIndex);
-  }
+  // Обновляем экран игры
+  this.updatePlayScreen();
   
   // Ждем завершения анимации, прежде чем показывать подсказку сброса
   setTimeout(() => {
     this.showDiscardHint();
   }, 800);
-  
-  // Обновляем экран игры
-  this.updatePlayScreen();
 }
 
   // Get suit symbol
@@ -2763,18 +2950,37 @@ handleDrawFromDiscard(cardData) {
     if (this.uiRenderer) {
       this.uiRenderer.hideDialog();
     }
-    
-    // Анимируем сброс, если рендерер доступен
+  
+    // Отключаем drag-and-drop после сброса карты
     if (this.cardRenderer) {
+      this.cardRenderer.enableDragging(false);
+    }
+      
+    // Get the card's original position in the player's hand for animation
+    const cardIndex = this.cardManager.playerCards.findIndex(c => c.id === this.selectedCard.id);
+    
+    // Убираем анимацию, если карта уже была перетащена через drag and drop
+    // (анимация будет только если карта была выбрана кликом, а не перетаскиванием)
+    const wasDragged = this.wasDragged || false;
+    
+    if (!wasDragged && this.cardRenderer && cardIndex !== -1) {
       this.cardRenderer.animateCardDiscard(
         this.selectedCard,
-        this.cardManager.playerCards.findIndex(c => c.id === this.selectedCard.id)
+        cardIndex
       );
     }
     
+    // Сбрасываем флаг перетаскивания
+    this.wasDragged = false;
+    
     // Обновляем состояние игры
+    // CRITICAL CHANGE: First remove the card from playerCards
     this.cardManager.playerCards = this.cardManager.playerCards.filter(c => c.id !== this.selectedCard.id);
+    
+    // Then add to discard pile
     this.cardManager.discardPile.push(this.selectedCard);
+    
+    // Update other game state
     this.selectedCard = null;
     this.gameStep++;
     this.playerTurn = false;
@@ -2782,6 +2988,11 @@ handleDrawFromDiscard(cardData) {
     
     // Сбрасываем флаг взятия карты при окончании хода
     this.hasDrawnCard = false;
+    
+    // IMPORTANT: clear the playerHandContainer before updating
+    if (this.cardRenderer) {
+      this.cardRenderer.playerHandContainer.removeChildren();
+    }
     
     // Обновляем экран игры
     this.updatePlayScreen();
@@ -2913,6 +3124,9 @@ handleDrawFromDiscard(cardData) {
   
   // Play opponent's turn
   playOpponentTurn() {
+    if (this.cardRenderer) {
+      this.cardRenderer.enableDragging(false);
+    }
     // Отложенное выполнение
     setTimeout(() => {
       // ИИ решает, брать из колоды или из сброса

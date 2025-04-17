@@ -6,8 +6,10 @@ export class HandCursor {
     
     // Hand cursor container
     this.container = new PIXI.Container();
-    this.container.zIndex = 1000;
-    this.container.visible = false;
+    this.container.interactive = false; // Отключаем интерактивность
+  this.container.interactiveChildren = false; // Отключаем интерактивность для дочерних элементов
+  this.container.visible = false;
+  this.container.zIndex = 1000;
     
     // Initialize
     this.init();
