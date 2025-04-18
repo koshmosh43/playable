@@ -352,6 +352,12 @@ setupDragAndDrop(sprite, cardData) {
 startCardDragging(cardData, source) {
   gsap.killTweensOf(this.deckContainer.scale);
   gsap.killTweensOf(this.discardContainer.scale);
+  gsap.killTweensOf(this.deckContainer.scale);
+  gsap.killTweensOf(this.discardContainer.scale);
+
+  // Сразу вернуть колоду и отбой к исходному масштабу
+  this.deckContainer.scale.set(1, 1);
+  this.discardContainer.scale.set(1, 1);
 
   if (source === 'discard') {
     const n = this.discardContainer.children.length;
