@@ -1605,50 +1605,62 @@ setupTutorialElements(introContainer) {
     }
   }
 
-  highlightCardSource(source) {
-    if (!this.cardRenderer) return;
-    
-    if (source === 'deck' && this.cardRenderer.deckContainer.children.length > 0) {
-      // Get the top card in the deck
-      const topDeckCard = this.cardRenderer.deckContainer.children[
-        this.cardRenderer.deckContainer.children.length - 1
-      ];
-      
-      // Apply special highlight to the top deck card
-      this.cardRenderer.applySpecialHighlight(topDeckCard, 0x9C27B0, 0.3);
-      
-      // Add more subtle pulsing animation (max 15% increase)
-      gsap.to(topDeckCard.scale, {
-        x: 0.25, y: 0.25, // Changed from 1.1 to 1.15 (15% max increase)
-        duration: 0.5,
-        repeat: -1,
-        yoyo: true
-      });
-      
-      // Store reference to remove animation later
-      this.highlightedSource = { source: 'deck', sprite: topDeckCard };
-    } 
-    else if (source === 'discard' && this.cardRenderer.discardContainer.children.length > 0) {
-      // Get the top card in the discard pile
-      const topDiscardCard = this.cardRenderer.discardContainer.children[
-        this.cardRenderer.discardContainer.children.length - 1
-      ];
-      
-      // Apply special highlight to the top discard card
-      this.cardRenderer.applySpecialHighlight(topDiscardCard, 0x9C27B0, 0.3);
-      
-      // Add more subtle pulsing animation (max 15% increase)
-      gsap.to(topDiscardCard.scale, {
-        x: 0.65, y: 0.65, // Changed from 1.1 to 1.15 (15% max increase)
-        duration: 0.5,
-        repeat: -1,
-        yoyo: true
-      });
-      
-      // Store reference to remove animation later
-      this.highlightedSource = { source: 'discard', sprite: topDiscardCard };
+  // === game.js ===
+highlightCardSource(source) {
+  if (!this.cardRenderer) return;
+
+  // Снимаем старую подсветку, если была
+  this.removeCardHighlighting();
+
+  // «старые» параметры амплитуды
+  const PULSE_DECK    = { x: 1.15, y: 1.15, duration: 0.5, repeat: -1, yoyo: true };
+  const PULSE_DISCARD = { x: 1.15, y: 1.15, duration: 0.5, repeat: -1, yoyo: true };
+
+  // Вспомогательная функция — готовит контейнер:
+  // 1) ставит pivot в центр,
+  // 2) компенсирует позицию,
+  // 3) убивает прежний tween, если был
+  const prepareContainerForPulse = (cont) => {
+    // Уже настроен? — пропускаем
+    if (!cont.__pivotCentered) {
+      const prevX = cont.x;
+      const prevY = cont.y;
+
+      // центр относительно собственных размеров
+      cont.pivot.set(cont.width / 2, cont.height / 2);
+
+      // возвращаем визуально на то же место
+      cont.x = prevX + cont.pivot.x;
+      cont.y = prevY + cont.pivot.y;
+
+      cont.__pivotCentered = true;            // помечаем
     }
+    gsap.killTweensOf(cont.scale);            // стоп старый tween
+    return cont;
+  };
+
+  if (source === 'deck') {
+    const cont = prepareContainerForPulse(this.cardRenderer.deckContainer);
+
+    // Доп‑подсветка верхней карты (как раньше)
+    const top = cont.children.at(-1);
+    if (top) this.cardRenderer.applySpecialHighlight(top, 0x9C27B0, 0.3);
+
+    gsap.to(cont.scale, PULSE_DECK);          // ПУЛЬС из центра стопки
+    this.highlightedSource = { source };
   }
+
+  if (source === 'discard') {
+    const cont = prepareContainerForPulse(this.cardRenderer.discardContainer);
+
+    const top = cont.children.at(-1);
+    if (top) this.cardRenderer.applySpecialHighlight(top, 0x9C27B0, 0.3);
+
+    gsap.to(cont.scale, PULSE_DISCARD);
+    this.highlightedSource = { source };
+  }
+}
+
 
   // Initialize game data
   initializeGameData() {
@@ -1791,10 +1803,11 @@ setupEventHandlers() {
     }
   });
   // Обработчик начала перетаскивания карты из колоды/отбоя
-document.addEventListener('cardDragStarted', (event) => {
-  const { cardData, source } = event.detail;
-  console.log(`Card drag started from ${source}:`, cardData);
-});
+  document.addEventListener('cardDragStarted', ({ detail }) => {
+    if (detail.source === 'deck' || detail.source === 'discard') {
+      this.removeCardHighlighting();            // стопаем пульсацию, как просили
+    }
+  });
 // Обработчик отпускания перетаскиваемой карты
 document.addEventListener('cardDragReleased', (event) => {
   const { cardData, source, targetArea } = event.detail;
@@ -1847,7 +1860,35 @@ document.addEventListener('cardAddedToHand', (event) => {
       this.handleDrawFromDeck();
     }
   } else if (source === 'discard') {
-    this.handleDrawFromDiscard(cardData);
+    // When drawing from discard pile through drag-and-drop,
+    // we need to handle it differently to avoid duplication
+    
+    // First, make sure we remove the card from the discard pile
+    if (this.cardManager.discardPile.length > 0) {
+      this.cardManager.discardPile.pop();
+    }
+    
+    // Add the card to player's hand (if it wasn't already added)
+    if (!this.cardManager.playerCards.some(c => c.id === cardData.id)) {
+      this.cardManager.playerCards.push(cardData);
+    }
+    
+    // Sort cards with melds
+    this.cardManager.playerCards = this.sortCardsWithMelds();
+    
+    // Update game state
+    this.gameStep++;
+    
+    // Set flag that player has drawn a card
+    this.hasDrawnCard = true;
+    
+    // Update game screen immediately
+    this.updatePlayScreen();
+    
+    // Wait for animation to complete before showing discard hint
+    setTimeout(() => {
+      this.showDiscardHint();
+    }, 800);
   }
 });
 }
@@ -3588,23 +3629,35 @@ handleDrawFromDiscard(cardData) {
       discardIndex = Math.floor(Math.random() * this.cardManager.opponentCards.length);
     }
     
-    // Get the card to discard
-    const discardedCard = this.cardManager.opponentCards.splice(discardIndex, 1)[0];
+    // Get the card to discard but do NOT remove it from opponent's hand yet
+    const discardedCard = { ...this.cardManager.opponentCards[discardIndex] };
     
     // Set faceDown to false when discarding
     discardedCard.faceDown = false;
     
-    // Initialize discardPile if needed
-    if (!this.cardManager.discardPile) {
-      this.cardManager.discardPile = [];
-    }
-    
-    // Add to discard pile
-    this.cardManager.discardPile.push(discardedCard);
-    
     // Animate the discard if renderer is available
     if (this.cardRenderer) {
-      this.cardRenderer.animateOpponentCardDiscard(discardedCard, discardIndex);
+      // Pass the original card position and a callback that will add the card to discard pile
+      // only after the animation completes
+      this.cardRenderer.animateOpponentCardDiscard(
+        discardedCard, 
+        discardIndex,
+        () => {
+          // Now remove the card from opponent's hand
+          this.cardManager.opponentCards.splice(discardIndex, 1);
+          
+          // Initialize discardPile if needed
+          if (!this.cardManager.discardPile) {
+            this.cardManager.discardPile = [];
+          }
+          
+          // Add to discard pile
+          this.cardManager.discardPile.push(discardedCard);
+          
+          // Update the display to reflect the changes
+          this.updatePlayScreen();
+        }
+      );
     }
   }
 

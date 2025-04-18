@@ -350,8 +350,18 @@ setupDragAndDrop(sprite, cardData) {
 }
 
 startCardDragging(cardData, source) {
+  gsap.killTweensOf(this.deckContainer.scale);
+  gsap.killTweensOf(this.discardContainer.scale);
+
+  if (source === 'discard') {
+    const n = this.discardContainer.children.length;
+    if (n > 0) {
+      const top = this.discardContainer.getChildAt(n - 1);
+      this.discardContainer.removeChild(top);
+    }
+  }
+
   if (this.draggingCard) return; // Уже перетаскиваем карту
-  
   console.log(`Starting to drag card from ${source}`);
   
   // Сохраняем информацию о перетаскиваемой карте
@@ -459,12 +469,22 @@ moveCardHandler = (event) => {
   }
 };
 
+// CardRenderer.js
+
 releaseCardHandler = (event) => {
   if (!this.draggingCard) return;
-  
-  // Получаем координаты отпускания (оставляем как есть)
+
+  // Снять пульсацию и вернуть контейнеры в нормальный масштаб
+  gsap.killTweensOf(this.deckContainer.scale);
+  gsap.killTweensOf(this.discardContainer.scale);
+  this.deckContainer.scale.set(1, 1);
+  this.discardContainer.scale.set(1, 1);
+
+  // Мгновенно убрать визуализацию отбойной карты
+  this.discardContainer.removeChildren();
+
+  // Получаем координаты отпускания
   let clientX, clientY;
-  
   if (event.type === 'touchend') {
     const touch = event.changedTouches[0];
     clientX = touch.clientX;
@@ -473,77 +493,61 @@ releaseCardHandler = (event) => {
     clientX = event.clientX;
     clientY = event.clientY;
   }
-  
+
   // Конвертируем координаты экрана в координаты внутри игры
   const rect = this.app.view.getBoundingClientRect();
   const x = (clientX - rect.left) * (this.app.screen.width / rect.width);
   const y = (clientY - rect.top) * (this.app.screen.height / rect.height);
-  
   const position = { x, y };
-  
-  // Проверяем, находится ли карта над веером игрока
+
+  // Проверяем, куда сбросили карту
   const isOverHand = this.isOverPlayerHand(position);
   const isOverDiscard = this.isOverDiscardPile(position);
-  
-  // Вызываем событие окончания перетаскивания
+
+  // Уведомляем игровую логику о событии drop
   document.dispatchEvent(new CustomEvent('cardDragReleased', {
     detail: {
       cardData: this.draggingCardData,
       source: this.draggingCardSource,
       targetArea: isOverHand ? 'hand' : (isOverDiscard ? 'discard' : 'none'),
-      position: position
+      position
     }
   }));
-  
-  // Удаляем обработчики событий
+
+  // Убираем слушатели
   window.removeEventListener('mousemove', this.moveCardHandler);
   window.removeEventListener('touchmove', this.moveCardHandler);
   window.removeEventListener('mouseup', this.releaseCardHandler);
   window.removeEventListener('touchend', this.releaseCardHandler);
-  
-  // ИЗМЕНЕНО: Обрабатываем каждый случай отдельно с плавной анимацией
+
+  // Анимация и очистка самой перетаскиваемой карты
   if (isOverHand) {
-    // Анимируем добавление карты в веер с уменьшением до нормального размера
     gsap.to(this.draggingCard.scale, {
       x: 1.0, y: 1.0,
       duration: 0.15,
       ease: "power2.out",
-      onComplete: () => {
-        this.addDraggingCardToHand();
-      }
+      onComplete: () => this.addDraggingCardToHand()
     });
   } else if (isOverDiscard) {
-    // Анимируем добавление карты в отбой
     gsap.to(this.draggingCard.scale, {
       x: 1.0, y: 1.0,
       duration: 0.15,
       ease: "power2.out",
       onComplete: () => {
-        // Удаляем карту после уменьшения
         if (this.draggingCard) {
           this.animationContainer.removeChild(this.draggingCard);
           this.draggingCard = null;
         }
-        
-        // Вызываем событие для игровой логики
-        document.dispatchEvent(new CustomEvent('cardDragEnd', {
-          detail: {
-            cardData: this.draggingCardData,
-            targetArea: 'discard',
-            position: position
-          }
-        }));
-        
-        // Сбрасываем данные
+        // Игра уже получила событие и обновит своё состояние
         this.draggingCardData = null;
         this.draggingCardSource = null;
       }
     });
   } else {
-    // Анимируем возврат карты
     this.returnDraggingCard();
   }
 };
+
 
 returnDraggingCard() {
   if (!this.draggingCard) return;
@@ -1467,8 +1471,7 @@ if (i === visibleDiscards - 1) {
       });
   }
   
-  // Animate opponent card discard
-  animateOpponentCardDiscard(cardData, sourceIndex) {
+ animateOpponentCardDiscard(cardData, sourceIndex, onComplete) {
     // Начальная позиция в руке оппонента
     const spacing = this.config.fanDistance || 30;
     const totalCards = this.opponentHandContainer.children.length;
@@ -1539,7 +1542,18 @@ if (i === visibleDiscards - 1) {
       // Создаем анимацию в 3 этапа
       const timeline = gsap.timeline({
         onComplete: () => {
+          // Remove animation container
           this.animationContainer.removeChild(flipContainer);
+          
+          // Log that animation completed
+          console.log("Opponent card discard animation completed");
+          
+          // Ensure callback is called
+          if (typeof onComplete === 'function') {
+            onComplete();
+          } else {
+            console.warn("No callback provided for opponent card discard animation");
+          }
         }
       });
       
