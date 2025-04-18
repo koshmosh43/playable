@@ -1150,7 +1150,7 @@ setupTutorialElements(introContainer) {
                 .to(runIndicator, {
                   alpha: 0,
                   duration: 0.3,
-                  delay: 0.8
+                  delay: 0.5
                 });
             }, "-=0.3");
           }
@@ -1168,7 +1168,7 @@ setupTutorialElements(introContainer) {
           // Move card and hand down together
           timeline.to([movingCard, handCursor], {
             y: (i, target) => i === 0 ? cardHeight + 30 : cardsContainer.y + cardHeight + 30,
-            duration: 0.5,
+            duration: 0.4,
             ease: "power2.out"
           });
           
@@ -1279,11 +1279,11 @@ setupTutorialElements(introContainer) {
             } else {
               showSetLayout();
             }
-          }, 4000);
+          }, 1900);
           
           // Store interval ID for cleanup if needed
           this.tutorialAnimationInterval = animationIntervalId;
-        }, 1500);
+        }, 0.005);
         
         // Make everything interactive
         [cardsContainer, deckContainer].forEach(container => {
