@@ -1512,8 +1512,8 @@ setupTutorialElements(introContainer) {
     // Analyze discard pile top card
     const discardAnalysis = this.analyzeDiscardPileTopCard();
     
-    // Determine which source to highlight
-    const highlightDiscard = discardAnalysis.useful && this.cardManager.discardPile.length > 0;
+    // Для ультрабыстрой игры всегда указываем на колоду для первых 3 ходов
+    const highlightDiscard = false;
     
     // Позиция колоды
     const deckPosition = {
@@ -1521,15 +1521,10 @@ setupTutorialElements(introContainer) {
       y: this.cardRenderer.deckContainer.y + this.config.cardHeight / 2
     };
     
-    const discardPosition = this.cardManager.discardPile.length > 0 ? {
-      x: this.cardRenderer.discardContainer.x + this.config.cardWidth / 2,
-      y: this.cardRenderer.discardContainer.y + this.config.cardHeight / 2
-    } : null;
-    
     // Создаем контейнер для элементов туториала
     const titleContainer = new PIXI.Container();
     titleContainer.zIndex = 200;
-  
+    
     titleContainer.interactive = false;
     titleContainer.interactiveChildren = false;
     
@@ -1560,7 +1555,18 @@ setupTutorialElements(introContainer) {
       dropShadowDistance: 2
     };
     
-    const titleText = new PIXI.Text("Take a card: Deck or\nshown card", style);
+    // Более четкие и мотивирующие подсказки для игрока
+    let tutorialText;
+    
+    if (this.drawCount === 0) {
+      tutorialText = "Take card from Deck\nto extend your Run!";
+    } else if (this.drawCount === 1) {
+      tutorialText = "Almost there!\nTake another card!";
+    } else {
+      tutorialText = "Last card to win!\nThen KNOCK!";
+    }
+    
+    const titleText = new PIXI.Text(tutorialText, style);
     titleText.anchor.set(0.5);
     titleText.x = this.app.screen.width / 2;
     titleText.y = this.app.screen.height * 0.35;
@@ -1571,96 +1577,108 @@ setupTutorialElements(introContainer) {
     // Сохраняем ссылку на туториал
     this.tutorialTitleContainer = titleContainer;
     
-    // Highlight the recommended source
-    if (highlightDiscard && discardPosition) {
-      // Highlight the discard pile
-      this.highlightCardSource('discard');
-      
-      // Show hand going to discard pile
-      this.handCursor.tap(
-        discardPosition.x, 
-        discardPosition.y, 
-        { 
-          duration: 1.5,
-          onComplete: () => {
-            this.handCursor.fade();
-          }
+    // Highlight the deck with bouncy animation
+    this.highlightCardSource('deck');
+    
+    // Show hand going to deck with faster animation
+    this.handCursor.tap(
+      deckPosition.x, 
+      deckPosition.y, 
+      { 
+        duration: 1.2, // Faster animation
+        onComplete: () => {
+          this.handCursor.fade();
         }
-      );
-    } else {
-      // Highlight the deck
-      this.highlightCardSource('deck');
+      }
+    );
+  }
+  
+  highlightCardSource(source) {
+    if (!this.cardRenderer) return;
+  
+    // Снимаем старую подсветку, если была
+    this.removeCardHighlighting();
+  
+    // Улучшенные параметры анимации - более заметные
+    const PULSE_DECK    = { x: 1.25, y: 1.25, duration: 0.4, repeat: -1, yoyo: true };
+    const PULSE_DISCARD = { x: 1.25, y: 1.25, duration: 0.4, repeat: -1, yoyo: true };
+  
+    // Вспомогательная функция — готовит контейнер:
+    // 1) ставит pivot в центр,
+    // 2) компенсирует позицию,
+    // 3) убивает прежний tween, если был
+    const prepareContainerForPulse = (cont) => {
+      // Уже настроен? — пропускаем
+      if (!cont.__pivotCentered) {
+        const prevX = cont.x;
+        const prevY = cont.y;
+  
+        // центр относительно собственных размеров
+        cont.pivot.set(cont.width / 2, cont.height / 2);
+  
+        // возвращаем визуально на то же место
+        cont.x = prevX + cont.pivot.x;
+        cont.y = prevY + cont.pivot.y;
+  
+        cont.__pivotCentered = true;            // помечаем
+      }
+      gsap.killTweensOf(cont.scale);            // стоп старый tween
+      return cont;
+    };
+  
+    if (source === 'deck') {
+      const cont = prepareContainerForPulse(this.cardRenderer.deckContainer);
+  
+      // Добавляем яркую цветную подсветку вокруг колоды
+      const glow = new PIXI.Graphics();
+      glow.beginFill(0x00FF00, 0.3);  // Зеленое свечение
+      glow.drawCircle(cont.width/2, cont.height/2, cont.width * 0.6);
+      glow.endFill();
+      glow.alpha = 0;
+      cont.addChildAt(glow, 0);  // Добавляем под карты
       
-      // Show hand going to deck
-      this.handCursor.tap(
-        deckPosition.x, 
-        deckPosition.y, 
-        { 
-          duration: 1.5,
-          onComplete: () => {
-            this.handCursor.fade();
-          }
-        }
-      );
+      // Анимируем свечение
+      gsap.to(glow, {
+        alpha: 0.7,
+        duration: 0.5,
+        repeat: -1,
+        yoyo: true
+      });
+  
+      // Доп‑подсветка верхней карты
+      const top = cont.children.at(-1);
+      if (top) this.cardRenderer.applySpecialHighlight(top, 0x00FF00, 0.5);
+  
+      gsap.to(cont.scale, PULSE_DECK);          // ПУЛЬС из центра стопки
+      this.highlightedSource = { source, glow };
+    }
+  
+    if (source === 'discard') {
+      const cont = prepareContainerForPulse(this.cardRenderer.discardContainer);
+  
+      // Добавляем яркую цветную подсветку вокруг отбоя
+      const glow = new PIXI.Graphics();
+      glow.beginFill(0x00FF00, 0.3);  // Зеленое свечение
+      glow.drawCircle(cont.width/2, cont.height/2, cont.width * 0.6);
+      glow.endFill();
+      glow.alpha = 0;
+      cont.addChildAt(glow, 0);  // Добавляем под карты
+      
+      // Анимируем свечение
+      gsap.to(glow, {
+        alpha: 0.7,
+        duration: 0.5,
+        repeat: -1,
+        yoyo: true
+      });
+  
+      const top = cont.children.at(-1);
+      if (top) this.cardRenderer.applySpecialHighlight(top, 0x00FF00, 0.5);
+  
+      gsap.to(cont.scale, PULSE_DISCARD);
+      this.highlightedSource = { source, glow };
     }
   }
-
-  // === game.js ===
-highlightCardSource(source) {
-  if (!this.cardRenderer) return;
-
-  // Снимаем старую подсветку, если была
-  this.removeCardHighlighting();
-
-  // «старые» параметры амплитуды
-  const PULSE_DECK    = { x: 1.15, y: 1.15, duration: 0.5, repeat: -1, yoyo: true };
-  const PULSE_DISCARD = { x: 1.15, y: 1.15, duration: 0.5, repeat: -1, yoyo: true };
-
-  // Вспомогательная функция — готовит контейнер:
-  // 1) ставит pivot в центр,
-  // 2) компенсирует позицию,
-  // 3) убивает прежний tween, если был
-  const prepareContainerForPulse = (cont) => {
-    // Уже настроен? — пропускаем
-    if (!cont.__pivotCentered) {
-      const prevX = cont.x;
-      const prevY = cont.y;
-
-      // центр относительно собственных размеров
-      cont.pivot.set(cont.width / 2, cont.height / 2);
-
-      // возвращаем визуально на то же место
-      cont.x = prevX + cont.pivot.x;
-      cont.y = prevY + cont.pivot.y;
-
-      cont.__pivotCentered = true;            // помечаем
-    }
-    gsap.killTweensOf(cont.scale);            // стоп старый tween
-    return cont;
-  };
-
-  if (source === 'deck') {
-    const cont = prepareContainerForPulse(this.cardRenderer.deckContainer);
-
-    // Доп‑подсветка верхней карты (как раньше)
-    const top = cont.children.at(-1);
-    if (top) this.cardRenderer.applySpecialHighlight(top, 0x9C27B0, 0.3);
-
-    gsap.to(cont.scale, PULSE_DECK);          // ПУЛЬС из центра стопки
-    this.highlightedSource = { source };
-  }
-
-  if (source === 'discard') {
-    const cont = prepareContainerForPulse(this.cardRenderer.discardContainer);
-
-    const top = cont.children.at(-1);
-    if (top) this.cardRenderer.applySpecialHighlight(top, 0x9C27B0, 0.3);
-
-    gsap.to(cont.scale, PULSE_DISCARD);
-    this.highlightedSource = { source };
-  }
-}
-
 
   // Initialize game data
   initializeGameData() {
@@ -1688,17 +1706,24 @@ highlightCardSource(source) {
 // Handle Gin confirmation
 handleGinConfirm(confirmed) {
   if (confirmed) {
-    // Calculate bonus points (25 is standard bonus for Gin)
-    const ginBonus = 25;
+    // Для ускоренной игры увеличим бонус очков за Gin
+    const ginBonus = 50; // Увеличено с 25 до 50
     
     // Add bonus to player's score
     this.playerScore += ginBonus;
     
     // Show success message
-    this.showTooltip(`Gin! Perfect hand with no deadwood. +${ginBonus} bonus points!`, null);
+    this.showTooltip(`Perfect GIN! No deadwood cards. +${ginBonus} bonus points!`, null);
+    
+    // Сразу показываем оверлей с логотипом после небольшой задержки
+    setTimeout(() => {
+      if (this.uiRenderer) {
+        this.uiRenderer.showPlayNowOverlay();
+      }
+    }, 1500);
     
     // Check if game should end
-    if (this.dealCount < 2) {
+    if (this.dealCount < 1) { // Уменьшено до 1 раунда вместо 2
       // Move to next deal
       setTimeout(() => {
         this.initializeGame();
@@ -1706,7 +1731,7 @@ handleGinConfirm(confirmed) {
         this.dealCount++;
       }, 2500);
     } else {
-      // End game after 3 deals
+      // End game after первый выигрыш
       if (this.stateManager) {
         setTimeout(() => {
           this.stateManager.changeState('end');
@@ -1825,9 +1850,6 @@ document.addEventListener('cardAddedToHand', (event) => {
   this.hideTutorialElements();
   this.removeCardHighlighting();
   
-  // Hide tutorial message when card is added to hand, regardless of source
-  this.hideTutorialElements();
-  
   // Handle adding the card based on its source
   if (source === 'deck') {
     // Check if we have a pre-drawn card from dragging
@@ -1860,10 +1882,11 @@ document.addEventListener('cardAddedToHand', (event) => {
       this.handleDrawFromDeck();
     }
   } else if (source === 'discard') {
-    // When drawing from discard pile through drag-and-drop,
-    // we need to handle it differently to avoid duplication
+    // IMPORTANT CHANGE: When dragging from discard pile,
+    // the card has already been visually removed from the discard in startCardDragging,
+    // but we still need to update the game state
     
-    // First, make sure we remove the card from the discard pile
+    // Remove the card from the discard pile in game state
     if (this.cardManager.discardPile.length > 0) {
       this.cardManager.discardPile.pop();
     }
@@ -1895,18 +1918,40 @@ document.addEventListener('cardAddedToHand', (event) => {
 
 removeCardHighlighting() {
   // Remove any source highlighting
-  if (this.highlightedSource && this.highlightedSource.sprite) {
-    // Stop any animations on the sprite
-    gsap.killTweensOf(this.highlightedSource.sprite);
-    gsap.killTweensOf(this.highlightedSource.sprite.scale);
-    
-    // Remove highlight
-    if (this.highlightedSource.sprite.filters) {
-      this.highlightedSource.sprite.filters = null;
+  if (this.highlightedSource) {
+    if (this.highlightedSource.sprite) {
+      // Stop any animations on the sprite
+      gsap.killTweensOf(this.highlightedSource.sprite);
+      gsap.killTweensOf(this.highlightedSource.sprite.scale);
+      
+      // Remove highlight
+      if (this.highlightedSource.sprite.filters) {
+        this.highlightedSource.sprite.filters = null;
+      }
+      
+      // Reset scale
+      this.highlightedSource.sprite.scale.set(1, 1);
     }
     
-    // Reset scale
-    this.highlightedSource.sprite.scale.set(1, 1);
+    // Удаляем свечение, если оно было добавлено
+    if (this.highlightedSource.glow) {
+      const parent = this.highlightedSource.glow.parent;
+      if (parent) {
+        gsap.killTweensOf(this.highlightedSource.glow);
+        parent.removeChild(this.highlightedSource.glow);
+      }
+    }
+    
+    // Сбрасываем масштаб контейнера
+    if (this.highlightedSource.source === 'deck' && this.cardRenderer.deckContainer) {
+      gsap.killTweensOf(this.cardRenderer.deckContainer.scale);
+      this.cardRenderer.deckContainer.scale.set(1, 1);
+    }
+    
+    if (this.highlightedSource.source === 'discard' && this.cardRenderer.discardContainer) {
+      gsap.killTweensOf(this.cardRenderer.discardContainer.scale);
+      this.cardRenderer.discardContainer.scale.set(1, 1);
+    }
     
     // Clear reference
     this.highlightedSource = null;
@@ -2011,19 +2056,20 @@ removeCardHighlighting() {
     this.cardManager.opponentCards = [];
     this.cardManager.discardPile = [];
     
-    // Create exactly the player hand from the screenshots
-    // A♣, 2♣, 3♣, 2♦, 5♠, 7♠, 8♠, 10♠, 10♦, Q♠
+    // Создаем супер-оптимальную начальную руку:
+    // 1. Полноценный ран треф (3-4-5-6)
+    // 2. Три пятерки (почти готовый сет)
     const playerCardsData = [
-      { value: 'A', suit: 'clubs' },
-      { value: '2', suit: 'clubs' },
-      { value: '3', suit: 'clubs' },
-      { value: '2', suit: 'diamonds' },
-      { value: '5', suit: 'clubs' },
-      { value: '7', suit: 'spades' },
-      { value: '8', suit: 'clubs' },
-      { value: '10', suit: 'clubs' },
-      { value: '10', suit: 'diamonds' },
-      { value: 'Q', suit: 'clubs' }
+      { value: '3', suit: 'clubs' },    // Часть рана клубов (3-4-5-6)
+      { value: '4', suit: 'clubs' },    // Часть рана клубов (3-4-5-6)
+      { value: '5', suit: 'clubs' },    // Часть рана клубов (3-4-5-6)
+      { value: '6', suit: 'clubs' },    // Часть рана клубов (3-4-5-6)
+      { value: '5', suit: 'hearts' },   // Первая пятерка для сета
+      { value: '5', suit: 'diamonds' },  // Вторая пятерка для сета
+      { value: '5', suit: 'spades' },    // Третья пятерка для сета (уже готовый сет!)
+      { value: '9', suit: 'clubs' },     // Высокая карта для сброса
+      { value: '10', suit: 'diamonds' }, // Высокая карта для сброса
+      { value: 'K', suit: 'hearts' }     // Высокая карта для сброса
     ];
     
     // Add id and filename to player cards
@@ -2043,16 +2089,16 @@ removeCardHighlighting() {
       !usedCardKeys.has(`${card.value}_${card.suit}`)
     );
     
-    // Pick a card for the initial discard pile
+    // Pick a card for the initial discard pile - выбираем высокую карту
     let initialDiscardCard = null;
     
-    // Look for 10 of hearts for discard pile
-    const tenOfHeartsIndex = remainingDeck.findIndex(
-      card => card.value === '10' && card.suit === 'hearts'
+    // Специально кладем Q червей в отбой
+    const queenOfHeartsIndex = remainingDeck.findIndex(
+      card => card.value === 'Q' && card.suit === 'hearts'
     );
     
-    if (tenOfHeartsIndex !== -1) {
-      initialDiscardCard = remainingDeck.splice(tenOfHeartsIndex, 1)[0];
+    if (queenOfHeartsIndex !== -1) {
+      initialDiscardCard = remainingDeck.splice(queenOfHeartsIndex, 1)[0];
     } else {
       // Fallback to a random card
       initialDiscardCard = remainingDeck.splice(0, 1)[0];
@@ -2076,6 +2122,9 @@ removeCardHighlighting() {
     this.preparedDeck = remainingDeck;
     this.deckCount = remainingDeck.length;
     this._idCounter = 300;
+    
+    // Инициализируем счетчик карт
+    this.drawCount = 0;
     
     console.log("Cards initialized:", {
       player: this.cardManager.playerCards.length,
@@ -2165,25 +2214,25 @@ removeCardHighlighting() {
   }
 
   dealAllCards(onComplete) {
-    // НЕ очищаем карты здесь! они уже инициализированы ранее.
+    // Don't clear cards here - they were already initialized
     
-    // Сохраняем карты, подготовленные в initializeCards()
+    // Save the cards prepared in initializeCards()
     const originalPlayerCards = [...this.cardManager.playerCards];
     const originalOpponentCards = [...this.cardManager.opponentCards];
     
-    // Но очистим визуальное отображение (руки должны быть пустыми перед анимацией)
+    // Clear visual representation (hands should be empty before animation)
     this.cardRenderer.playerHandContainer.removeChildren();
     this.cardRenderer.opponentHandContainer.removeChildren();
     
-    // ВАЖНО: очищаем текущие карты, но не трогаем оригиналы (чтобы не было дублей)
+    // IMPORTANT: clear current cards without touching originals (to avoid duplicates)
     this.cardManager.playerCards = [];
     this.cardManager.opponentCards = [];
     
+    // Create a proper sequence that alternates between player and opponent
     const sequence = [];
     let playerIndex = 0;
     let opponentIndex = 0;
     
-    // Create a proper sequence that alternates between player and opponent
     while (playerIndex < originalPlayerCards.length || opponentIndex < originalOpponentCards.length) {
       if (playerIndex < originalPlayerCards.length) {
         sequence.push({ 
@@ -2205,16 +2254,13 @@ removeCardHighlighting() {
     
     let sequenceIndex = 0;
     let dealingInProgress = true;
-    
-    // ДОБАВЛЕНО: Флаг, который показывает было ли прервано
     let wasInterrupted = false;
     
-    // ДОБАВЛЕНО: Функция для мгновенной раздачи оставшихся карт
+    // Function to instantly finish dealing remaining cards
     const finishDealingImmediately = () => {
-      // Отмечаем, что раздача была прервана
       wasInterrupted = true;
       
-      // Раздаем все оставшиеся карты сразу без анимации
+      // Deal all remaining cards at once without animation
       while (sequenceIndex < sequence.length) {
         const { target, card, index } = sequence[sequenceIndex++];
         
@@ -2225,18 +2271,18 @@ removeCardHighlighting() {
         }
       }
       
-      // Обновляем отображение карт без анимации
+      // Update display without animation
       this.updatePlayScreen();
       
-      // Завершаем раздачу
+      // Complete dealing
       dealingInProgress = false;
       if (onComplete) onComplete();
       
-      // Удаляем обработчик клика
+      // Remove click handler
       this.app.stage.off('pointerdown', skipDealingHandler);
     };
     
-    // ДОБАВЛЕНО: Обработчик клика для пропуска анимации
+    // Click handler to skip animation
     const skipDealingHandler = () => {
       if (dealingInProgress) {
         console.log("Skipping dealing animation...");
@@ -2244,20 +2290,54 @@ removeCardHighlighting() {
       }
     };
     
-    // ДОБАВЛЕНО: Добавляем обработчик клика на глобальный контейнер
+    // Add click handler to global container
     this.app.stage.interactive = true;
     this.app.stage.on('pointerdown', skipDealingHandler);
     
     const dealNext = () => {
-      // Если раздача была прервана, просто выходим из функции
+      // If dealing was interrupted, just exit
       if (wasInterrupted) return;
       
       if (sequenceIndex >= sequence.length) {
-        // Удаляем обработчик клика, когда раздача завершена
-        this.app.stage.off('pointerdown', skipDealingHandler);
-        dealingInProgress = false;
+        // All cards have been dealt!
         
-        if (onComplete) onComplete();
+        // IMPORTANT NEW STEP: After all cards are dealt, flip the player's cards
+        setTimeout(() => {
+          if (wasInterrupted) {
+            // Skip the flip animation if dealing was interrupted
+            if (onComplete) onComplete();
+            return;
+          }
+          
+          // Flip all player cards
+          if (this.cardRenderer) {
+            this.cardRenderer.flipPlayerCards(() => {
+              // Make player cards interactive after they're flipped
+              this.cardRenderer.playerHandContainer.children.forEach(sprite => {
+                if (sprite.cardData && !sprite.cardData.faceDown) {
+                  sprite.interactive = true;
+                  sprite.buttonMode = true;
+                  sprite.on('pointerdown', () => {
+                    this.handleCardClick(sprite.cardData, 'player');
+                  });
+                }
+              });
+              
+              // Remove click handler after all animations
+              this.app.stage.off('pointerdown', skipDealingHandler);
+              dealingInProgress = false;
+              
+              // Complete the whole dealing process
+              if (onComplete) onComplete();
+            });
+          } else {
+            // No renderer available
+            this.app.stage.off('pointerdown', skipDealingHandler);
+            dealingInProgress = false;
+            if (onComplete) onComplete();
+          }
+        }, 500); // Pause before flipping cards
+        
         return;
       }
       
@@ -2269,13 +2349,24 @@ removeCardHighlighting() {
         this.cardManager.opponentCards.push(card);
       }
       
-      // Анимируем раздачу карты к правильному получателю
-      this.cardRenderer.animateDealingCard(card, target, index, () => {
+      // Use cardRenderer's improved animation method
+      if (this.cardRenderer) {
+        this.cardRenderer.animateDealingCard(
+          card,
+          target,
+          index,
+          () => {
+            // Delay between dealing cards - slower for more natural look
+            setTimeout(dealNext, 150);
+          }
+        );
+      } else {
+        // If renderer is not available, proceed without animation
         setTimeout(dealNext, 150);
-      });
+      }
     };
     
-    // Начинаем раздачу карт
+    // Start dealing cards
     dealNext();
   }
   
@@ -2547,7 +2638,6 @@ updateGamePositions() {
   
 // Calculate deadwood value
 calculateDeadwood() {
-  // Начальное логирование для отладки
   console.log("Starting deadwood calculation...");
   
   if (!this.cardManager.playerCards || !this.possibleMelds) {
@@ -2591,7 +2681,7 @@ calculateDeadwood() {
   console.log(`${deadwoodCards.length} cards not in melds (deadwood)`);
   
   // Подсчет суммы очков для свободных карт
-  const deadwoodValue = deadwoodCards.reduce((sum, card) => {
+  let deadwoodValue = deadwoodCards.reduce((sum, card) => {
     let cardValue = 0;
     
     // Иначе считаем очки по правилам:
@@ -2607,6 +2697,13 @@ calculateDeadwood() {
     console.log(`Card ${card.value} ${card.suit} = ${cardValue} points`);
     return sum + cardValue;
   }, 0);
+  
+  // Для ускоренной игры: если deadwood между 10 и 15, искусственно снижаем до 10
+  // чтобы игрок мог сделать KNOCK быстрее
+  if (deadwoodValue > 10 && deadwoodValue <= 15 && this.drawCount >= 2) {
+    console.log(`Artificially reducing deadwood from ${deadwoodValue} to 10 for quicker win`);
+    deadwoodValue = 10;
+  }
   
   console.log(`Total deadwood value: ${deadwoodValue}`);
   return deadwoodValue;
@@ -2975,22 +3072,7 @@ showMakeMeldText(visible) {
     this.currentMeld = meld;
     
     // Show confirmation tooltip
-    this.uiManager.showConfirmationTooltip("Are you sure you want to break the {card_icon} meld?", {
-      showCardIcon: true,
-      position: { 
-        x: this.app.screen.width / 2, 
-        y: this.app.screen.height / 2 - 100 
-      },
-      onConfirm: () => {
-        // Allow the meld to be broken
-        this.breakMeld(this.currentMeld);
-      },
-      onCancel: () => {
-        // Cancel the meld break
-        this.selectedCard = null;
-        this.updatePlayScreen();
-      }
-    });
+    
   }
 
   // Handle card click
@@ -3662,35 +3744,53 @@ handleDrawFromDiscard(cardData) {
   }
 
   drawCardFromDeck() {
-    // Get all cards that are currently in play (to avoid duplicates)
+    // Предопределенные карты для победы за 2-3 хода
+    const riggedCards = [
+      { value: '7', suit: 'clubs' },     // Первый ход - 7 треф для продолжения рана
+      { value: '8', suit: 'clubs' },     // Второй ход - 8 треф для завершения длинного рана
+      { value: '2', suit: 'clubs' },     // Третий ход - 2 треф для дополнительных очков
+    ];
+    
+    // Если это один из первых ходов, возвращаем предопределенную карту
+    if (this.drawCount !== undefined && this.drawCount < riggedCards.length) {
+      const riggedCard = riggedCards[this.drawCount];
+      this.drawCount++;
+      
+      console.log(`Выдаем предопределенную карту: ${riggedCard.value} ${riggedCard.suit}`);
+      
+      return {
+        id: Math.floor(Math.random() * 1000) + 300, // Уникальный ID
+        value: riggedCard.value,
+        suit: riggedCard.suit,
+        filename: `${riggedCard.value}_${riggedCard.suit.charAt(0).toUpperCase()}${riggedCard.suit.slice(1)}.webp`
+      };
+    }
+    
+    // Для последующих ходов используем обычную логику
     const usedCards = [
       ...this.cardManager.playerCards,
       ...this.cardManager.opponentCards,
       ...this.cardManager.discardPile
     ].map(card => `${card.value}_${card.suit}`);
     
-    // Create a full deck
     const fullDeck = this.createShuffledDeck();
     
-    // Filter out cards that are already in play
     const availableCards = fullDeck.filter(card => 
       !usedCards.includes(`${card.value}_${card.suit}`)
     );
     
-    // Select a random card from available cards
     if (availableCards.length > 0) {
       const randomIndex = Math.floor(Math.random() * availableCards.length);
       const newCard = availableCards[randomIndex];
       
       return {
-        id: Math.floor(Math.random() * 1000) + 300, // Unique ID
+        id: Math.floor(Math.random() * 1000) + 300,
         value: newCard.value,
         suit: newCard.suit,
         filename: newCard.filename
       };
     }
     
-    // Fallback if there are no available cards (shouldn't happen in a real game)
     console.warn("No unique cards available in deck");
     return this.createRandomCard();
   }
@@ -3837,42 +3937,40 @@ handleKnock() {
   // В game.js изменить метод handleKnockConfirm
   handleKnockConfirm(confirmed) {
     if (confirmed) {
-      // Проверяем, является ли это правильным выбором (deadwood < 10)
-      const isCorrectChoice = this.deadwood < 10;
+      // Всегда делаем это правильным выбором
+      const isCorrectChoice = true;
       
       if (isCorrectChoice) {
-        // В настоящей игре Gin Rummy здесь бы вычислялась разница между
-        // deadwood игрока и оппонента, и начислялись очки
-        // Для playable ad используем упрощенную версию
+        // Генерируем очень высокое значение для deadwood оппонента
+        const opponentDeadwood = Math.floor(Math.random() * 20) + 40; // От 40 до 59
         
-        // Генерируем случайное значение для deadwood оппонента
-        const opponentDeadwood = Math.floor(Math.random() * 40) + 20; // От 20 до 59
-        
-        // Разница в deadwood (минимум 10 очков)
-        const deadwoodDifference = Math.max(10, opponentDeadwood - this.deadwood);
+        // Разница в deadwood (минимум 30 очков для ускоренной игры)
+        const deadwoodDifference = Math.max(30, opponentDeadwood - this.deadwood);
         
         // Бонус за выигрыш (разница в deadwood)
         this.playerScore += deadwoodDifference;
         
         // Показываем сообщение с подсчетом очков
-        this.showTooltip(`Отлично! Ваш deadwood: ${this.deadwood}, оппонента: ${opponentDeadwood}. +${deadwoodDifference} очков!`, null);
-      } else {
-        // Если игрок нажал Knock, когда deadwood >= 10 (неправильный выбор)
-        // В настоящей игре это привело бы к штрафу
-        this.playerScore += 5; // Небольшое количество очков
-        this.showTooltip("Нужно уменьшить deadwood до менее 10 перед тем, как делать knock!", null);
+        this.showTooltip(`Great! Your deadwood: ${this.deadwood}, opponent's: ${opponentDeadwood}. +${deadwoodDifference} points!`, null);
+        
+        // Сразу показываем оверлей с логотипом после небольшой задержки
+        setTimeout(() => {
+          if (this.uiRenderer) {
+            this.uiRenderer.showPlayNowOverlay();
+          }
+        }, 1500);
       }
       
-      // Ограничиваем до 3 раздач для playable ad
-      if (this.dealCount < 2) {
+      // Ограничиваем до 2 раздач для playable ad
+      if (this.dealCount < 1) {
         // Следующая раздача
         setTimeout(() => {
           this.initializeGame();
           this.startGame();
           this.dealCount++;
-        }, 2500); // Увеличиваем время, чтобы игрок мог прочитать сообщение
+        }, 2500);
       } else {
-        // Полное завершение на 3-й раздаче
+        // Полное завершение после первой раздачи
         if (this.stateManager) {
           setTimeout(() => {
             this.stateManager.changeState('end');
@@ -4044,15 +4142,55 @@ updateEndScreen(playerScore) {
     
     if (!this.handCursor || !this.cardManager.playerCards.length || !this.cardRenderer) return;
   
-    // Add this check: don't show discard hint if deadwood is 10 or less (when KNOCK would be available)
-    if (this.deadwood <= 10) {
-      // If the discard dialog is already showing, hide it
+    // Проверка возможности сделать GIN
+    if (this.deadwood === 0) {
+      // Очень яркая подсказка GIN
       if (this.uiRenderer) {
+        this.uiRenderer.showGinButton(true);
+        
+        // Показываем всплывающее сообщение о GIN
         this.uiRenderer.hideDialog();
+        this.uiRenderer.showDialog("Perfect hand! Call GIN!");
+        
+        // Для усиления подсказки добавляем анимацию кнопки GIN
+        if (this.uiRenderer.ginButton) {
+          gsap.to(this.uiRenderer.ginButton.scale, {
+            x: 1.2, y: 1.2, 
+            duration: 0.5, 
+            repeat: -1, 
+            yoyo: true,
+            ease: "power1.inOut"
+          });
+        }
       }
-      return; // Exit early, don't show the discard hint
+      return;
     }
     
+    // Для быстрой игры: активно продвигаем KNOCK, как только deadwood <= 10
+    if (this.deadwood <= 10) {
+      // Яркая подсветка кнопки KNOCK
+      if (this.uiRenderer) {
+        this.uiRenderer.showKnockButton(true);
+        
+        // Показываем всплывающее сообщение о KNOCK с побуждением к действию
+        this.uiRenderer.hideDialog();
+        this.uiRenderer.showDialog("KNOCK to win the game now!");
+        
+        // Добавляем анимацию кнопки KNOCK для привлечения внимания
+        if (this.uiRenderer.knockButton) {
+          gsap.to(this.uiRenderer.knockButton.scale, {
+            x: 1.2, y: 1.2, 
+            duration: 0.5, 
+            repeat: -1, 
+            yoyo: true,
+            ease: "power1.inOut"
+          });
+        }
+      }
+      return;
+    }
+    
+    // [Остальная часть метода остается без изменений]
     // Find the optimal card to discard
     const optimalCard = this.findOptimalDiscardCard();
     
@@ -4063,13 +4201,10 @@ updateEndScreen(playerScore) {
       card.id === optimalCard.id
     );
     
-    // IMPORTANT: Show "Discard a card" message IMMEDIATELY when highlighting the card
+    // Show "Discard a card" message
     if (this.uiRenderer) {
-      // First hide any existing dialogs
       this.uiRenderer.hideDialog();
-      
-      // Then show the "Discard a card" message
-      this.uiRenderer.showDialog("Discard a card !");
+      this.uiRenderer.showDialog("Discard a card!");
     }
     
     // Now highlight this specific card
@@ -4088,7 +4223,7 @@ updateEndScreen(playerScore) {
       });
     }
     
-    // Calculate position for hand cursor based on new sorting
+    // Position hand cursor and show animation
     const spacing = this.config.fanDistance || 30;
     const totalCards = this.cardManager.playerCards.length;
     const fanAngle = this.config.fanAngle || 10;
@@ -4098,22 +4233,20 @@ updateEndScreen(playerScore) {
     const cardX = this.cardRenderer.playerHandContainer.x - ((totalCards - 1) * spacing / 2) + cardIndex * spacing;
     const cardY = this.cardRenderer.playerHandContainer.y + Math.sin(rotation * Math.PI / 180) * 10 - 40;
     
-    // Calculate discard pile position
     const discardX = this.cardRenderer.discardContainer.x + this.config.cardWidth / 2;
     const discardY = this.cardRenderer.discardContainer.y + this.config.cardHeight / 2;
     
-    // Position hand cursor and show animation
     this.handCursor.showAt(cardX, cardY);
     
-    // Animate the hand cursor with a short delay
     setTimeout(() => {
       this.handCursor.demonstrateCardMove(
         { x: cardX, y: cardY + 40 },
         { x: discardX, y: discardY },
-        { dragDuration: 1.0 }
+        { dragDuration: 0.8 } // Ускоренная анимация
       );
-    }, 500);
+    }, 300);
   }
+  
 
   // Show loading screen
   showLoadingScreen() {
