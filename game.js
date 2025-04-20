@@ -86,6 +86,35 @@ class GinRummyGame {
     this.uiManager = null;
   }
 
+  initializeGSAP() {
+    // Check if GSAP is available
+    if (window.gsap) {
+      console.log("GSAP detected");
+      
+      // Disable warnings about null/undefined objects
+      gsap.config({
+        nullTargetWarn: false
+      });
+      
+      // Register plugins if available
+      if (window.PixiPlugin) {
+        console.log("Registering PixiPlugin");
+        gsap.registerPlugin(PixiPlugin);
+        if (window.PIXI) {
+          PixiPlugin.registerPIXI(PIXI);
+        }
+      }
+      
+      // Explicitly register BezierPlugin if available
+      if (window.BezierPlugin) {
+        console.log("Registering BezierPlugin");
+        gsap.registerPlugin(BezierPlugin);
+      }
+    } else {
+      console.warn("GSAP not available, animations will not work");
+    }
+  }
+
   sortCardsByValue(cards) {
     // Порядок значений карт (А низкий)
     const valueOrder = {
@@ -230,6 +259,7 @@ class GinRummyGame {
 
   // Initialize the game
   async initialize() {
+    this.initializeGSAP();
     try {
       // Add the game canvas to the DOM and set full size
       const gameContainer = document.getElementById('game-container');
@@ -1629,54 +1659,23 @@ setupTutorialElements(introContainer) {
     if (source === 'deck') {
       const cont = prepareContainerForPulse(this.cardRenderer.deckContainer);
   
-      // Добавляем яркую цветную подсветку вокруг колоды
-      const glow = new PIXI.Graphics();
-      glow.beginFill(0x00FF00, 0.3);  // Зеленое свечение
-      glow.drawCircle(cont.width/2, cont.height/2, cont.width * 0.6);
-      glow.endFill();
-      glow.alpha = 0;
-      cont.addChildAt(glow, 0);  // Добавляем под карты
-      
-      // Анимируем свечение
-      gsap.to(glow, {
-        alpha: 0.7,
-        duration: 0.5,
-        repeat: -1,
-        yoyo: true
-      });
+     
   
       // Доп‑подсветка верхней карты
       const top = cont.children.at(-1);
       if (top) this.cardRenderer.applySpecialHighlight(top, 0x00FF00, 0.5);
   
-      gsap.to(cont.scale, PULSE_DECK);          // ПУЛЬС из центра стопки
-      this.highlightedSource = { source, glow };
     }
   
     if (source === 'discard') {
       const cont = prepareContainerForPulse(this.cardRenderer.discardContainer);
   
-      // Добавляем яркую цветную подсветку вокруг отбоя
-      const glow = new PIXI.Graphics();
-      glow.beginFill(0x00FF00, 0.3);  // Зеленое свечение
-      glow.drawCircle(cont.width/2, cont.height/2, cont.width * 0.6);
-      glow.endFill();
-      glow.alpha = 0;
-      cont.addChildAt(glow, 0);  // Добавляем под карты
       
-      // Анимируем свечение
-      gsap.to(glow, {
-        alpha: 0.7,
-        duration: 0.5,
-        repeat: -1,
-        yoyo: true
-      });
   
       const top = cont.children.at(-1);
       if (top) this.cardRenderer.applySpecialHighlight(top, 0x00FF00, 0.5);
   
       gsap.to(cont.scale, PULSE_DISCARD);
-      this.highlightedSource = { source, glow };
     }
   }
 
@@ -1933,14 +1932,6 @@ removeCardHighlighting() {
       this.highlightedSource.sprite.scale.set(1, 1);
     }
     
-    // Удаляем свечение, если оно было добавлено
-    if (this.highlightedSource.glow) {
-      const parent = this.highlightedSource.glow.parent;
-      if (parent) {
-        gsap.killTweensOf(this.highlightedSource.glow);
-        parent.removeChild(this.highlightedSource.glow);
-      }
-    }
     
     // Сбрасываем масштаб контейнера
     if (this.highlightedSource.source === 'deck' && this.cardRenderer.deckContainer) {
@@ -2214,75 +2205,42 @@ removeCardHighlighting() {
   }
 
   dealAllCards(onComplete) {
-    // Don't clear cards here - they were already initialized
-    
-    // Save the cards prepared in initializeCards()
+    // Используем ранее подготовленные карты
     const originalPlayerCards = [...this.cardManager.playerCards];
     const originalOpponentCards = [...this.cardManager.opponentCards];
     
-    // Clear visual representation (hands should be empty before animation)
-    this.cardRenderer.playerHandContainer.removeChildren();
-    this.cardRenderer.opponentHandContainer.removeChildren();
-    
-    // IMPORTANT: clear current cards without touching originals (to avoid duplicates)
+    // Очищаем текущие карты у игрока и оппонента
     this.cardManager.playerCards = [];
     this.cardManager.opponentCards = [];
     
-    // Create a proper sequence that alternates between player and opponent
-    const sequence = [];
-    let playerIndex = 0;
-    let opponentIndex = 0;
+    // Очищаем визуальные контейнеры
+    this.cardRenderer.playerHandContainer.removeChildren();
+    this.cardRenderer.opponentHandContainer.removeChildren();
     
-    while (playerIndex < originalPlayerCards.length || opponentIndex < originalOpponentCards.length) {
-      if (playerIndex < originalPlayerCards.length) {
-        sequence.push({ 
-          target: 'player', 
-          card: originalPlayerCards[playerIndex], 
-          index: playerIndex 
-        });
-        playerIndex++;
-      }
-      if (opponentIndex < originalOpponentCards.length) {
-        sequence.push({ 
-          target: 'opponent', 
-          card: originalOpponentCards[opponentIndex], 
-          index: opponentIndex 
-        });
-        opponentIndex++;
-      }
-    }
-    
-    let sequenceIndex = 0;
-    let dealingInProgress = true;
+    // Флаг для отслеживания прерывания анимации
     let wasInterrupted = false;
-    
-    // Function to instantly finish dealing remaining cards
+    let dealingInProgress = true;
+  
+    // Функция для мгновенного завершения раздачи
     const finishDealingImmediately = () => {
       wasInterrupted = true;
       
-      // Deal all remaining cards at once without animation
-      while (sequenceIndex < sequence.length) {
-        const { target, card, index } = sequence[sequenceIndex++];
-        
-        if (target === 'player') {
-          this.cardManager.playerCards.push(card);
-        } else {
-          this.cardManager.opponentCards.push(card);
-        }
-      }
+      // Добавляем все карты сразу
+      this.cardManager.playerCards = [...originalPlayerCards];
+      this.cardManager.opponentCards = [...originalOpponentCards];
       
-      // Update display without animation
+      // Обновляем отображение без анимации
       this.updatePlayScreen();
       
-      // Complete dealing
+      // Завершаем процесс
       dealingInProgress = false;
       if (onComplete) onComplete();
       
-      // Remove click handler
+      // Удаляем обработчик клика
       this.app.stage.off('pointerdown', skipDealingHandler);
     };
     
-    // Click handler to skip animation
+    // Обработчик для пропуска анимации
     const skipDealingHandler = () => {
       if (dealingInProgress) {
         console.log("Skipping dealing animation...");
@@ -2290,84 +2248,42 @@ removeCardHighlighting() {
       }
     };
     
-    // Add click handler to global container
+    // Добавляем обработчик клика
     this.app.stage.interactive = true;
     this.app.stage.on('pointerdown', skipDealingHandler);
     
-    const dealNext = () => {
-      // If dealing was interrupted, just exit
-      if (wasInterrupted) return;
-      
-      if (sequenceIndex >= sequence.length) {
-        // All cards have been dealt!
+    // Запускаем новую анимацию раздачи
+    this.cardRenderer.animateFlyingCardDealing(
+      originalPlayerCards, 
+      originalOpponentCards,
+      () => {
+        // Карты розданы, теперь нужно перевернуть карты игрока
+        if (wasInterrupted) {
+          if (onComplete) onComplete();
+          return;
+        }
         
-        // IMPORTANT NEW STEP: After all cards are dealt, flip the player's cards
-        setTimeout(() => {
-          if (wasInterrupted) {
-            // Skip the flip animation if dealing was interrupted
-            if (onComplete) onComplete();
-            return;
-          }
-          
-          // Flip all player cards
-          if (this.cardRenderer) {
-            this.cardRenderer.flipPlayerCards(() => {
-              // Make player cards interactive after they're flipped
-              this.cardRenderer.playerHandContainer.children.forEach(sprite => {
-                if (sprite.cardData && !sprite.cardData.faceDown) {
-                  sprite.interactive = true;
-                  sprite.buttonMode = true;
-                  sprite.on('pointerdown', () => {
-                    this.handleCardClick(sprite.cardData, 'player');
-                  });
-                }
-              });
-              
-              // Remove click handler after all animations
-              this.app.stage.off('pointerdown', skipDealingHandler);
-              dealingInProgress = false;
-              
-              // Complete the whole dealing process
-              if (onComplete) onComplete();
-            });
-          } else {
-            // No renderer available
+        // Обновляем модель данных после раздачи
+        this.cardManager.playerCards = [...originalPlayerCards];
+        this.cardManager.opponentCards = [...originalOpponentCards];
+        
+        // Переворачиваем карты игрока
+        if (this.cardRenderer) {
+          this.cardRenderer.flipPlayerCards(() => {
+            // Убираем обработчик клика
             this.app.stage.off('pointerdown', skipDealingHandler);
             dealingInProgress = false;
+            
+            // Вызываем колбэк завершения всего процесса
             if (onComplete) onComplete();
-          }
-        }, 500); // Pause before flipping cards
-        
-        return;
+          });
+        } else {
+          this.app.stage.off('pointerdown', skipDealingHandler);
+          dealingInProgress = false;
+          if (onComplete) onComplete();
+        }
       }
-      
-      const { target, card, index } = sequence[sequenceIndex++];
-      
-      if (target === 'player') {
-        this.cardManager.playerCards.push(card);
-      } else {
-        this.cardManager.opponentCards.push(card);
-      }
-      
-      // Use cardRenderer's improved animation method
-      if (this.cardRenderer) {
-        this.cardRenderer.animateDealingCard(
-          card,
-          target,
-          index,
-          () => {
-            // Delay between dealing cards - slower for more natural look
-            setTimeout(dealNext, 150);
-          }
-        );
-      } else {
-        // If renderer is not available, proceed without animation
-        setTimeout(dealNext, 150);
-      }
-    };
-    
-    // Start dealing cards
-    dealNext();
+    );
   }
   
 
@@ -2461,31 +2377,7 @@ updateGamePositions() {
       );
     }
   }
-
-  initializeGSAP() {
-    // Проверяем наличие необходимых глобальных объектов
-    if (window.gsap && window.PixiPlugin && window.PIXI) {
-      // Регистрируем PixiPlugin для работы с PIXI.js
-      gsap.registerPlugin(PixiPlugin);
-      PixiPlugin.registerPIXI(PIXI);
-      
-      // Важно: добавляем плагин для 3D трансформаций
-      if (window.gsap.config) {
-        gsap.config({
-          nullTargetWarn: false
-        });
-      }
-      
-      // Регистрируем плагин для 3D-вращений, если он доступен
-      if (window.CSSPlugin) {
-        console.log("CSSPlugin registered successfully");
-      }
-      
-      console.log("GSAP plugins registered successfully");
-    } else {
-      console.warn("GSAP or PixiPlugin not available, animations may not work correctly");
-    }
-  }
+  
 
   // Update possible melds
   updatePossibleMelds() {

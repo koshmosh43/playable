@@ -915,7 +915,7 @@ applySpecialHighlight(sprite, color, alpha) {
   animateCardTake(cardData, source, destIndex) {
     if (!cardData) return;
     
-    // Определяем начальную позицию
+    // Determine starting position
     const startX = source === 'deck' 
       ? this.deckContainer.x + this.config.cardWidth / 2
       : this.discardContainer.x + this.config.cardWidth / 2;
@@ -924,7 +924,7 @@ applySpecialHighlight(sprite, color, alpha) {
       ? this.deckContainer.y + this.config.cardHeight / 2
       : this.discardContainer.y + this.config.cardHeight / 2;
     
-    // Расчет конечной позиции в руке игрока
+    // Calculate final position in player's hand
     const spacing = this.config.fanDistance || 30;
     const totalCards = this.playerHandContainer.children.length;
     const fanAngle = this.config.fanAngle || 10;
@@ -936,7 +936,7 @@ applySpecialHighlight(sprite, color, alpha) {
     const finalX = this.playerHandContainer.x - ((totalCards - 1) * spacing / 2) + destIndex * spacing;
     const finalY = this.playerHandContainer.y + Math.sin(rotation * Math.PI / 180) * 10;
     
-    // Создаем спрайт для анимации
+    // Create sprite for animation
     this.createCardSprite(cardData, false)
       .then(sprite => {
         sprite.anchor.set(0.5, 0.9);
@@ -944,7 +944,7 @@ applySpecialHighlight(sprite, color, alpha) {
         sprite.height = this.config.cardHeight;
         sprite.cardData = cardData;
         
-        // Начальные настройки
+        // Initial settings
         sprite.x = startX;
         sprite.y = startY;
         sprite.rotation = 0;
@@ -952,81 +952,126 @@ applySpecialHighlight(sprite, color, alpha) {
         sprite.alpha = 1;
         sprite.zIndex = 200;
         
-        // Добавляем в контейнер анимации
+        // Add to animation container
         this.animationContainer.addChild(sprite);
         
-        // Создаем анимацию по дуге
+        // Create animation timeline
         const timeline = gsap.timeline({
           onComplete: () => {
             this.animationContainer.removeChild(sprite);
           }
         });
         
-        // Расчет точек дуги
+        // Calculate arc points
         const midX = startX + (finalX - startX) * 0.5;
-        const highPoint = Math.min(startY, finalY) - 100; // Высокая точка дуги
+        const highPoint = Math.min(startY, finalY) - 100; // High point of the arc
         
-        // Первая часть анимации - движение вверх по дуге
-        timeline.to(sprite, {
-          x: midX,
-          y: highPoint,
-          rotation: finalRotation * 0.5,
-          scale: 1.05, // Небольшое увеличение в высшей точке
-          duration: 0.3,
-          ease: "power1.out"
-        });
-        
-        // Вторая часть - движение вниз в руку
-        timeline.to(sprite, {
-          x: finalX,
-          y: finalY,
-          rotation: finalRotation,
-          scale: 1,
-          duration: 0.2,
-          ease: "power1.in"
-        });
+        // Check if bezier is available
+        if (typeof gsap.getBezierPlugin === 'function' && gsap.getBezierPlugin()) {
+          // Use bezier for smooth arc
+          timeline.to(sprite, {
+            bezier: {
+              type: "soft",
+              values: [
+                { x: startX, y: startY },
+                { x: midX, y: highPoint },
+                { x: finalX, y: finalY }
+              ],
+              curviness: 2
+            },
+            rotation: finalRotation,
+            scale: 1.05,
+            duration: 0.5,
+            ease: "power1.inOut"
+          });
+        } else {
+          // Fallback to two-step animation without bezier
+          timeline.to(sprite, {
+            x: midX,
+            y: highPoint,
+            rotation: finalRotation * 0.5,
+            scale: 1.05,
+            duration: 0.25,
+            ease: "power1.out"
+          });
+          
+          timeline.to(sprite, {
+            x: finalX,
+            y: finalY,
+            rotation: finalRotation,
+            scale: 1,
+            duration: 0.25,
+            ease: "power1.in"
+          });
+        }
       })
       .catch(error => {
         console.error("Error in card take animation:", error);
       });
   }
-
+  
   animateCardFlip(cardSprite, cardData, onComplete) {
-    // We need to replace the card back texture with the card front texture
-    const timeline = gsap.timeline({
-      onComplete: () => {
-        if (onComplete) onComplete();
-      }
-    });
+    // Save original position before animation
+    const originalX = cardSprite.x;
+    const originalY = cardSprite.y;
+    const originalRotation = cardSprite.rotation;
     
-    // 1. Animate card scale to create flip effect
-    timeline.to(cardSprite.scale, {
-      x: 0.1, // Almost flat
-      duration: 0.3,
-      ease: "power1.inOut"
-    });
+    // Load front texture
+    const cardPath = `assets/cards/${cardData.suit}/${cardData.value}_${cardData.suit.charAt(0).toUpperCase()}${cardData.suit.slice(1)}.webp`;
     
-    // 2. When card is flat, replace texture and prepare for flip back
-    timeline.call(() => {
-      // Load and set the front texture
-      const cardPath = `assets/cards/${cardData.suit}/${cardData.value}_${cardData.suit.charAt(0).toUpperCase()}${cardData.suit.slice(1)}.webp`;
-      
-      this.assetLoader.loadTexture(cardPath)
-        .then(texture => {
-          cardSprite.texture = texture;
-        })
-        .catch(err => {
-          console.warn(`Could not load card texture: ${err}`);
-          this.createFallbackCardTexture(cardSprite, cardData);
+    this.assetLoader.loadTexture(cardPath)
+      .then(texture => {
+        // Create flip animation
+        const timeline = gsap.timeline({
+          onComplete: () => {
+            // VERY IMPORTANT: Restore original position
+            cardSprite.x = originalX;
+            cardSprite.y = originalY;
+            cardSprite.rotation = originalRotation;
+            
+            if (onComplete) onComplete();
+          }
         });
-    });
-    
-    // 3. Flip back to reveal front
-    timeline.to(cardSprite.scale, {
-      x: 1,
-      duration: 0.3,
-      ease: "power1.inOut"
-    });
+        
+        // Phase 1: Card flip first half
+        timeline.to(cardSprite.scale, {
+          x: 0.01,
+          duration: 0.15,
+          ease: "power2.in"
+        });
+        
+        // Phase 2: Switch texture at mid-point
+        timeline.call(() => {
+          cardSprite.texture = texture;
+        });
+        
+        // Phase 3: Card flip second half
+        timeline.to(cardSprite.scale, {
+          x: 1.0,
+          duration: 0.15,
+          ease: "power2.out"
+        });
+      })
+      .catch(err => {
+        console.warn(`Could not load card texture:`, err);
+        
+        // Create fallback
+        this.createFallbackCardTexture(cardSprite, cardData);
+        
+        // Simple animation
+        gsap.to(cardSprite.scale, {
+          x: 1,
+          duration: 0.3,
+          onComplete: () => {
+            // Restore position
+            cardSprite.x = originalX;
+            cardSprite.y = originalY;
+            cardSprite.rotation = originalRotation;
+            
+            if (onComplete) onComplete();
+          }
+        });
+      });
   }
   
   // Method to flip all player cards simultaneously
@@ -1040,91 +1085,799 @@ applySpecialHighlight(sprite, color, alpha) {
     
     let flippedCount = 0;
     
-    // Setup sound for card flip (if available)
-    let flipSound = null;
-    try {
-      flipSound = new Audio('assets/sounds/card_flip.mp3');
-      flipSound.volume = 0.3;
-    } catch (e) {
-      console.warn("Could not load flip sound:", e);
-    }
+    // IMPORTANT: Store original positions before flipping
+    playerCards.forEach(card => {
+      card.originalPosition = {
+        x: card.x,
+        y: card.y,
+        rotation: card.rotation
+      };
+    });
     
-    // Play flip sound once
-    if (flipSound) {
-      try {
-        flipSound.play().catch(e => console.warn("Could not play flip sound:", e));
-      } catch (e) {
-        console.warn("Error playing flip sound:", e);
-      }
-    }
-    
-    // Flip each card with a slight stagger
+    // Flip cards with domino effect
     for (let i = 0; i < playerCards.length; i++) {
       const cardSprite = playerCards[i];
       const cardData = cardSprite.cardData;
       
       if (!cardData) continue;
       
-      // Flip with staggered timing - quicker for multiple cards
+      // Delay between flips
+      const delay = i * 70;
+      
       setTimeout(() => {
+        // Animate card flip but maintain position
         this.animateCardFlip(cardSprite, cardData, () => {
           flippedCount++;
+          
+          // CRITICAL: Restore original position
+          if (cardSprite.originalPosition) {
+            cardSprite.x = cardSprite.originalPosition.x;
+            cardSprite.y = cardSprite.originalPosition.y;
+            cardSprite.rotation = cardSprite.originalPosition.rotation;
+          }
+          
+          // Make card interactive
+          cardSprite.interactive = true;
+          cardSprite.buttonMode = true;
+          
+          // Add click handler
+          cardSprite.on('pointerdown', () => {
+            if (this.onCardClick) {
+              this.onCardClick(cardData, 'player');
+            }
+          });
+          
+          // If all cards flipped, call completion callback
           if (flippedCount === playerCards.length && onComplete) {
             onComplete();
           }
         });
-      }, i * 50); // 50ms stagger between card flips
+      }, delay);
     }
   }
   
-  // Update the animateDealingCard method - now always deals face down initially
-  animateDealingCard(cardData, target, index, onComplete) {
-    // Calculate deck center position
+  
+
+  flipCardWithMotionBlur(cardSprite, cardData, onComplete) {
+    // Загружаем текстуру лицевой стороны карты
+    const cardPath = `assets/cards/${cardData.suit}/${cardData.value}_${cardData.suit.charAt(0).toUpperCase()}${cardData.suit.slice(1)}.webp`;
+    
+    // Создаем анимацию с улучшенным визуальным эффектом
+    const timeline = gsap.timeline({
+      onComplete: () => {
+        if (onComplete) onComplete();
+      }
+    });
+    
+    this.assetLoader.loadTexture(cardPath)
+      .then(texture => {
+        // Фаза 1: Сжатие карты по горизонтали (эффект поворота) с ускорением
+        timeline.to(cardSprite.scale, {
+          x: 0.01, // Почти полностью сжатая карта для лучшего эффекта
+          duration: 0.15,
+          ease: "power2.in"
+        });
+        
+        // Фаза 2: Замена текстуры на лицевую сторону карты
+        timeline.call(() => {
+          cardSprite.texture = texture;
+        });
+        
+        // Фаза 3: Расширение карты с эффектом отскока
+        timeline.to(cardSprite.scale, {
+          x: 1.1, // Небольшое увеличение для эффекта
+          duration: 0.15,
+          ease: "back.out(1.5)" // Эффект отскока при завершении
+        });
+        
+        // Фаза 4: Возврат к нормальному размеру с небольшой задержкой
+        timeline.to(cardSprite.scale, {
+          x: 1.0,
+          duration: 0.1,
+          ease: "power1.out"
+        });
+        
+        // Дополнительный эффект - легкое покачивание карты после переворота
+        timeline.to(cardSprite, {
+          rotation: cardSprite.rotation + 0.05,
+          duration: 0.1,
+          yoyo: true,
+          repeat: 1,
+          ease: "sine.inOut"
+        });
+      })
+      .catch(err => {
+        console.warn(`Could not load card texture: ${err}`);
+        
+        // В случае ошибки создаем запасной вариант карты
+        this.createFallbackCardTexture(cardSprite, cardData);
+        
+        // Простая анимация масштаба как запасной вариант
+        timeline.to(cardSprite.scale, {
+          x: 1,
+          duration: 0.2
+        });
+      });
+  }
+
+  simpleFlipAnimation(cardSprite, cardData, onComplete) {
+    // Анимация сжатия (симуляция поворота карты без rotationY)
+    gsap.to(cardSprite.scale, {
+      x: 0.1, // Почти плоская карта
+      duration: 0.2,
+      ease: "power1.inOut",
+      onComplete: () => {
+        // Загружаем текстуру передней стороны карты
+        const cardPath = `assets/cards/${cardData.suit}/${cardData.value}_${cardData.suit.charAt(0).toUpperCase()}${cardData.suit.slice(1)}.webp`;
+        
+        this.assetLoader.loadTexture(cardPath)
+          .then(texture => {
+            // Заменяем текстуру
+            cardSprite.texture = texture;
+            
+            // Анимация расширения (показ лицевой стороны)
+            gsap.to(cardSprite.scale, {
+              x: 1,
+              duration: 0.2,
+              ease: "power1.inOut",
+              onComplete: () => {
+                // Делаем карту интерактивной после переворота
+                cardSprite.interactive = true;
+                cardSprite.buttonMode = true;
+                cardSprite.on('pointerdown', () => {
+                  if (this.onCardClick) {
+                    this.onCardClick(cardData, 'player');
+                  }
+                });
+                
+                // Вызываем колбэк завершения
+                if (onComplete) onComplete();
+              }
+            });
+          })
+          .catch(err => {
+            console.warn(`Could not load card texture: ${err}`);
+            // Создаем запасную текстуру
+            this.createFallbackCardTexture(cardSprite, cardData);
+            
+            // Анимация расширения с запасной текстурой
+            gsap.to(cardSprite.scale, {
+              x: 1,
+              duration: 0.2,
+              ease: "power1.inOut",
+              onComplete: () => {
+                if (onComplete) onComplete();
+              }
+            });
+          });
+      }
+    });
+  }
+
+  animateFlyingCardDealing(playerCards, opponentCards, onComplete) {
+    // Flags for tracking
+    let wasInterrupted = false;
+    let dealingInProgress = true;
+    
+    // Safety check for input params
+    if (!playerCards || !Array.isArray(playerCards) || !opponentCards || !Array.isArray(opponentCards)) {
+      console.error("Invalid card arrays in animateFlyingCardDealing");
+      if (onComplete) setTimeout(onComplete, 0);
+      return;
+    }
+    
+    // Get exact deck position (starting point for all cards)
     const deckX = this.deckContainer.x + this.config.cardWidth / 2;
     const deckY = this.deckContainer.y + this.config.cardHeight / 2;
+    
+    // Skip handler
+    const skipDealingHandler = () => {
+      if (dealingInProgress) {
+        console.log("Skipping dealing animation...");
+        wasInterrupted = true;
+        
+        // Clear any animation sprites
+        this.animationContainer.removeChildren();
+        
+        // Show final cards immediately
+        this.createAndShowFinalCards(playerCards, opponentCards);
+        
+        // Complete the process
+        dealingInProgress = false;
+        if (onComplete) onComplete();
+        
+        this.app.stage.off('pointerdown', skipDealingHandler);
+      }
+    };
+    
+    // Allow skipping animation with tap
+    this.app.stage.interactive = true;
+    this.app.stage.on('pointerdown', skipDealingHandler);
+    
+    // Clear existing cards
+    this.playerHandContainer.removeChildren();
+    this.opponentHandContainer.removeChildren();
+    
+    // Calculate final positions - VERY IMPORTANT for consistency!
+    // These positions will be used during and after dealing
+    const playerPositions = this.getFinalCardPositions(
+      playerCards.length,
+      this.playerHandContainer.x,
+      this.playerHandContainer.y,
+      true
+    );
+    
+    const opponentPositions = this.getFinalCardPositions(
+      opponentCards.length,
+      this.opponentHandContainer.x,
+      this.opponentHandContainer.y,
+      false
+    );
+    
+    // Load card back texture once
+    this.assetLoader.loadTexture('assets/CardBack_Blue.webp')
+      .then(backTexture => {
+        // Animation cards array
+        const animCards = [];
+        
+        // Create opponent card animation sprites
+        opponentCards.forEach((cardData, index) => {
+          // Skip if position data is missing
+          if (!opponentPositions[index]) {
+            console.warn(`Missing position data for opponent card ${index}`);
+            return;
+          }
+          
+          // Create temporary sprite for animation
+          const sprite = new PIXI.Sprite(backTexture);
+          sprite.anchor.set(0.5, 0.5);
+          sprite.width = this.config.cardWidth;
+          sprite.height = this.config.cardHeight;
+          sprite.x = deckX;
+          sprite.y = deckY;
+          sprite.rotation = 0;
+          sprite.zIndex = 1000 + index;
+          
+          this.animationContainer.addChild(sprite);
+          
+          // Store data for animation
+          animCards.push({
+            sprite: sprite,
+            cardData: cardData,
+            isPlayer: false,
+            finalPos: {
+              x: this.opponentHandContainer.x + opponentPositions[index].x,
+              y: this.opponentHandContainer.y + opponentPositions[index].y,
+              rotation: opponentPositions[index].rotation
+            }
+          });
+        });
+        
+        // Create player card animation sprites
+        playerCards.forEach((cardData, index) => {
+          // Skip if position data is missing
+          if (!playerPositions[index]) {
+            console.warn(`Missing position data for player card ${index}`);
+            return;
+          }
+          
+          // Create temporary sprite for animation
+          const sprite = new PIXI.Sprite(backTexture);
+          sprite.anchor.set(0.5, 0.5);
+          sprite.width = this.config.cardWidth;
+          sprite.height = this.config.cardHeight;
+          sprite.x = deckX;
+          sprite.y = deckY;
+          sprite.rotation = 0;
+          sprite.zIndex = 1000 + opponentCards.length + index;
+          
+          this.animationContainer.addChild(sprite);
+          
+          // Store data for animation
+          animCards.push({
+            sprite: sprite,
+            cardData: cardData,
+            isPlayer: true,
+            finalPos: {
+              x: this.playerHandContainer.x + playerPositions[index].x,
+              y: this.playerHandContainer.y + playerPositions[index].y,
+              rotation: playerPositions[index].rotation
+            }
+          });
+        });
+        
+        // If no cards to animate, just complete
+        if (animCards.length === 0) {
+          console.warn("No cards to animate in dealing");
+          skipDealingHandler();
+          return;
+        }
+        
+        // Delay between cards
+        const dealDelay = 0.05;
+        
+        // Create timeline
+        const timeline = gsap.timeline({
+          onComplete: () => {
+            if (wasInterrupted) return;
+            
+            // Remove animation sprites
+            this.animationContainer.removeChildren();
+            
+            // Create final cards in their EXACT positions
+            this.createFinalCards(
+              playerCards, 
+              opponentCards, 
+              playerPositions, 
+              opponentPositions, 
+              backTexture,
+              () => {
+                // Now flip player cards
+                this.flipPlayerCards(() => {
+                  dealingInProgress = false;
+                  this.app.stage.off('pointerdown', skipDealingHandler);
+                  if (onComplete) onComplete();
+                });
+              }
+            );
+          }
+        });
+        
+        // Animate each card flying directly to its final position
+        animCards.forEach((card, i) => {
+          timeline.to(card.sprite, {
+            x: card.finalPos.x,
+            y: card.finalPos.y,
+            rotation: card.finalPos.rotation,
+            duration: 0.3,
+            ease: "power1.out"
+          }, i * dealDelay);
+        });
+      })
+      .catch(err => {
+        console.error("Error in dealing animation:", err);
+        skipDealingHandler();
+      });
+  }
+
+  getFinalCardPositions(cardCount, containerX, containerY, isPlayer) {
+    try {
+      // Validate inputs
+      if (typeof cardCount !== 'number' || cardCount < 0) {
+        console.error("Invalid card count:", cardCount);
+        return [];
+      }
+      
+      const positions = [];
+      const spacing = this.config.fanDistance || 30;
+      const fanAngle = this.config.fanAngle || 10;
+      
+      // Calculate angles for fan effect
+      const anglePerCard = cardCount > 1 ? fanAngle / (cardCount - 1) : 0;
+      
+      for (let i = 0; i < cardCount; i++) {
+        const rotation = -fanAngle/2 + i * anglePerCard;
+        const rotationRad = rotation * Math.PI / 180;
+        
+        // Player's cards face up (eventually), so rotation is reversed
+        const finalRotation = isPlayer ? -rotationRad : rotationRad;
+        
+        // Calculate position in fan
+        positions.push({
+          x: -((cardCount - 1) * spacing / 2) + i * spacing,
+          y: Math.sin(rotationRad) * 10,
+          rotation: finalRotation
+        });
+      }
+      
+      return positions;
+    } catch (error) {
+      console.error("Error in getFinalCardPositions:", error);
+      return [];
+    }
+  }
+
+  calculateFanPositions(cardCount, containerX, containerY, isPlayer) {
+    const positions = [];
+    const spacing = this.config.fanDistance || 30;
+    const fanAngle = this.config.fanAngle || 10;
+    
+    // Calculate angle between cards
+    const anglePerCard = cardCount > 1 ? fanAngle / (cardCount - 1) : 0;
+    
+    // Calculate positions for each card in the fan
+    for (let i = 0; i < cardCount; i++) {
+      const rotation = -fanAngle/2 + i * anglePerCard;
+      const rotationRad = rotation * Math.PI / 180;
+      
+      // Calculate x/y offset based on fan position
+      const xPos = -((cardCount - 1) * spacing / 2) + i * spacing;
+      const yPos = Math.sin(rotationRad) * 10;
+      
+      // For player cards, flip the rotation direction
+      const finalRotation = isPlayer ? -rotationRad : rotationRad;
+      
+      positions.push({
+        x: xPos,
+        y: yPos,
+        rotation: finalRotation
+      });
+    }
+    
+    return positions;
+  }
   
-    // Determine which hand container to deal into
+
+  createFinalCardsInContainers(playerCards, opponentCards, playerPositions, opponentPositions, backTexture) {
+    // Create opponent cards (all face down)
+    opponentCards.forEach((cardData, index) => {
+      const sprite = new PIXI.Sprite(backTexture);
+      sprite.anchor.set(0.5, 0.9); // Bottom center anchor for fan
+      sprite.width = this.config.cardWidth;
+      sprite.height = this.config.cardHeight;
+      sprite.x = opponentPositions[index].x;
+      sprite.y = opponentPositions[index].y;
+      sprite.rotation = opponentPositions[index].rotation;
+      sprite.zIndex = index;
+      sprite.cardData = cardData;
+      
+      this.opponentHandContainer.addChild(sprite);
+    });
+    
+    // Create player cards (also face down initially)
+    playerCards.forEach((cardData, index) => {
+      const sprite = new PIXI.Sprite(backTexture);
+      sprite.anchor.set(0.5, 0.9);
+      sprite.width = this.config.cardWidth;
+      sprite.height = this.config.cardHeight;
+      sprite.x = playerPositions[index].x;
+      sprite.y = playerPositions[index].y;
+      sprite.rotation = playerPositions[index].rotation;
+      sprite.zIndex = index;
+      sprite.cardData = cardData;
+      
+      this.playerHandContainer.addChild(sprite);
+    });
+  }
+  
+
+  // Helper method to create all final card sprites but keep them invisible
+  createFinalCards(playerCards, opponentCards, playerPositions, opponentPositions, backTexture, onComplete) {
+    try {
+      // Validate inputs to prevent null reference errors
+      if (!playerCards || !opponentCards || !playerPositions || !opponentPositions || !backTexture) {
+        console.error("Missing required parameters in createFinalCards:", {
+          playerCards: !!playerCards,
+          opponentCards: !!opponentCards,
+          playerPositions: !!playerPositions,
+          opponentPositions: !!opponentPositions,
+          backTexture: !!backTexture
+        });
+        
+        // Still call onComplete to avoid blocking the game flow
+        if (onComplete) setTimeout(onComplete, 0);
+        return;
+      }
+      
+      // Clear existing cards first
+      this.playerHandContainer.removeChildren();
+      this.opponentHandContainer.removeChildren();
+      
+      // Create opponent cards (all face down)
+      opponentCards.forEach((cardData, index) => {
+        // Validate position data exists for this index
+        if (!opponentPositions[index]) {
+          console.warn(`Missing position data for opponent card at index ${index}`);
+          return; // Skip this card
+        }
+        
+        const pos = opponentPositions[index];
+        const sprite = new PIXI.Sprite(backTexture);
+        sprite.anchor.set(0.5, 0.9);
+        sprite.width = this.config.cardWidth;
+        sprite.height = this.config.cardHeight;
+        sprite.x = pos.x;
+        sprite.y = pos.y;
+        sprite.rotation = pos.rotation;
+        sprite.zIndex = index;
+        sprite.cardData = cardData;
+        
+        this.opponentHandContainer.addChild(sprite);
+      });
+      
+      // Create player cards (initially face down, will flip)
+      playerCards.forEach((cardData, index) => {
+        // Validate position data exists for this index
+        if (!playerPositions[index]) {
+          console.warn(`Missing position data for player card at index ${index}`);
+          return; // Skip this card
+        }
+        
+        const pos = playerPositions[index];
+        const sprite = new PIXI.Sprite(backTexture);
+        sprite.anchor.set(0.5, 0.9);
+        sprite.width = this.config.cardWidth;
+        sprite.height = this.config.cardHeight;
+        sprite.x = pos.x;
+        sprite.y = pos.y;
+        sprite.rotation = pos.rotation;
+        sprite.zIndex = index;
+        sprite.cardData = cardData;
+        
+        this.playerHandContainer.addChild(sprite);
+      });
+      
+      if (onComplete) onComplete();
+    } catch (error) {
+      console.error("Error in createFinalCards:", error);
+      // Still call onComplete to avoid blocking the game flow
+      if (onComplete) setTimeout(onComplete, 0);
+    }
+  }
+
+createAndShowFinalCards(playerCards, opponentCards) {
+  // Calculate positions (same as during normal dealing)
+  const playerPositions = this.getFinalCardPositions(
+    playerCards.length,
+    this.playerHandContainer.x,
+    this.playerHandContainer.y,
+    true
+  );
+  
+  const opponentPositions = this.getFinalCardPositions(
+    opponentCards.length,
+    this.opponentHandContainer.x,
+    this.opponentHandContainer.y,
+    false
+  );
+  
+  // First load back texture
+  this.assetLoader.loadTexture('assets/CardBack_Blue.webp')
+    .then(backTexture => {
+      // Create opponent cards (face down)
+      opponentCards.forEach((cardData, index) => {
+        const sprite = new PIXI.Sprite(backTexture);
+        sprite.anchor.set(0.5, 0.9);
+        sprite.width = this.config.cardWidth;
+        sprite.height = this.config.cardHeight;
+        sprite.x = opponentPositions[index].x;
+        sprite.y = opponentPositions[index].y;
+        sprite.rotation = opponentPositions[index].rotation;
+        sprite.zIndex = index;
+        sprite.cardData = cardData;
+        
+        this.opponentHandContainer.addChild(sprite);
+      });
+      
+      // Now load front textures for player cards
+      Promise.all(playerCards.map(card => {
+        const cardPath = `assets/cards/${card.suit}/${card.value}_${card.suit.charAt(0).toUpperCase()}${card.suit.slice(1)}.webp`;
+        return this.assetLoader.loadTexture(cardPath)
+          .then(frontTexture => ({ cardData: card, texture: frontTexture }))
+          .catch(err => {
+            console.warn(`Error loading card texture:`, err);
+            return { cardData: card, texture: null };
+          });
+      }))
+      .then(cardsWithTextures => {
+        // Create player cards (face up)
+        cardsWithTextures.forEach((item, index) => {
+          let sprite;
+          
+          if (item.texture) {
+            sprite = new PIXI.Sprite(item.texture);
+          } else {
+            // Fallback
+            sprite = this.createFallbackCardGraphics(item.cardData, false);
+          }
+          
+          sprite.anchor.set(0.5, 0.9);
+          sprite.width = this.config.cardWidth;
+          sprite.height = this.config.cardHeight;
+          sprite.x = playerPositions[index].x;
+          sprite.y = playerPositions[index].y;
+          sprite.rotation = playerPositions[index].rotation;
+          sprite.zIndex = index;
+          sprite.cardData = item.cardData;
+          sprite.interactive = true;
+          sprite.buttonMode = true;
+          
+          // Add click handler
+          sprite.on('pointerdown', () => {
+            if (this.onCardClick) {
+              this.onCardClick(item.cardData, 'player');
+            }
+          });
+          
+          this.playerHandContainer.addChild(sprite);
+        });
+      });
+    });
+}
+
+
+showAllFinalCards(playerCards, opponentCards) {
+  // Clear containers
+  this.playerHandContainer.removeChildren();
+  this.opponentHandContainer.removeChildren();
+  
+  // Calculate positions
+  const playerPositions = this.calculateFanPositions(
+    playerCards.length,
+    this.playerHandContainer.x, 
+    this.playerHandContainer.y,
+    true
+  );
+  
+  const opponentPositions = this.calculateFanPositions(
+    opponentCards.length,
+    this.opponentHandContainer.x, 
+    this.opponentHandContainer.y,
+    false
+  );
+  
+  // Create all cards immediately
+  this.assetLoader.loadTexture('assets/CardBack_Blue.webp')
+    .then(backTexture => {
+      // Create opponent cards (face down)
+      opponentCards.forEach((cardData, index) => {
+        const sprite = new PIXI.Sprite(backTexture);
+        sprite.anchor.set(0.5, 0.9);
+        sprite.width = this.config.cardWidth;
+        sprite.height = this.config.cardHeight;
+        sprite.x = opponentPositions[index].x;
+        sprite.y = opponentPositions[index].y;
+        sprite.rotation = opponentPositions[index].rotation;
+        sprite.zIndex = index;
+        sprite.cardData = cardData;
+        
+        this.opponentHandContainer.addChild(sprite);
+      });
+      
+      // Load player card front textures and create front-facing cards
+      Promise.all(playerCards.map(card => {
+        const cardPath = `assets/cards/${card.suit}/${card.value}_${card.suit.charAt(0).toUpperCase()}${card.suit.slice(1)}.webp`;
+        return this.assetLoader.loadTexture(cardPath)
+          .then(frontTexture => {
+            return {
+              cardData: card,
+              texture: frontTexture
+            };
+          })
+          .catch(err => {
+            console.warn(`Couldn't load texture for ${card.value} of ${card.suit}:`, err);
+            return {
+              cardData: card,
+              texture: null
+            };
+          });
+      }))
+      .then(cardDataWithTextures => {
+        // Create player cards (face up)
+        cardDataWithTextures.forEach((item, index) => {
+          let sprite;
+          
+          if (item.texture) {
+            sprite = new PIXI.Sprite(item.texture);
+          } else {
+            // Fallback if texture loading failed
+            sprite = this.createFallbackCardGraphics(item.cardData, false);
+          }
+          
+          sprite.anchor.set(0.5, 0.9);
+          sprite.width = this.config.cardWidth;
+          sprite.height = this.config.cardHeight;
+          sprite.x = playerPositions[index].x;
+          sprite.y = playerPositions[index].y;
+          sprite.rotation = playerPositions[index].rotation;
+          sprite.zIndex = index;
+          sprite.cardData = item.cardData;
+          sprite.interactive = true;
+          sprite.buttonMode = true;
+          
+          // Add click handler
+          sprite.on('pointerdown', () => {
+            if (this.onCardClick) {
+              this.onCardClick(item.cardData, 'player');
+            }
+          });
+          
+          this.playerHandContainer.addChild(sprite);
+        });
+      });
+    });
+}
+
+
+// Helper method to show all the final cards
+showFinalCards() {
+  [...this.playerHandContainer.children, ...this.opponentHandContainer.children].forEach(card => {
+    gsap.to(card, { alpha: 1, duration: 0.2 });
+  });
+}
+
+// Helper method to calculate card positions in a fan
+calculateCardPositions(cards, target) {
+  const spacing = this.config.fanDistance || 30;
+  const totalCards = cards.length;
+  const fanAngle = this.config.fanAngle || 10;
+  const anglePerCard = totalCards > 1 ? fanAngle / (totalCards - 1) : 0;
+  
+  const containerX = target === 'player' ? this.playerHandContainer.x : this.opponentHandContainer.x;
+  const containerY = target === 'player' ? this.playerHandContainer.y : this.opponentHandContainer.y;
+  
+  return cards.map((cardData, index) => {
+    const rotation = -fanAngle/2 + index * anglePerCard;
+    const rotationRad = target === 'player' ? -(rotation * Math.PI / 180) : rotation * Math.PI / 180;
+    
+    return {
+      x: -((totalCards - 1) * spacing / 2) + index * spacing,
+      y: Math.sin(rotation * Math.PI / 180) * 10,
+      rotation: rotationRad
+    };
+  });
+}
+  
+  // Update the animateDealingCard method - now always deals face down initially
+  animateDealingCard(cardData, target, index, onComplete) {
+    // Определяем контейнер руки, в который будем раздавать карты
     const container = target === 'player' ? this.playerHandContainer : this.opponentHandContainer;
     
-    // Compute total cards after dealing this one
+    // Расчет параметров веера
     const spacing = this.config.fanDistance || 30;
     const totalCards = container.children.length + 1;
-    
-    // Final X, Y inside the fan
-    const finalX = container.x - ((totalCards - 1) * spacing / 2) + index * spacing;
-    const finalY = container.y;
-    
-    // Compute final rotation based on fan
     const fanAngle = this.config.fanAngle || 10;
     const anglePerCard = totalCards > 1 ? fanAngle / (totalCards - 1) : 0;
     const rotation = -fanAngle/2 + index * anglePerCard;
     const finalRotation = rotation * Math.PI / 180;
-  
-    // Important change: always create face down sprite initially for both player and opponent
+    
+    // Расчет финальной позиции в веере
+    const finalX = container.x - ((totalCards - 1) * spacing / 2) + index * spacing;
+    const finalY = container.y;
+    
+    // Загружаем текстуру для карты (рубашкой вверх для обоих игроков изначально)
     this.assetLoader.loadTexture('assets/CardBack_Blue.webp')
       .then(backTexture => {
-        // Create card sprite with back texture
+        // Создаем спрайт для анимации
         const sprite = new PIXI.Sprite(backTexture);
-        sprite.anchor.set(0.5, 0.5);
+        sprite.anchor.set(0.5, 0.5); // Центр карты для масштабирования
         sprite.width = this.config.cardWidth;
         sprite.height = this.config.cardHeight;
-        sprite.x = deckX;
-        sprite.y = deckY;
+        
+        // Начальная позиция - немного за пределами экрана, зависит от того, чья рука
+        let startX, startY;
+        
+        if (target === 'player') {
+          // Для игрока - снизу экрана
+          startX = this.app.screen.width / 2;
+          startY = this.app.screen.height + 50;
+        } else {
+          // Для оппонента - сверху экрана
+          startX = this.app.screen.width / 2;
+          startY = -50;
+        }
+        
+        // Устанавливаем начальную позицию и поворот
+        sprite.x = startX;
+        sprite.y = startY;
+        sprite.rotation = 0;
+        sprite.scale.set(0.8); // Начинаем с немного уменьшенного размера
         sprite.alpha = 1;
         sprite.zIndex = 200 + index;
         
-        // Store card data for future reference (needed for flip)
+        // Сохраняем данные карты для дальнейшего использования
         sprite.cardData = cardData;
         
+        // Добавляем в контейнер анимации
         this.animationContainer.addChild(sprite);
-  
-        // Create the dealing animation
+        
+        // Создаем анимацию с минимумом трансформаций
         const timeline = gsap.timeline({
           onComplete: () => {
-            // Remove animation sprite
+            // Удаляем временный спрайт
             this.animationContainer.removeChild(sprite);
             
-            // Create the permanent card in player's/opponent's hand (still face down at this point)
+            // Создаем постоянный спрайт в руке
             const permanentSprite = new PIXI.Sprite(backTexture);
             permanentSprite.anchor.set(0.5, 0.9);
             permanentSprite.width = this.config.cardWidth;
@@ -1134,69 +1887,35 @@ applySpecialHighlight(sprite, color, alpha) {
             permanentSprite.rotation = finalRotation;
             permanentSprite.zIndex = index;
             
-            // Store card data (needed for flip later)
+            // Сохраняем данные карты
             permanentSprite.cardData = cardData;
             
-            // Add interactive behavior only for player cards - but only after they're flipped
-            if (target === 'player') {
-              permanentSprite.interactive = false; // Will be enabled after flip
-            }
-            
-            // Add to appropriate container
+            // Добавляем в контейнер руки
             container.addChild(permanentSprite);
             
+            // Вызываем колбэк завершения
             if (onComplete) onComplete();
           }
         });
-  
-        // Duration calculation - vary slightly by index for natural effect
-        const baseDuration = 0.4;
-        const durationVariance = index * 0.01; // Very slight increase for each card
-        const moveDuration = baseDuration + durationVariance;
         
-        // Calculate arc path
-        const midX = deckX + (finalX - deckX) * 0.5;
-        const arcHeight = -50; // How high above straight line the arc goes
-        const midY = Math.min(deckY, finalY) + arcHeight;
+        // Расчет длительности анимации с небольшой задержкой для карт по порядку
+        const delay = index * 0.04; // Небольшая задержка для эффекта последовательной раздачи
+        const duration = 0.25; // Быстрая анимация
         
-        // 1. First animate scale to feel like "picking up" the card
-        timeline.to(sprite.scale, {
-          x: 1.05, y: 1.05, 
-          duration: 0.1,
-          ease: "power1.out"
-        });
-        
-        // 2. Move card in arc to final position
+        // Простая анимация движения к финальной позиции без сложных трансформаций
         timeline.to(sprite, {
-          bezier: {
-            type: "soft",
-            values: [
-              { x: deckX, y: deckY },
-              { x: midX, y: midY },
-              { x: finalX, y: finalY }
-            ]
-          },
+          x: finalX, 
+          y: finalY, 
+          scale: 1,
           rotation: finalRotation,
-          duration: moveDuration,
-          ease: "power1.inOut"
-        });
-        
-        // Add a small bounce at the end for realism
-        timeline.to(sprite.scale, {
-          x: 0.95, y: 0.95,
-          duration: 0.1,
-          ease: "power1.in"
-        }, "-=0.05");
-        
-        timeline.to(sprite.scale, {
-          x: 1, y: 1,
-          duration: 0.1,
-          ease: "power1.out"
+          delay: delay,
+          duration: duration,
+          ease: "power1.out" // Простой тип анимации
         });
       })
       .catch(err => {
         console.error("Error in dealing card animation:", err);
-        if (onComplete) onComplete();
+        if (onComplete) onComplete(); // Вызываем колбэк даже при ошибке
       });
   }
   
