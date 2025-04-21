@@ -2571,6 +2571,13 @@ calculateCardPositions(cards, target) {
     // Player hand
     this.playerHandContainer.x = screenWidth / 2;
     this.playerHandContainer.y = screenHeight - 85;
+
+    // For smaller screens like iPhone SE, move cards down by 20px
+  if (screenHeight < 700) {
+    this.playerHandContainer.y = screenHeight - 35; // Was 85, changing to 65 to move down 20px
+  } else {
+    this.playerHandContainer.y = screenHeight - 65; // Original positioning
+  }
     
     // Opponent hand
     this.opponentHandContainer.x = screenWidth / 2;

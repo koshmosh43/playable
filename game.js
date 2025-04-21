@@ -1838,6 +1838,12 @@ document.addEventListener('cardAddedToHand', (event) => {
       this.handleDrawFromDeck();
     }
   } else if (source === 'discard') {
+    // блокируем, пока hasDrawnCard===false
+    if (!this.hasDrawnCard) {
+      this.uiRenderer.showDialog("Сначала возьмите карту из колоды!");
+      this.cardRenderer.returnDraggingCard();
+      return;
+    }
     // IMPORTANT CHANGE: When dragging from discard pile,
     // the card has already been visually removed from the discard in startCardDragging,
     // but we still need to update the game state
@@ -3084,46 +3090,46 @@ handleDrawFromDeck() {
 }
 
 handleDrawFromDiscard(cardData) {
+  console.log('Player attempts to draw from discard pile');
+
+  // --- НОВОВВЕДЕНИЕ: запрещаем, если ещё не брали из колоды ---
+  if (!this.hasDrawnCard) {
+    // Показываем сообщение пользователю
+    if (this.uiRenderer) {
+      this.uiRenderer.showDialog("Пожалуйста, сначала возьмите карту из колоды!");
+    }
+    // Возвращаем визуально утащенную карту на место
+    if (this.cardRenderer && typeof this.cardRenderer.returnDraggingCard === 'function') {
+      this.cardRenderer.returnDraggingCard();
+    }
+    return;  // ничего больше не делаем
+  }
+
+  // --- ДАЛЕЕ ИДЁТ СУЩЕСТВУЮЩАЯ ЛОГИКА ---
   console.log('Player draws from discard pile');
   
-  // Hide tutorial message
   this.hideTutorialElements();
-  
-  // Remove any highlighting
   this.removeCardHighlighting();
-  
-  // Only allow in drawing phase
+
+  // Только в фазе взятия карты
   if (!this.playerTurn || this.gameStep % 2 !== 0) return;
-  
-  // Take top card from discard pile
+
+  // Извлекаем верхнюю карту из отбоя
   const discardCard = this.cardManager.discardPile.pop();
-  
   if (!discardCard) return;
-  
-  // FIXED: Keep a reference to the discard card before it's added to hand
-  console.log("Taking card from discard:", discardCard);
-  
-  // Add to player's hand
+
   this.cardManager.playerCards.push(discardCard);
-  
-  // Sort cards with melds
   this.cardManager.playerCards = this.sortCardsWithMelds();
-  
-  // Update game state
   this.gameStep++;
-  
-  // Set flag that player has drawn a card
   this.hasDrawnCard = true;
-  
-  // Update game screen
   this.updatePlayScreen();
-  
-  // Wait for animation to complete before showing discard hint
-  // FIXED: This will now only show discard hint if the card is not in a meld
+
+  // Показываем следующую подсказку
   setTimeout(() => {
     this.showDiscardHint();
   }, 800);
 }
+
 
   // Get suit symbol
   getSuitSymbol(suit) {
