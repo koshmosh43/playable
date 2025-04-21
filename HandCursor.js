@@ -207,67 +207,68 @@ export class HandCursor {
   }
 
   // Demonstrate moving a card
-  demonstrateCardMove(from, to, options = {}) {
-    const defaults = {
-      dragDuration: 1.0,
-      dragEase: "power2.inOut",
-      onComplete: null
-    };
+  demonstrateCardMove(start, end, options = {}) {
+    const {
+      travelTime = 1.2,
+      startDelay = 0.2,
+      dragDuration = 1.0,
+      onComplete = null
+    } = options;
     
-    const settings = { ...defaults, ...options };
+    // Make sure container is visible
+    this.container.visible = true;
     
-    // Show hand at starting position
-    this.showAt(from.x, from.y);
+    // First, show the hand at the starting position
+    this.container.x = start.x;
+    this.container.y = start.y;
+    this.container.alpha = 0;
     
-    // Create animation
+    // Timeline for the complete animation
     const timeline = gsap.timeline({
       onComplete: () => {
-        if (typeof settings.onComplete === 'function') {
-          settings.onComplete();
-        }
+        this.fade();
+        if (onComplete) onComplete();
       }
     });
     
-    // "Press" down on card
+    // Fade in hand
+    timeline.to(this.container, {
+      alpha: 1,
+      duration: 0.3,
+      ease: "power1.out"
+    });
+    
+    // Make "grab" gesture (scale down a bit)
     timeline.to(this.container.scale, {
       x: 0.9,
       y: 0.9,
       duration: 0.2,
       ease: "power2.in"
-    });
+    }, "+=0.2");
     
-    // Small pause to simulate grabbing
-    timeline.to({}, {
-      duration: 0.1
-    });
-    
-    // "Drag" the card to the destination
+    // Move from the start to the drop position
     timeline.to(this.container, {
-      x: to.x,
-      y: to.y,
-      duration: settings.dragDuration,
-      ease: settings.dragEase
-    });
+      x: end.x,
+      y: end.y,
+      duration: dragDuration, // Use specified duration
+      ease: "power1.inOut"
+    }, "+=0.1");
     
-    // "Release" the card
+    // Make "release" gesture (scale back up)
     timeline.to(this.container.scale, {
-      x: 1,
-      y: 1,
-      duration: 0.2,
+      x: 1.0,
+      y: 1.0,
+      duration: 0.15,
       ease: "power2.out"
-    });
+    }, ">");
     
-    // Fade out the hand
+    // Fade out at the end location
     timeline.to(this.container, {
       alpha: 0,
-      duration: 0.5,
-      onComplete: () => {
-        this.hide();
-        this.container.alpha = 1;
-      }
+      duration: 0.3,
+      delay: 0.2,
+      ease: "power1.in"
     });
-    
-    return timeline;
   }
   
   // Helper method for tutorial animations

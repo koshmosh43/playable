@@ -48,6 +48,7 @@ class GinRummyGame {
     this.takeCardTutorial = null;
     this.discardTutorial = null;
     this.takeCardTutorialShown = false;
+    this.pauseGame = false;
 
     // Initialize PixiJS app with correct dimensions
     const viewportWidth = window.innerWidth;
@@ -151,83 +152,46 @@ class GinRummyGame {
     // Make a copy of the cards to sort
     const sortedCards = [...this.cardManager.playerCards];
     
-    // Custom sorting function to match the EXACT order:
-    // 1. Green highlighted cards (runs) first on the left
-    // 2. Yellow highlighted cards (sets) immediately after green cards
-    // 3. Non-meld cards sorted by value (low to high) with highest on the right
+    // Value mapping for sorting
+    const valueOrder = {
+      'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7,
+      '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13
+    };
+    
+    console.log("Before sorting, cards:", sortedCards.map(c => `${c.value} of ${c.suit}`));
+    
+    // SIMPLIFIED SORTING: Meld cards first, non-meld cards sorted by value
     sortedCards.sort((a, b) => {
-      const aInSet = setCardIds.has(a.id);
-      const aInRun = runCardIds.has(a.id);
-      const bInSet = setCardIds.has(b.id);
-      const bInRun = runCardIds.has(b.id);
+      const aInMeld = setCardIds.has(a.id) || runCardIds.has(a.id);
+      const bInMeld = setCardIds.has(b.id) || runCardIds.has(b.id);
       
-      // Put run cards (green) first
-      if (aInRun && !bInRun) return -1;
-      if (bInRun && !aInRun) return 1;
+      // Meld cards come before non-meld cards
+      if (aInMeld && !bInMeld) return -1;
+      if (!aInMeld && bInMeld) return 1;
       
-      // If both are run cards, sort by suit and value
-      if (aInRun && bInRun) {
-        const suitOrder = {
-          'clubs': 0,
-          'diamonds': 1,
-          'hearts': 2,
-          'spades': 3
-        };
-        
-        const suitDiff = suitOrder[a.suit] - suitOrder[b.suit];
-        if (suitDiff !== 0) return suitDiff;
-        
-        const valueOrder = {
-          'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7,
-          '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13
-        };
+      // Sort non-meld cards by value (low to high)
+      if (!aInMeld && !bInMeld) {
         return valueOrder[a.value] - valueOrder[b.value];
       }
       
-      // Put set cards (yellow) immediately after run cards
-      if (aInSet && !bInSet && !bInRun) return -1;
-      if (bInSet && !aInSet && !aInRun) return 1;
-      
-      // If both are set cards, sort by value then suit
-      if (aInSet && bInSet) {
-        const valueOrder = {
-          'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7,
-          '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13
-        };
-        
-        const valueDiff = valueOrder[a.value] - valueOrder[b.value];
-        if (valueDiff !== 0) return valueDiff;
-        
-        const suitOrder = {
-          'clubs': 0,
-          'diamonds': 1,
-          'hearts': 2,
-          'spades': 3
-        };
-        return suitOrder[a.suit] - suitOrder[b.suit];
-      }
-      
-      // For non-meld cards, sort by VALUE (low to high)
-      // This ensures highest value cards are to the right
-      const valueOrder = {
-        'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7,
-        '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13
-      };
-      
-      return valueOrder[a.value] - valueOrder[b.value];
+      // Keep meld cards in their relative order
+      return 0;
     });
+    
+    console.log("After sorting, cards:", sortedCards.map(c => `${c.value} of ${c.suit}`));
+    console.log("Rightmost card should be:", sortedCards[sortedCards.length - 1]);
     
     return sortedCards;
   }
 
   preDragCardFromDeck() {
-  if (!this.playerTurn || this.gameStep % 2 !== 0) return null;
-  
-  // Pre-draw a card from the deck to show during dragging
-  const newCard = this.drawCardFromDeck();
-  this.preDrawnCard = newCard;
-  return newCard;
-}
+    if (!this.playerTurn || this.gameStep % 2 !== 0) return null;
+    
+    // Pre-draw a card from the deck to show during dragging
+    const newCard = this.drawCardFromDeck();
+    this.preDrawnCard = newCard;
+    return newCard;
+  }
 
   sortCardsBySuitAndRank(cards) {
     // Custom sort order to match the screenshot exactly
@@ -1775,21 +1739,13 @@ setupEventHandlers() {
   document.addEventListener('cardDragEnd', (event) => {
     const { cardData, targetArea, position } = event.detail;
     
-    // Если карта брошена на отбой и это допустимое игровое действие
+    // If card is dropped on discard and it's the discard phase
     if (targetArea === 'discard' && this.playerTurn && this.gameStep % 2 === 1) {
-      // Обработка сброса карты
+      // Process the discard directly
       this.selectedCard = cardData;
       console.log('Card dropped on discard:', cardData);
       
-      // Check if the card is in a meld
-      const meldResult = this.isCardInMeld(cardData);
-      if (meldResult) {
-        // Ask for confirmation before breaking a meld
-        this.showMeldBreakConfirmation(meldResult.meld);
-        return;
-      }
-      
-      // Установим флаг, что карта была перетащена
+      // Set a flag that card was dragged
       this.wasDragged = true;
       
       // IMPORTANT: Make sure we're not rendering the card twice
@@ -1798,13 +1754,14 @@ setupEventHandlers() {
         this.cardRenderer.playerHandContainer.removeChildren();
       }
       
-      // Process the discard
+      // Process the discard immediately
       this.handleDiscard();
     } else {
-      // Если не на отбой, просто возвращаем карту
+      // If not dropping on discard, log the action
       console.log('Card dropped elsewhere, returning to hand');
     }
   });
+  
   
   // ДОБАВЬТЕ ОБРАБОТЧИКИ ДЛЯ ВЗЯТИЯ КАРТ ИЗ КОЛОДЫ И СБРОСА
   
@@ -1914,6 +1871,7 @@ document.addEventListener('cardAddedToHand', (event) => {
   }
 });
 }
+
 
 removeCardHighlighting() {
   // Remove any source highlighting
@@ -2454,64 +2412,35 @@ updateGamePositions() {
 
   // Update play screen
   updatePlayScreen() {
-    // Обновляем возможные мелды и расчет deadwood
+    // Update possible melds and deadwood
     this.updatePossibleMelds();
     this.deadwood = this.calculateDeadwood();
     
-    // Обновляем UI (счет, deadwood и т.д.)
+    // Update UI (score, deadwood, etc.)
     if (this.uiRenderer) {
       this.uiRenderer.updateScores(this.playerScore, this.opponentScore);
       this.uiRenderer.updateDeadwood(this.deadwood);
-
-      // IMPORTANT: Clear containers before updating to prevent duplicates
-      if (this.cardRenderer) {
-        this.cardRenderer.updateDisplay({
-          playerCards: this.cardManager.playerCards || [],
-          opponentCards: this.cardManager.opponentCards || [],
-          discardPile: this.cardManager.discardPile || [],
-          deckCount: this.deckCount,
-          selectedCard: this.selectedCard,
-          possibleMelds: this.possibleMelds, // Важно! Передаем информацию о мелдах
-          playerTurn: this.playerTurn
-        });
-      }
-
-      // Управление drag-and-drop в зависимости от состояния игры
-  if (this.cardRenderer) {
-    // Включаем drag-and-drop только когда ход игрока
-    // или когда игрок должен выбрать карту из колоды/сброса или сбросить карту
-    const enableDrag = this.playerTurn;
-    this.cardRenderer.enableDragging(enableDrag);
-  }
       
-      // Проверяем, показывать ли кнопки GIN и KNOCK
+      // Check if we should show GIN or KNOCK buttons
       const isPlayerTurn = this.playerTurn;
-      const isDiscardPhase = this.gameStep % 2 === 1; // Фаза сброса - нечетный шаг
       const isPlayState = this.stateManager?.currentState === 'play';
       
-      console.log("Deadwood:", this.deadwood, "Player turn:", isPlayerTurn, 
-                  "Discard phase:", isDiscardPhase, "Play state:", isPlayState);
-      
-      // Показываем кнопку Gin когда deadwood = 0 и это ход игрока 
-      // И мы находимся в игровом состоянии (независимо от фазы)
+      // Show GIN button when deadwood = 0 and it's player's turn
       if (this.deadwood === 0 && isPlayerTurn && isPlayState) {
-        console.log("Showing GIN button!");
         this.uiRenderer.showGinButton(true);
       } else {
         this.uiRenderer.showGinButton(false);
       }
       
-      // ИЗМЕНЕНО: Показываем кнопку Knock когда 0 < deadwood <= 10, ход игрока 
-      // И мы находимся в игровом состоянии (независимо от фазы)
+      // Show KNOCK button when 0 < deadwood <= 10 and it's play state
       if (this.deadwood > 0 && this.deadwood <= 10 && isPlayState) {
-        console.log("Showing KNOCK button!");
         this.uiRenderer.showKnockButton(true);
       } else {
         this.uiRenderer.showKnockButton(false);
       }
     }
     
-    // Обновляем отображение карт
+    // Update card display
     if (this.cardRenderer) {
       this.cardRenderer.updateDisplay({
         playerCards: this.cardManager.playerCards || [],
@@ -2522,18 +2451,23 @@ updateGamePositions() {
         possibleMelds: this.possibleMelds,
         playerTurn: this.playerTurn
       });
-    }
-    // Если у оппонента закончились карты, показываем оверлей
-    if (this.cardManager.opponentCards.length === 0) {
-      this.uiRenderer.showPlayNowOverlay();
-    }
-    // ДОБАВЛЕНО: Проверяем условия для скрытия туториала
-    // Если у оппонента закончились карты или deadwood <= 10, скрываем подсказку
-    if ((this.cardManager.opponentCards.length === 0 || this.deadwood <= 10) && this.tutorialTitleContainer) {
-      // Скрываем туториал и удаляем его со сцены
-      this.hideTutorialElements();
       
+      // Enable drag-and-drop only when it's player's turn
+      const enableDrag = this.playerTurn;
+      this.cardRenderer.enableDragging(enableDrag);
+    }
+    
+    // Force update discard hint if it's discard phase and player's turn
+    if (this.playerTurn && this.gameStep % 2 === 1 && this.hasDrawnCard) {
+      // Clear any existing hints
+      if (this.handCursor) {
+        this.handCursor.fade();
+      }
       
+      // Wait a bit for everything to update, then show discard hint
+      setTimeout(() => {
+        this.showDiscardHint();
+      }, 200);
     }
   }
   
@@ -2775,24 +2709,21 @@ findOptimalDiscardCard() {
     )[0];
   }
   
-  // Calculate meld potential for each non-meld card
-  const cardsWithPotential = nonMeldCards.map(card => ({
-    card,
-    potential: this.getCardMeldPotential(card),
-    value: this.getCardValue(card)
-  }));
+  // FIXED: Instead of potential calculation, just return the highest value card
+  const valueMap = {
+    'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7,
+    '8': 8, '9': 9, '10': 10, 'J': 10, 'Q': 10, 'K': 10
+  };
   
-  // Sort by potential (ascending), then by value (descending)
-  cardsWithPotential.sort((a, b) => {
-    if (a.potential !== b.potential) {
-      return a.potential - b.potential; // Lowest potential first
-    }
-    return b.value - a.value; // Then highest value first
-  });
+  // Sort by value (descending) to find highest value card
+  const sortedByValue = [...nonMeldCards].sort((a, b) => 
+    valueMap[b.value] - valueMap[a.value]
+  );
   
-  // Return the card with the lowest meld potential (and highest value if tied)
-  return cardsWithPotential[0].card;
+  // Return the highest value card (first in sorted array)
+  return sortedByValue[0];
 }
+
 
 // Helper to get a card's deadwood value
 getCardValue(card) {
@@ -2978,69 +2909,41 @@ showMakeMeldText(visible) {
 
   // Handle card click
   // Update to handleCardClick method to remove tutorial text on interaction
-handleCardClick(cardData, source) {
-  console.log('Card clicked:', cardData, 'source:', source);
-  
-  // Remove tutorial elements when any card is clicked
-  this.hideTutorialElements(false);
-  
-  if (source === 'player' && this.playerTurn && this.gameStep % 2 === 0) {
-    // Просто добавляем визуальную обратную связь, но не обрабатываем дальше
-    if (this.cardRenderer) {
-      let clickedSprite = null;
-      this.cardRenderer.playerHandContainer.children.forEach(sprite => {
-        if (sprite.cardData && sprite.cardData.id === cardData.id) {
-          clickedSprite = sprite;
+  handleCardClick(cardData, source) {
+    console.log('Card clicked:', cardData, 'source:', source);
+    
+    // Remove tutorial elements when any card is clicked
+    this.hideTutorialElements();
+    
+    // For player cards, only provide visual feedback but don't process discard
+    if (source === 'player') {
+      // Give visual feedback but DO NOT process as discard
+      if (this.cardRenderer) {
+        let clickedSprite = null;
+        this.cardRenderer.playerHandContainer.children.forEach(sprite => {
+          if (sprite.cardData && sprite.cardData.id === cardData.id) {
+            clickedSprite = sprite;
+          }
+        });
+        
+        if (clickedSprite) {
+          this.cardRenderer.enhanceCardClickFeedback(clickedSprite);
         }
-      });
-      
-      if (clickedSprite) {
-        this.cardRenderer.enhanceCardClickFeedback(clickedSprite);
       }
+      return; // Exit the method without further processing
     }
-    return; // Выходим из метода, не обрабатывая клик дальше
-  }
-  
-  // Handle based on source and game state
-  if (source === 'deck' && this.playerTurn && this.gameStep % 2 === 0) {
-    // Player is drawing from deck - explicit user choice
-    this.handleDrawFromDeck();
-    return;
-  }
-  
-  if (source === 'discard' && this.playerTurn && this.gameStep % 2 === 0) {
-    // Player is drawing from discard pile - explicit user choice
-    this.handleDrawFromDiscard(cardData);
-    return;
-  }
-  
-  if (source === 'player') {
-    // Player selecting a card from their hand
-    if (this.playerTurn && this.gameStep % 2 === 1) {
-      // It's discard phase - select a card to discard
-      
-      // Check if the card is in a meld
-      const meldResult = this.isCardInMeld(cardData);
-      if (meldResult) {
-        // Ask for confirmation before breaking a meld
-        this.showMeldBreakConfirmation(meldResult.meld);
-        return;
-      }
-      
-      // Select the card for discard - explicitly hide pass button
-      this.selectedCard = cardData;
-      
-      
-      // Update display
-      this.updatePlayScreen();
-      
-      // Schedule the actual discard
-      setTimeout(() => {
-        this.handleDiscard();
-      }, 500);
+    
+    // Handle deck and discard pile clicks as before
+    if (source === 'deck' && this.playerTurn && this.gameStep % 2 === 0) {
+      this.handleDrawFromDeck();
+      return;
+    }
+    
+    if (source === 'discard' && this.playerTurn && this.gameStep % 2 === 0) {
+      this.handleDrawFromDiscard(cardData);
+      return;
     }
   }
-}
 
 showTakeCardTutorial() {
   // Пропускаем, если полное обучение показано или подсказка уже показана на этом ходу
@@ -3130,16 +3033,17 @@ hideTutorialElements() {
 handleDrawFromDeck() {
   console.log('Player draws from deck');
   
-  // Скрываем туториал "Take a card"
+  // Hide tutorial "Take a card"
   this.hideTutorialElements();
   
-  // IMPORTANT: Also remove any highlighting specifically (in case hideTutorialElements missed it)
+  // Remove any highlighting
   this.removeCardHighlighting();
   
-  // Только разрешаем, если это фаза взятия
+  // Only allow if it's the drawing phase
   if (!this.playerTurn || this.gameStep % 2 !== 0) return;
   
   const newCard = this.drawCardFromDeck();
+  console.log("Drew card from deck:", newCard);
   
   // Add animation before updating the player's hand
   if (this.cardRenderer) {
@@ -3152,60 +3056,70 @@ handleDrawFromDeck() {
   
   this.cardManager.playerCards.push(newCard);
   
-  // Сортируем карты с мелдами
+  // Sort cards with melds
   this.cardManager.playerCards = this.sortCardsWithMelds();
   
-  // Уменьшаем количество карт в колоде
+  // Log the new order of cards
+  console.log("After sorting, cards in hand:", this.cardManager.playerCards);
+  
+  // Decrease deck count
   this.deckCount--;
   this.gameStep++;
   
-  // Устанавливаем флаг, что игрок взял карту
+  // Set flag that player has drawn a card
   this.hasDrawnCard = true;
   
-  // Обновляем экран игры после небольшой задержки, чтобы анимация успела начаться
+  // IMPORTANT: Make sure dragging is enabled after drawing
+  if (this.cardRenderer) {
+    this.cardRenderer.enableDragging(true);
+  }
+  
+  // Update game screen IMMEDIATELY to ensure rightmost card is correct
+  this.updatePlayScreen();
+  
+  // Wait for animation to complete before showing discard hint
   setTimeout(() => {
-    this.updatePlayScreen();
-    
-    // Ждем завершения анимации, прежде чем показывать подсказку сброса
-    setTimeout(() => {
-      this.showDiscardHint();
-    }, 800);
-  }, 300);
+    this.showDiscardHint();
+  }, 800);
 }
 
 handleDrawFromDiscard(cardData) {
   console.log('Player draws from discard pile');
   
-  // Скрываем туториал "Take a card"
+  // Hide tutorial message
   this.hideTutorialElements();
   
-  // IMPORTANT: Also remove any highlighting specifically (in case hideTutorialElements missed it)
+  // Remove any highlighting
   this.removeCardHighlighting();
   
-  // Только разрешаем, если это фаза взятия
+  // Only allow in drawing phase
   if (!this.playerTurn || this.gameStep % 2 !== 0) return;
   
-  // Берем верхнюю карту из стопки сброса
+  // Take top card from discard pile
   const discardCard = this.cardManager.discardPile.pop();
   
   if (!discardCard) return;
   
-  // Добавляем в руку игрока
+  // FIXED: Keep a reference to the discard card before it's added to hand
+  console.log("Taking card from discard:", discardCard);
+  
+  // Add to player's hand
   this.cardManager.playerCards.push(discardCard);
   
-  // Сортируем карты с мелдами
+  // Sort cards with melds
   this.cardManager.playerCards = this.sortCardsWithMelds();
   
-  // Обновляем состояние игры
+  // Update game state
   this.gameStep++;
   
-  // Устанавливаем флаг, что игрок взял карту
+  // Set flag that player has drawn a card
   this.hasDrawnCard = true;
   
-  // Обновляем экран игры
+  // Update game screen
   this.updatePlayScreen();
   
-  // Ждем завершения анимации, прежде чем показывать подсказку сброса
+  // Wait for animation to complete before showing discard hint
+  // FIXED: This will now only show discard hint if the card is not in a meld
   setTimeout(() => {
     this.showDiscardHint();
   }, 800);
@@ -4016,21 +3930,8 @@ updateEndScreen(playerScore) {
     // Демонстрируем нажатие на колоду
     this.handCursor.tap(deckPosition.x, deckPosition.y, {
       onComplete: () => {
-        // Подсвечиваем колоду
-        if (this.cardRenderer.deckContainer) {
-          gsap.to(this.cardRenderer.deckContainer.scale, {
-            x: 1.1, y: 1.1,
-            duration: 0.3,
-            repeat: 1,
-            yoyo: true,
-            onComplete: () => {
-              // После демонстрации колоды показываем подсказку о сбросе
-              setTimeout(() => {
-                this.showDiscardHint();
-              }, 500);
-            }
-          });
-        }
+        // Никакой анимации масштаба — сразу подсказка
+        this.showDiscardHint();
       }
     });
   }
@@ -4043,111 +3944,106 @@ updateEndScreen(playerScore) {
     
     if (!this.handCursor || !this.cardManager.playerCards.length || !this.cardRenderer) return;
   
-    // Проверка возможности сделать GIN
+    // Special cases (GIN and KNOCK) remain the same
     if (this.deadwood === 0) {
-      // Очень яркая подсказка GIN
+      // Very prominent GIN hint
       if (this.uiRenderer) {
         this.uiRenderer.showGinButton(true);
-        
-        // Показываем всплывающее сообщение о GIN
         this.uiRenderer.hideDialog();
         this.uiRenderer.showDialog("Perfect hand! Call GIN!");
-        
-        // Для усиления подсказки добавляем анимацию кнопки GIN
         if (this.uiRenderer.ginButton) {
           gsap.to(this.uiRenderer.ginButton.scale, {
-            x: 1.2, y: 1.2, 
-            duration: 0.5, 
-            repeat: -1, 
-            yoyo: true,
-            ease: "power1.inOut"
+            x: 1.2, y: 1.2, duration: 0.5, repeat: -1, yoyo: true, ease: "power1.inOut"
           });
         }
       }
       return;
     }
     
-    // Для быстрой игры: активно продвигаем KNOCK, как только deadwood <= 10
     if (this.deadwood <= 10) {
-      // Яркая подсветка кнопки KNOCK
+      // Bright highlight for KNOCK button
       if (this.uiRenderer) {
         this.uiRenderer.showKnockButton(true);
-        
-        // Показываем всплывающее сообщение о KNOCK с побуждением к действию
         this.uiRenderer.hideDialog();
         this.uiRenderer.showDialog("KNOCK to win the game now!");
-        
-        // Добавляем анимацию кнопки KNOCK для привлечения внимания
         if (this.uiRenderer.knockButton) {
           gsap.to(this.uiRenderer.knockButton.scale, {
-            x: 1.2, y: 1.2, 
-            duration: 0.5, 
-            repeat: -1, 
-            yoyo: true,
-            ease: "power1.inOut"
+            x: 1.2, y: 1.2, duration: 0.5, repeat: -1, yoyo: true, ease: "power1.inOut"
           });
         }
       }
       return;
     }
     
-    // [Остальная часть метода остается без изменений]
-    // Find the optimal card to discard
-    const optimalCard = this.findOptimalDiscardCard();
-    
-    if (!optimalCard) return;
-    
-    // Get index of this card in the player's hand
-    const cardIndex = this.cardManager.playerCards.findIndex(card => 
-      card.id === optimalCard.id
-    );
-    
-    // Show "Discard a card" message
+    // Show "Drag a card to discard" message to emphasize drag-and-drop
     if (this.uiRenderer) {
       this.uiRenderer.hideDialog();
-      this.uiRenderer.showDialog("Discard a card!");
+      this.uiRenderer.showDialog("Drag a card to discard!");
+    }
+  
+    // Use the VISUAL rightmost card in the renderer
+    if (!this.cardRenderer || !this.cardRenderer.playerHandContainer) {
+      console.error("Cannot access player hand container!");
+      return;
     }
     
-    // Now highlight this specific card
-    if (this.cardRenderer && this.cardRenderer.playerHandContainer.children.length > cardIndex) {
-      const cardSprite = this.cardRenderer.playerHandContainer.children[cardIndex];
-      
-      // Apply special highlight to this card
-      this.cardRenderer.applySpecialHighlight(cardSprite, 0x9C27B0, 0.3);
-      
-      // Make the card stand out slightly
-      cardSprite.y -= 10;
-      
-      // Additional highlight animation
-      gsap.to(cardSprite.scale, {
-        x: 0.8, y: 0.8, duration: 0.2, repeat: 3, yoyo: true
-      });
+    const sprites = this.cardRenderer.playerHandContainer.children;
+    if (!sprites || sprites.length === 0) {
+      console.error("No card sprites found in player hand!");
+      return;
     }
     
-    // Position hand cursor and show animation
-    const spacing = this.config.fanDistance || 30;
-    const totalCards = this.cardManager.playerCards.length;
-    const fanAngle = this.config.fanAngle || 10;
-    const anglePerCard = totalCards > 1 ? fanAngle / (totalCards - 1) : 0;
-    const rotation = -fanAngle/2 + cardIndex * anglePerCard;
+    // Find the card with the largest X position (rightmost in the fan)
+    let rightmostSprite = null;
+    let maxX = -Infinity;
     
-    const cardX = this.cardRenderer.playerHandContainer.x - ((totalCards - 1) * spacing / 2) + cardIndex * spacing;
-    const cardY = this.cardRenderer.playerHandContainer.y + Math.sin(rotation * Math.PI / 180) * 10 - 40;
+    for (const sprite of sprites) {
+      if (sprite.x > maxX) {
+        maxX = sprite.x;
+        rightmostSprite = sprite;
+      }
+    }
+    
+    if (!rightmostSprite || !rightmostSprite.cardData) {
+      console.error("Could not find rightmost card sprite or it has no card data!");
+      return;
+    }
+    
+    const rightmostCard = rightmostSprite.cardData;
+    const rightmostIndex = sprites.indexOf(rightmostSprite);
+    
+    console.log("FORCED RIGHTMOST CARD BY POSITION:", rightmostCard, "at visual index:", rightmostIndex);
+    
+    // Apply visual highlight to this specific sprite
+    this.cardRenderer.applySpecialHighlight(rightmostSprite, 0xFF00FF, 0.4); // Bright pink highlight
+    
+    // Make the card stand out slightly
+    rightmostSprite.y -= 10;
+    
+    // Additional highlight animation
+    gsap.to(rightmostSprite.scale, {
+      x: 0.9, y: 0.9, duration: 0.2, repeat: 3, yoyo: true
+    });
+    
+    // Direct position from the sprite itself
+    const cardX = this.cardRenderer.playerHandContainer.x + rightmostSprite.x;
+    const cardY = this.cardRenderer.playerHandContainer.y + rightmostSprite.y - 40;
     
     const discardX = this.cardRenderer.discardContainer.x + this.config.cardWidth / 2;
     const discardY = this.cardRenderer.discardContainer.y + this.config.cardHeight / 2;
     
+    // Position hand cursor DIRECTLY at the rightmost sprite
     this.handCursor.showAt(cardX, cardY);
     
+    // Show animation that CLEARLY demonstrates dragging, not clicking
     setTimeout(() => {
       this.handCursor.demonstrateCardMove(
         { x: cardX, y: cardY + 40 },
         { x: discardX, y: discardY },
-        { dragDuration: 0.8 } // Ускоренная анимация
+        { dragDuration: 0.8 } // Faster animation
       );
     }, 300);
   }
-  
 
   // Show loading screen
   showLoadingScreen() {

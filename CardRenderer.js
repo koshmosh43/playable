@@ -118,7 +118,7 @@ this.playerHandZone = null;    // Зона веера карт игрока
       // Set dimensions and anchor
       sprite.width = this.config.cardWidth;
       sprite.height = this.config.cardHeight;
-      sprite.anchor.set(0.5, 0.9); // IMPORTANT: Changed anchor to 0.9 for consistent vertical alignment
+      sprite.anchor.set(0.5, 0.9);
       sprite.zIndex = i;
       
       // Calculate position in the fan
@@ -127,10 +127,19 @@ this.playerHandZone = null;    // Зона веера карт игрока
       const angleRad = (angleDeg * Math.PI) / 180;
       
       sprite.x = x;
-      sprite.y = 0; // FIXED: Set a consistent y position of 0 relative to container
+      sprite.y = 0;
       sprite.rotation = angleRad;
       
-      // Highlight cards in melds (keeping existing functionality)
+      // IMPORTANT: Store the card data directly on the sprite
+      sprite.cardData = cardData;
+      
+      // Check if this is the rightmost card (last in the fan)
+      if (i === total - 1) {
+        sprite.rightmost = true;
+        console.log("Marked rightmost card:", cardData);
+      }
+      
+      // Highlight cards in melds
       if (possibleMelds) {
         // Check if card is in any set
         let inSet = false;
@@ -158,7 +167,12 @@ this.playerHandZone = null;    // Зона веера карт игрока
       
       // Highlight selected card
       if (selectedCard && selectedCard.id === cardData.id) {
-        this.applySelectedHighlight(sprite);
+        this.applySimpleSelectedHighlight(sprite);
+      }
+      
+      // Set up drag and drop handlers 
+      if (this.isDragEnabled) {
+        this.setupDragAndDrop(sprite, cardData);
       }
       
       // Add click handler
@@ -173,8 +187,24 @@ this.playerHandZone = null;    // Зона веера карт игрока
     
     // Sort cards by z-index
     this.playerHandContainer.sortChildren();
+    
+    // ADDITIONAL: After sorting, identify and mark the visual rightmost card
+    if (this.playerHandContainer.children.length > 0) {
+      let rightmostSprite = null;
+      let maxX = -Infinity;
+      
+      for (const sprite of this.playerHandContainer.children) {
+        if (sprite.x > maxX) {
+          maxX = sprite.x;
+          rightmostSprite = sprite;
+        }
+      }
+      
+      if (rightmostSprite && rightmostSprite.cardData) {
+        console.log("Marked rightmost card:", rightmostSprite.cardData);
+      }
+    }
   }
-
   
 
   isOverPlayerHand(position) {
@@ -190,211 +220,258 @@ this.playerHandZone = null;    // Зона веера карт игрока
   }
   
   // Apply highlight for selected card with more subtle effect
-  applySelectedHighlight(sprite) {
+  applySimpleSelectedHighlight(sprite) {
+    // Use a glow filter instead of manipulation that might require projection
     const filter = new PIXI.filters.ColorMatrixFilter();
     filter.matrix = [1.1,0,0,0,0, 0,1.1,0,0,0, 0,0,1.1,0,0, 0,0,0,1,0];
     sprite.filters = [filter];
-    sprite.proj.position.y -= 10;
+    
+    // Move card up slightly - without using projection
+    sprite.y -= 10;
   }
 
-setupDragAndDrop(sprite, cardData) {
-  // Variables to track dragging state
-  let isDragging = false;
-  let dragStartData = null;
-  let originalZIndex = sprite.zIndex;
-  
-  // Event handlers
-  const onDragStart = (event) => {
-    if (!this.isDragEnabled) return;
+  setupDragAndDrop(sprite, cardData) {
+    // First, remove any existing listeners to prevent duplicates
+    sprite.removeAllListeners('pointerdown');
+    sprite.removeAllListeners('pointermove');
+    sprite.removeAllListeners('pointerup');
+    sprite.removeAllListeners('pointerupoutside');
     
-    isDragging = true;
-    dragStartData = {
-      x: event.data.global.x,
-      y: event.data.global.y,
-      spriteX: sprite.x,
-      spriteY: sprite.y,
-      spriteRotation: sprite.rotation
+    // Variables to track dragging state
+    let isDragging = false;
+    let dragStartData = null;
+    let originalZIndex = sprite.zIndex;
+    
+    // Store original values for restoration
+    sprite.originalPosition = {
+      x: sprite.x,
+      y: sprite.y,
+      rotation: sprite.rotation,
+      zIndex: sprite.zIndex
     };
     
-    // Bring the card to the front while dragging
-    originalZIndex = sprite.zIndex;
-    sprite.zIndex = 1000;
-    this.playerHandContainer.sortChildren();
+    // Event handlers
+    const onDragStart = (event) => {
+      if (!this.isDragEnabled) return;
     
-    // Enlarge card slightly for better visibility
-    sprite.scale.set(0.7);
+      isDragging = true;
+      dragStartData = {
+        x: event.data.global.x,
+        y: event.data.global.y,
+        spriteX: sprite.x,
+        spriteY: sprite.y,
+        spriteRotation: sprite.rotation
+      };
     
-    // Apply visual feedback that indicates dragging
-    this.applySelectedHighlight(sprite);
+      originalZIndex = sprite.zIndex;
+      sprite.zIndex = 1000;
+      this.playerHandContainer.sortChildren();
     
-    // Emit custom event that game can listen to
-    const dragStartEvent = new CustomEvent('cardDragStart', { 
-      detail: { cardData, sprite }
-    });
-    document.dispatchEvent(dragStartEvent);
-  };
-  
-  const onDragMove = (event) => {
-    if (!isDragging) return;
-    
-    // Calculate the new position based on the mouse/touch movement
-    const newPosition = event.data.global;
-    
-    // Convert global coordinates to local container coordinates
-    const newLocalPos = this.playerHandContainer.toLocal(newPosition);
-    
-    // Update sprite position
-    sprite.x = newLocalPos.x;
-    sprite.y = newLocalPos.y;
-    
-    // Keep the card upright while dragging
-    sprite.rotation = 0;
-    
-    // ВАЖНОЕ ДОБАВЛЕНИЕ: Проверить, находится ли карта над отбоем
-    // Преобразуем локальные координаты в глобальные для проверки
-    const globalPos = sprite.toGlobal(new PIXI.Point(0, 0));
-    const isOverDiscard = this.isOverDiscardPile(globalPos);
-    
-    // Если карта над отбоем, плавно уменьшаем ее до нормального размера
-    // if (isOverDiscard && sprite.scale.x > 1.0) {
-    //   // Плавно уменьшаем масштаб до нормального (1.0)
-    //   gsap.to(sprite.scale, {
-    //     x: 0.6, 
-    //     y: 0.6,
-    //     duration: 0.6, // Быстрая анимация для отзывчивости
-    //     ease: "power2.out"
-    //   });
-    // } 
-    // Если карта не над отбоем и уже уменьшена, возвращаем увеличенный размер
-  //   else if (!isOverDiscard && sprite.scale.x < 1.29) {
-  //     // Возвращаем увеличенный масштаб
-  //     gsap.to(sprite.scale, {
-  //       x: 0.8, 
-  //       y: 0.8,
-  //       duration: 0.5,
-  //       ease: "power2.out"
-  //     });
-  //   }
-  };
-  
-  const onDragEnd = (event) => {
-    if (!isDragging) return;
-    isDragging = false;
-    
-    // Get the sprite's global position
-    const globalPos = sprite.toGlobal(new PIXI.Point(0, 0));
-    
-    // Check if the card was dropped over discard pile
-    const isOverDiscard = this.isOverDiscardPile(globalPos);
-    
-    // Emit custom event that game can listen to
-    const dragEndEvent = new CustomEvent('cardDragEnd', { 
-      detail: { 
-        cardData, 
-        sprite, 
-        targetArea: isOverDiscard ? 'discard' : 'hand',
-        position: globalPos
+      // Увеличиваем только если карта НЕ из колоды
+      if (sprite.cardData && sprite.cardData.source !== 'deck') {
+        sprite.scale.set(0.7);
       }
-    });
-    document.dispatchEvent(dragEndEvent);
     
-    // Let the game handle the rest - it will decide what to do
-    // If game doesn't handle it, the card will snap back
-    this.snapCardBack(sprite);
-  };
-  
-  // Add event listeners
-  sprite
-    .on('pointerdown', (event) => {
+      this.applySimpleSelectedHighlight(sprite);
+    
+      const dragStartEvent = new CustomEvent('cardDragStart', { 
+        detail: { cardData, sprite }
+      });
+      document.dispatchEvent(dragStartEvent);
+    };
+    
+    
+    const onDragMove = (event) => {
+      if (!isDragging) return;
+      
+      // Calculate the new position based on the mouse/touch movement
+      const newPosition = event.data.global;
+      
+      // Convert global coordinates to local container coordinates
+      const newLocalPos = this.playerHandContainer.toLocal(newPosition);
+      
+      // Update sprite position
+      sprite.x = newLocalPos.x;
+      sprite.y = newLocalPos.y;
+      
+      // Keep the card upright while dragging
+      sprite.rotation = 0;
+      
+      // Check if over discard pile for visual feedback
+      const globalPos = sprite.toGlobal(new PIXI.Point(0, 0));
+      const isOverDiscard = this.isOverDiscardPile(globalPos);
+      
+      // Visual feedback when over discard pile
+      if (isOverDiscard && !sprite.isOverDiscard) {
+        sprite.isOverDiscard = true;
+        // Add glow effect or different highlight when over discard pile
+        gsap.to(sprite.scale, {
+          x: 0.65, y: 0.65,
+          duration: 0.2
+        });
+        
+        // Apply a special "valid drop" highlight
+        this.applySpecialHighlight(sprite, 0x00FF00, 0.3); // Green when valid drop
+      } else if (!isOverDiscard && sprite.isOverDiscard) {
+        sprite.isOverDiscard = false;
+        // Restore normal drag appearance
+        gsap.to(sprite.scale, {
+          x: 0.7, y: 0.7,
+          duration: 0.2
+        });
+        
+        // Apply normal drag highlight
+        this.applySimpleSelectedHighlight(sprite);
+      }
+    };
+    
+    const onDragEnd = (event) => {
+      if (!isDragging) return;
+      isDragging = false;
+      
+      // Reset highlighting state
+      sprite.isOverDiscard = false;
+      
+      // Get the sprite's global position
+      const globalPos = sprite.toGlobal(new PIXI.Point(0, 0));
+      
+      // Check if the card was dropped over discard pile
+      const isOverDiscard = this.isOverDiscardPile(globalPos);
+      
+      console.log("Drag ended, over discard:", isOverDiscard);
+      
+      // Emit custom event that game can listen to
+      const dragEndEvent = new CustomEvent('cardDragEnd', { 
+        detail: { 
+          cardData, 
+          sprite, 
+          targetArea: isOverDiscard ? 'discard' : 'hand',
+          position: globalPos
+        }
+      });
+      document.dispatchEvent(dragEndEvent);
+      
+      // If not dropping on discard, restore the card
+      if (!isOverDiscard) {
+        this.snapCardBack(sprite);
+      }
+    };
+    
+    // Add event listeners
+    sprite.on('pointerdown', (event) => {
       event.stopPropagation();
       sprite.data = event.data;
       onDragStart(event);
-    })
-    .on('pointermove', onDragMove)
-    .on('pointerup', onDragEnd)
-    .on('pointerupoutside', onDragEnd);
-}
-
-startCardDragging(cardData, source) {
-  console.log(`STARTING DRAG FROM ${source}`, cardData);
-
-  // Остановить все анимации
-  gsap.killTweensOf(this.deckContainer.scale);
-  gsap.killTweensOf(this.discardContainer.scale);
-  this.deckContainer.scale.set(1, 1);
-  this.discardContainer.scale.set(1, 1);
-
-  // ИСПРАВЛЕНИЕ: Удаляем ТОЛЬКО верхнюю карту из отбоя, а не всю стопку
-  if (source === 'discard') {
-    // Получаем количество карт в отбое
-    const discardCount = this.discardContainer.children.length;
+    });
     
-    // Если в отбое есть карты, удаляем только верхнюю (последнюю)
-    if (discardCount > 0) {
-      // Находим верхнюю (последнюю) карту в стопке
-      const topCardIndex = discardCount - 1;
-      const topCard = this.discardContainer.getChildAt(topCardIndex);
-      
-      // Удаляем только верхнюю карту
-      this.discardContainer.removeChildAt(topCardIndex);
-      
-      console.log('Removed only the top card from discard pile!');
-    }
+    sprite.on('pointermove', onDragMove);
+    sprite.on('pointerup', onDragEnd);
+    sprite.on('pointerupoutside', onDragEnd);
+    
+    // Make sure the card is properly interactive
+    sprite.interactive = true;
+    sprite.buttonMode = true;
   }
 
-  // Если уже перетаскиваем карту, прекращаем
-  if (this.draggingCard) return;
+  startCardDragging(cardData, source) {
+    console.log(`STARTING DRAG FROM ${source}`, cardData);
   
-  // Сохраняем информацию о перетаскиваемой карте
-  this.draggingCardSource = source;
-  this.draggingCardData = cardData;
+    // Stop all animations
+    gsap.killTweensOf(this.deckContainer.scale);
+    gsap.killTweensOf(this.discardContainer.scale);
+    this.deckContainer.scale.set(1, 1); // Reset to normal scale - IMPORTANT
+    this.discardContainer.scale.set(1, 1);
   
-  // Создаем спрайт карты для перетаскивания
-  this.createCardSprite(cardData, false).then(sprite => {
-    this.draggingCard = sprite;
-    
-    // Настраиваем внешний вид перетаскиваемой карты
-    sprite.anchor.set(0.5);
-    sprite.width = this.config.cardWidth;
-    sprite.height = this.config.cardHeight;
-    sprite.alpha = 1;
-    sprite.zIndex = 1000; // Поверх всех остальных элементов
-    
-    // Добавляем в контейнер анимаций
-    this.animationContainer.addChild(sprite);
-    
-    // Определяем начальную позицию в зависимости от источника
-    if (source === 'deck') {
-      sprite.x = this.deckContainer.x + this.config.cardWidth / 2;
-      sprite.y = this.deckContainer.y + this.config.cardHeight / 2;
-    } else if (source === 'discard') {
-      sprite.x = this.discardContainer.x + this.config.cardWidth / 2;
-      sprite.y = this.discardContainer.y + this.config.cardHeight / 2;
+    // FIXED: For discard pile, only remove the top card, not the entire pile
+    if (source === 'discard') {
+      // Get number of cards in discard pile
+      const discardCount = this.discardContainer.children.length;
+      
+      // If there are cards in discard, remove only the top (last) one
+      if (discardCount > 0) {
+        // Find the top card in the stack
+        const topCardIndex = discardCount - 1;
+        const topCard = this.discardContainer.getChildAt(topCardIndex);
+        
+        // Remove only the top card
+        this.discardContainer.removeChildAt(topCardIndex);
+        
+        console.log('Removed only the top card from discard pile!');
+      }
     }
+  
+    // If already dragging a card, stop
+    if (this.draggingCard) return;
     
-    // Удаляем предыдущие обработчики, если они были
-    window.removeEventListener('mousemove', this.moveCardHandler);
-    window.removeEventListener('touchmove', this.moveCardHandler);
-    window.removeEventListener('mouseup', this.releaseCardHandler);
-    window.removeEventListener('touchend', this.releaseCardHandler);
+    // Save information about the dragged card
+    this.draggingCardSource = source;
+    this.draggingCardData = cardData;
     
-    // Устанавливаем обработчики событий
-    window.addEventListener('mousemove', this.moveCardHandler);
-    window.addEventListener('touchmove', this.moveCardHandler);
-    window.addEventListener('mouseup', this.releaseCardHandler);
-    window.addEventListener('touchend', this.releaseCardHandler);
-    
-    // Вызываем событие начала перетаскивания
-    document.dispatchEvent(new CustomEvent('cardDragStarted', {
-      detail: { cardData, source }
-    }));
-  }).catch(err => {
-    console.error("Error creating dragging card sprite:", err);
-  });
-}
+    // Create sprite for dragging
+    this.createCardSprite(cardData, false).then(sprite => {
+      this.draggingCard = sprite;
+      
+      // Set up dragging card appearance
+      sprite.anchor.set(0.5);
+      sprite.width = this.config.cardWidth;
+      sprite.height = this.config.cardHeight;
+      sprite.alpha = 1;
+      sprite.zIndex = 1000; // Above all other elements
+      
+      // Add to animation container
+      this.animationContainer.addChild(sprite);
+      
+      // Set initial position based on source
+      if (source === 'deck') {
+        sprite.x = this.deckContainer.x + this.config.cardWidth / 2;
+        sprite.y = this.deckContainer.y + this.config.cardHeight / 2;
+      } else if (source === 'discard') {
+        sprite.x = this.discardContainer.x + this.config.cardWidth / 2;
+        sprite.y = this.discardContainer.y + this.config.cardHeight / 2;
+      }
+      
+      // Remove any previous event handlers
+      window.removeEventListener('mousemove', this.moveCardHandler);
+      window.removeEventListener('touchmove', this.moveCardHandler);
+      window.removeEventListener('mouseup', this.releaseCardHandler);
+      window.removeEventListener('touchend', this.releaseCardHandler);
+      
+      // Set up event handlers
+      window.addEventListener('mousemove', this.moveCardHandler);
+      window.addEventListener('touchmove', this.moveCardHandler);
+      window.addEventListener('mouseup', this.releaseCardHandler);
+      window.addEventListener('touchend', this.releaseCardHandler);
+      
+      // Dispatch drag started event
+      document.dispatchEvent(new CustomEvent('cardDragStarted', {
+        detail: { cardData, source }
+      }));
+    }).catch(err => {
+      console.error("Error creating dragging card sprite:", err);
+    });
+  }
 
 moveCardHandler = (event) => {
   if (!this.draggingCard) return;
+
+   // Если тянем карту из колоды — только обновляем позицию, без масштабирования
+ if (this.draggingCardSource === 'deck') {
+   // обновляем позицию без лишних анимаций
+   let clientX, clientY;
+   if (event.type === 'touchmove') {
+     clientX = event.touches[0].clientX;
+     clientY = event.touches[0].clientY;
+   } else {
+     clientX = event.clientX;
+     clientY = event.clientY;
+   }
+   const rect = this.app.view.getBoundingClientRect();
+   const x = (clientX - rect.left) * (this.app.screen.width / rect.width);
+   const y = (clientY - rect.top) * (this.app.screen.height / rect.height);
+   this.draggingCard.x = x;
+   this.draggingCard.y = y;
+   return;
+ }
   
   // Получаем координаты курсора/касания
   let clientX, clientY;
@@ -475,6 +552,9 @@ releaseCardHandler = (event) => {
   const isOverHand = this.isOverPlayerHand(position);
   const isOverDiscard = this.isOverDiscardPile(position);
 
+  // Log the drop location
+  console.log(`Card dropped: over hand = ${isOverHand}, over discard = ${isOverDiscard}`);
+
   // Notify game logic about the drag and drop event
   document.dispatchEvent(new CustomEvent('cardDragReleased', {
     detail: {
@@ -521,6 +601,7 @@ releaseCardHandler = (event) => {
     this.returnDraggingCard();
   }
 };
+
 
 
 returnDraggingCard() {
@@ -576,6 +657,14 @@ addDraggingCardToHand() {
   this.draggingCard = null;
   this.draggingCardData = null;
   this.draggingCardSource = null;
+  
+  // Force update to ensure the card is properly added and displayed
+  // This will ensure proper highlighting and setup of drag events
+  setTimeout(() => {
+    // The game should update display in response to cardAddedToHand event
+    // which will re-render all cards with proper setup
+    console.log("Card add complete - triggering redraw");
+  }, 50);
 }
 
 // Create a sprite for a card (face up)
@@ -760,11 +849,22 @@ isOverDiscardPile(position) {
 }
 
 snapCardBack(sprite) {
+  // Check if originalPosition exists
+  if (!sprite || !sprite.originalPosition) {
+    // Create default originalPosition if it doesn't exist
+    sprite.originalPosition = {
+      x: sprite.x,
+      y: sprite.y,
+      rotation: sprite.rotation,
+      zIndex: sprite.zIndex < 100 ? sprite.zIndex : 0
+    };
+  }
+
   // Restore original z-index
-  sprite.zIndex = sprite.zIndex < 100 ? sprite.zIndex : sprite.originalPosition.zIndex || sprite.zIndex;
+  sprite.zIndex = sprite.originalPosition.zIndex || 0;
   this.playerHandContainer.sortChildren();
   
-  // ИЗМЕНЕНО: Плавная анимация возврата к исходному масштабу
+  // Smooth animation to restore to original scale
   gsap.to(sprite.scale, {
     x: 0.6,
     y: 0.6,
@@ -791,23 +891,26 @@ snapCardBack(sprite) {
 applySpecialHighlight(sprite, color, alpha = 0.3) {
   if (!sprite) return;
   
-  // Создаем цветовой фильтр
+  // Create color filter
   const colorMatrix = new PIXI.filters.ColorMatrixFilter();
   
-  // Специфические настройки для разных цветов подсветки
-  if (color === 0x98FB98) { // Зеленый для run
-    colorMatrix.matrix[0] = 0.8;  // Уменьшаем красный
-    colorMatrix.matrix[6] = 1.3;  // Увеличиваем зеленый
-    colorMatrix.matrix[12] = 0.8; // Уменьшаем синий
+  // Specific settings for different highlight colors
+  if (color === 0x98FB98) { // Green for run
+    colorMatrix.matrix[0] = 0.8;  // Reduce red
+    colorMatrix.matrix[6] = 1.3;  // Increase green
+    colorMatrix.matrix[12] = 0.8; // Reduce blue
   } 
-  else if (color === 0xFFFE7A) { // Желтый для set
-    colorMatrix.matrix[0] = 1.2;  // Увеличиваем красный
-    colorMatrix.matrix[6] = 1.2;  // Увеличиваем зеленый
-    colorMatrix.matrix[12] = 0.5; // Сильно уменьшаем синий
+  else if (color === 0xFFFE7A) { // Yellow for set
+    colorMatrix.matrix[0] = 1.2;  // Increase red
+    colorMatrix.matrix[6] = 1.2;  // Increase green
+    colorMatrix.matrix[12] = 0.5; // Significantly reduce blue
   }
   
-  // Применяем фильтр к карте
+  // Apply filter to card
   sprite.filters = [colorMatrix];
+  
+  // IMPORTANT: Remove any code trying to access sprite.proj.position
+  // The error is happening because sprite.proj is undefined
 }
 
   clearAllHighlights() {
@@ -973,24 +1076,24 @@ applySpecialHighlight(sprite, color, alpha = 0.3) {
   }
   
   animateCardFlip(sprite, onComplete) {
-    // Сохраняем исходные размеры карты перед анимацией
+    // Save original dimensions and position before animation
     const originalWidth = this.config.cardWidth;
     const originalHeight = this.config.cardHeight;
     
-    // Сохраняем исходное положение и поворот
+    // Save original position and rotation
     const originalX = sprite.x;
     const originalY = sprite.y;
     const originalRotation = sprite.rotation;
     
-    console.log("Переворачиваем карту");
+    console.log("Flipping card");
     
-    // Используем простую анимацию масштабирования вместо 3D
+    // Use simple scale animation instead of 3D
     gsap.to(sprite.scale, {
-      x: 0.01, // Уменьшаем до почти плоского состояния
+      x: 0.01, // Shrink to almost flat state
       duration: 0.2,
       ease: "power1.in",
       onComplete: () => {
-        // Меняем текстуру, когда карта "на ребре"
+        // Change texture when card is "on edge"
         if (sprite.cardData && sprite.cardData.suit && sprite.cardData.value) {
           const { suit, value } = sprite.cardData;
           const frontPath = `assets/cards/${suit}/${value}_${suit.charAt(0).toUpperCase()}${suit.slice(1)}.webp`;
@@ -999,22 +1102,22 @@ applySpecialHighlight(sprite, color, alpha = 0.3) {
             .then(texture => {
               sprite.texture = texture;
               
-              // КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ: Явно восстанавливаем размеры после смены текстуры
+              // CRITICAL FIX: Explicitly restore dimensions after texture change
               sprite.width = originalWidth;
               sprite.height = originalHeight;
               
-              // Возвращаем карту к нормальному размеру с эффектом "пружины"
+              // Return card to normal size with spring effect
               gsap.to(sprite.scale, {
-                x: 1.0, // Точно 1.0, без увеличения
-                y: 1.0, // Важно сохранять и Y-масштаб
+                x: 1.0, // Exactly 1.0, no enlargement
+                y: 1.0, // Important to maintain Y-scale
                 duration: 0.2,
                 ease: "back.out(1.5)",
                 onComplete: () => {
-                  // КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ: Еще раз явно задаем размеры
+                  // CRITICAL FIX: Set dimensions one more time
                   sprite.width = originalWidth;
                   sprite.height = originalHeight;
                   
-                  // Восстанавливаем позицию, если она изменилась
+                  // Restore position if changed
                   sprite.x = originalX;
                   sprite.y = originalY;
                   sprite.rotation = originalRotation;
@@ -1024,9 +1127,9 @@ applySpecialHighlight(sprite, color, alpha = 0.3) {
               });
             })
             .catch(err => {
-              console.warn("Не удалось загрузить текстуру:", err);
+              console.warn("Failed to load texture:", err);
               
-              // Восстанавливаем масштаб при ошибке
+              // Restore scale on error
               sprite.scale.x = 1.0;
               sprite.width = originalWidth;
               sprite.height = originalHeight;
@@ -1034,7 +1137,7 @@ applySpecialHighlight(sprite, color, alpha = 0.3) {
               if (onComplete) onComplete();
             });
         } else {
-          // Если нет данных карты, просто завершаем анимацию
+          // If no card data, just finish animation
           sprite.scale.x = 1.0;
           sprite.width = originalWidth;
           sprite.height = originalHeight;
@@ -1236,8 +1339,9 @@ applySpecialHighlight(sprite, color, alpha = 0.3) {
     }
     
     // Get exact deck position (starting point for all cards)
+    // ИЗМЕНЯЕМ СТАРТОВУЮ ПОЗИЦИЮ РАЗДАЧИ
     const deckX = this.deckContainer.x + this.config.cardWidth / 2;
-    const deckY = this.deckContainer.y + this.config.cardHeight / 2;
+    const deckY = this.deckContainer.y + this.config.cardHeight / 2 + 30;
     
     // Skip handler
     const skipDealingHandler = () => {
@@ -1268,7 +1372,6 @@ applySpecialHighlight(sprite, color, alpha = 0.3) {
     this.opponentHandContainer.removeChildren();
     
     // Calculate final positions - VERY IMPORTANT for consistency!
-    // These positions will be used during and after dealing
     const playerPositions = this.getFinalCardPositions(
       playerCards.length,
       this.playerHandContainer.x,
@@ -1299,7 +1402,7 @@ applySpecialHighlight(sprite, color, alpha = 0.3) {
           
           // Create temporary sprite for animation
           const sprite = new PIXI.Sprite(backTexture);
-          sprite.anchor.set(0.5, 0.5);
+          sprite.anchor.set(0.5, 0.9); // FIXED: Use bottom-center anchor
           sprite.width = this.config.cardWidth;
           sprite.height = this.config.cardHeight;
           sprite.x = deckX;
@@ -1332,7 +1435,7 @@ applySpecialHighlight(sprite, color, alpha = 0.3) {
           
           // Create temporary sprite for animation
           const sprite = new PIXI.Sprite(backTexture);
-          sprite.anchor.set(0.5, 0.5);
+          sprite.anchor.set(0.5, 0.9); // FIXED: Use bottom-center anchor
           sprite.width = this.config.cardWidth;
           sprite.height = this.config.cardHeight;
           sprite.x = deckX;
@@ -1342,14 +1445,14 @@ applySpecialHighlight(sprite, color, alpha = 0.3) {
           
           this.animationContainer.addChild(sprite);
           
-          // Store data for animation
+          // Store data for animation - NOTE: Use y=0 for player cards
           animCards.push({
             sprite: sprite,
             cardData: cardData,
             isPlayer: true,
             finalPos: {
               x: this.playerHandContainer.x + playerPositions[index].x,
-              y: this.playerHandContainer.y + playerPositions[index].y,
+              y: this.playerHandContainer.y, // FIXED: Use container Y directly
               rotation: playerPositions[index].rotation
             }
           });
@@ -1576,85 +1679,85 @@ applySpecialHighlight(sprite, color, alpha = 0.3) {
     }
   }
 
-createAndShowFinalCards(playerCards, opponentCards) {
-  // Calculate positions (same as during normal dealing)
-  const playerPositions = this.getFinalCardPositions(
-    playerCards.length,
-    this.playerHandContainer.x,
-    this.playerHandContainer.y,
-    true
-  );
-  
-  const opponentPositions = this.getFinalCardPositions(
-    opponentCards.length,
-    this.opponentHandContainer.x,
-    this.opponentHandContainer.y,
-    false
-  );
-  
-  // First load back texture
-  this.assetLoader.loadTexture('assets/CardBack_Blue.webp')
-    .then(backTexture => {
-      // Create opponent cards (face down)
-      opponentCards.forEach((cardData, index) => {
-        const sprite = new PIXI.Sprite(backTexture);
-        sprite.anchor.set(0.5, 0.9);
-        sprite.width = this.config.cardWidth;
-        sprite.height = this.config.cardHeight;
-        sprite.x = opponentPositions[index].x;
-        sprite.y = opponentPositions[index].y;
-        sprite.rotation = opponentPositions[index].rotation;
-        sprite.zIndex = index;
-        sprite.cardData = cardData;
-        
-        this.opponentHandContainer.addChild(sprite);
-      });
-      
-      // Now load front textures for player cards
-      Promise.all(playerCards.map(card => {
-        const cardPath = `assets/cards/${card.suit}/${card.value}_${card.suit.charAt(0).toUpperCase()}${card.suit.slice(1)}.webp`;
-        return this.assetLoader.loadTexture(cardPath)
-          .then(frontTexture => ({ cardData: card, texture: frontTexture }))
-          .catch(err => {
-            console.warn(`Error loading card texture:`, err);
-            return { cardData: card, texture: null };
-          });
-      }))
-      .then(cardsWithTextures => {
-        // Create player cards (face up)
-        cardsWithTextures.forEach((item, index) => {
-          let sprite;
-          
-          if (item.texture) {
-            sprite = new PIXI.Sprite(item.texture);
-          } else {
-            // Fallback
-            sprite = this.createFallbackCardGraphics(item.cardData, false);
-          }
-          
-          sprite.anchor.set(0.5, 0.9);
+  createAndShowFinalCards(playerCards, opponentCards) {
+    // Calculate positions (same as during normal dealing)
+    const playerPositions = this.getFinalCardPositions(
+      playerCards.length,
+      this.playerHandContainer.x,
+      this.playerHandContainer.y,
+      true
+    );
+    
+    const opponentPositions = this.getFinalCardPositions(
+      opponentCards.length,
+      this.opponentHandContainer.x,
+      this.opponentHandContainer.y,
+      false
+    );
+    
+    // First load back texture
+    this.assetLoader.loadTexture('assets/CardBack_Blue.webp')
+      .then(backTexture => {
+        // Create opponent cards (face down)
+        opponentCards.forEach((cardData, index) => {
+          const sprite = new PIXI.Sprite(backTexture);
+          sprite.anchor.set(0.5, 0.9); // FIXED: Use bottom-center anchor
           sprite.width = this.config.cardWidth;
           sprite.height = this.config.cardHeight;
-          sprite.x = playerPositions[index].x;
-          sprite.y = playerPositions[index].y;
-          sprite.rotation = playerPositions[index].rotation;
+          sprite.x = opponentPositions[index].x;
+          sprite.y = opponentPositions[index].y;
+          sprite.rotation = opponentPositions[index].rotation;
           sprite.zIndex = index;
-          sprite.cardData = item.cardData;
-          sprite.interactive = true;
-          sprite.buttonMode = true;
+          sprite.cardData = cardData;
           
-          // Add click handler
-          sprite.on('pointerdown', () => {
-            if (this.onCardClick) {
-              this.onCardClick(item.cardData, 'player');
+          this.opponentHandContainer.addChild(sprite);
+        });
+        
+        // Now load front textures for player cards
+        Promise.all(playerCards.map(card => {
+          const cardPath = `assets/cards/${card.suit}/${card.value}_${card.suit.charAt(0).toUpperCase()}${card.suit.slice(1)}.webp`;
+          return this.assetLoader.loadTexture(cardPath)
+            .then(frontTexture => ({ cardData: card, texture: frontTexture }))
+            .catch(err => {
+              console.warn(`Error loading card texture:`, err);
+              return { cardData: card, texture: null };
+            });
+        }))
+        .then(cardsWithTextures => {
+          // Create player cards (face up)
+          cardsWithTextures.forEach((item, index) => {
+            let sprite;
+            
+            if (item.texture) {
+              sprite = new PIXI.Sprite(item.texture);
+            } else {
+              // Fallback
+              sprite = this.createFallbackCardGraphics(item.cardData, false);
             }
+            
+            sprite.anchor.set(0.5, 0.9); // FIXED: Use bottom-center anchor
+            sprite.width = this.config.cardWidth;
+            sprite.height = this.config.cardHeight;
+            sprite.x = playerPositions[index].x;
+            sprite.y = 0; // FIXED: Use y=0 relative to container
+            sprite.rotation = playerPositions[index].rotation;
+            sprite.zIndex = index;
+            sprite.cardData = item.cardData;
+            sprite.interactive = true;
+            sprite.buttonMode = true;
+            
+            // Add click handler
+            sprite.on('pointerdown', () => {
+              if (this.onCardClick) {
+                this.onCardClick(item.cardData, 'player');
+              }
+            });
+            
+            this.playerHandContainer.addChild(sprite);
           });
-          
-          this.playerHandContainer.addChild(sprite);
         });
       });
-    });
-}
+  }
 
 
 showAllFinalCards(playerCards, opponentCards) {
@@ -1859,6 +1962,8 @@ calculateCardPositions(cards, target) {
     // Create sprites for visible deck cards
     for (let i = 0; i < visibleCount; i++) {
       const sprite = await this.createCardSprite({ faceDown: true }, true);
+      sprite.cardData = { source: 'deck' };
+
       
       // Set anchor to center for proper scaling animations
       sprite.anchor.set(0.5, 0.5);
@@ -1886,6 +1991,24 @@ calculateCardPositions(cards, target) {
         sprite.on('pointerdown', (event) => {
           // Предотвращаем всплытие события
           event.stopPropagation();
+          
+          // ВАЖНО: Принудительно останавливаем все анимации и сбрасываем масштаб
+          gsap.killTweensOf(this.deckContainer);
+          gsap.killTweensOf(this.deckContainer.scale);
+          this.deckContainer.scale.set(1, 1);
+          
+          // Также нужно остановить анимации для всех карт в колоде
+          this.deckContainer.children.forEach(card => {
+  gsap.killTweensOf(card);
+  gsap.killTweensOf(card.scale);
+  
+  // Убираем любые фильтры
+  if (card.filters) {
+    card.filters = null;
+  }
+});
+          
+         
           
           // Get a real card from the game if callback is available
           const cardToDrag = this.deckDragCallback ? this.deckDragCallback() : null;
@@ -2142,9 +2265,28 @@ calculateCardPositions(cards, target) {
   }
 
   enableDragging(enabled) {
-    this.isDragEnabled = enabled;
+    // Force enable during discard phase
+    const forceEnable = this.playerTurn && this.gameStep % 2 === 1 && this.hasDrawnCard;
+    
+    this.isDragEnabled = enabled || forceEnable;
+    
+    // If enabling, make sure all cards in player's hand have drag handlers
+    if (this.isDragEnabled && this.playerHandContainer) {
+      console.log("Enabling drag for all player cards - FORCED:", forceEnable);
+      
+      // Add drag handlers to all cards in player's hand
+      this.playerHandContainer.children.forEach(sprite => {
+        if (sprite && sprite.cardData) {
+          // Ensure card has proper data for drag operations
+          this.setupDragAndDrop(sprite, sprite.cardData);
+          
+          // Make sure card is interactive
+          sprite.interactive = true;
+          sprite.buttonMode = true;
+        }
+      });
+    }
   }
-
   
   // Animate discarding a card
   animateCardDiscard(cardData, sourceIndex) {
@@ -2426,20 +2568,21 @@ calculateCardPositions(cards, target) {
   
   // Position containers on screen
   updatePositions(adHeight, navHeight, screenWidth, screenHeight) {
-    // Player hand - position at the bottom with correct vertical offset
+    // Player hand
     this.playerHandContainer.x = screenWidth / 2;
-    this.playerHandContainer.y = screenHeight - 85; // FIXED: Consistent positioning that matches screenshot 2
+    this.playerHandContainer.y = screenHeight - 85;
     
     // Opponent hand
     this.opponentHandContainer.x = screenWidth / 2;
     this.opponentHandContainer.y = adHeight + navHeight + 100;
     
-    // Deck
-    this.deckContainer.x = screenWidth / 2 - this.config.cardWidth - 20;
-    this.deckContainer.y = screenHeight / 2 - this.config.cardHeight / 2;
+    // ИЗМЕНЯЕМ КООРДИНАТЫ КОЛОДЫ
+    // Deck - можно изменить на нужную позицию
+    this.deckContainer.x = screenWidth / 2 - this.config.cardWidth - 50; // было -20
+    this.deckContainer.y = screenHeight / 2 - this.config.cardHeight / 2 - 20; // было без -20
     
-    // Discard pile
-    this.discardContainer.x = screenWidth / 2 + 20;
-    this.discardContainer.y = screenHeight / 2 - this.config.cardHeight / 2;
+    // Discard pile - также меняем по необходимости
+    this.discardContainer.x = screenWidth / 2 + 50; // было +20
+    this.discardContainer.y = screenHeight / 2 - this.config.cardHeight / 2 - 20; // было без -20
   }
 }
