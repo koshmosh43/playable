@@ -3,6 +3,8 @@ export class CardRenderer {
     this.app = app;
     this.assetLoader = assetLoader;
     this.config = config;
+    this.cardsFlipped = false;
+    
     this.isDragEnabled = true;
     this.draggingCard = null;  // Текущая перетаскиваемая карта
 this.draggingCardSource = null; // Источник карты (deck/discard)
@@ -98,138 +100,102 @@ this.playerHandZone = null;    // Зона веера карт игрока
   
   // Render player's hand of cards with fan effect
   async renderPlayerHand(playerCards, selectedCard, possibleMelds) {
-    if (!playerCards || !playerCards.length) return;
+    this.playerHandContainer.removeChildren();
     
-    // Use cards as is, sorting happens in game.js
-    const sortedCards = playerCards;
+    if (!playerCards || playerCards.length === 0) return;
     
-    const spacing = this.config.fanDistance || 30;
-    const fanAngle = this.config.fanAngle || 10;
+    const total = playerCards.length;
+    const spacing = this.config.fanDistance;
+    const fanAngle = this.config.fanAngle;
     
-    // Create sets for quick lookup of cards in melds
-    const setCardIds = new Set();
-    const runCardIds = new Set();
-    
-    // Check possibleMelds format and extract card IDs
-    if (possibleMelds) {
-      if (possibleMelds.sets && possibleMelds.runs) {
-        // New format with sets and runs
-        possibleMelds.sets.forEach(meld => {
-          meld.cards.forEach(card => setCardIds.add(card.id));
-        });
+    // Create cards in player's hand
+    for (let i = 0; i < total; i++) {
+      const cardData = playerCards[i];
+      
+      // Create card sprite
+      const sprite = await this.createCardSprite(cardData);
+      
+      // Set dimensions and anchor
+      sprite.width = this.config.cardWidth;
+      sprite.height = this.config.cardHeight;
+      sprite.anchor.set(0.5, 0.9); // IMPORTANT: Changed anchor to 0.9 for consistent vertical alignment
+      sprite.zIndex = i;
+      
+      // Calculate position in the fan
+      const x = -((total - 1) * spacing / 2) + i * spacing;
+      const angleDeg = -(-fanAngle / 2 + (fanAngle / (total - 1)) * i);
+      const angleRad = (angleDeg * Math.PI) / 180;
+      
+      sprite.x = x;
+      sprite.y = 0; // FIXED: Set a consistent y position of 0 relative to container
+      sprite.rotation = angleRad;
+      
+      // Highlight cards in melds (keeping existing functionality)
+      if (possibleMelds) {
+        // Check if card is in any set
+        let inSet = false;
+        if (possibleMelds.sets) {
+          inSet = possibleMelds.sets.some(set => 
+            set.cards.some(card => card.id === cardData.id)
+          );
+        }
         
-        possibleMelds.runs.forEach(meld => {
-          meld.cards.forEach(card => runCardIds.add(card.id));
-        });
-      } else if (Array.isArray(possibleMelds)) {
-        // Old format (array of melds)
-        possibleMelds.forEach(meld => {
-          meld.forEach(card => runCardIds.add(card.id));
-        });
+        // Check if card is in any run
+        let inRun = false;
+        if (possibleMelds.runs) {
+          inRun = possibleMelds.runs.some(run => 
+            run.cards.some(card => card.id === cardData.id)
+          );
+        }
+        
+        // Apply appropriate highlight
+        if (inRun) {
+          this.applySpecialHighlight(sprite, 0x98FB98, 0.5); // Green color for run
+        } else if (inSet) {
+          this.applySpecialHighlight(sprite, 0xFFFE7A, 0.5); // Yellow color for set
+        }
       }
-    }
-    
-    // Create card sprites - ALWAYS IN A CONTINUOUS FAN
-    for (let index = 0; index < sortedCards.length; index++) {
-      const cardData = sortedCards[index];
-      const sprite = await this.createCardSprite(cardData, false);
-      sprite.zIndex = index;
       
-      // Calculate position and rotation in fan
-      const totalCards = sortedCards.length;
-      const anglePerCard = totalCards > 1 ? fanAngle / (totalCards - 1) : 0;
-      const rotation = -fanAngle/2 + index * anglePerCard;
-      
-      // Set anchor point
-      sprite.anchor.set(0.5, 0.9);
-      
-      // Determine if this is a special card
-      const isSetCard = setCardIds.has(cardData.id);
-      const isRunCard = runCardIds.has(cardData.id);
-      
-      // Regular fan position - CRITICAL: All cards must be in one continuous fan
-      let xPos = -((totalCards - 1) * spacing / 2) + index * spacing;
-      let yPos = Math.sin(rotation * Math.PI / 180) * 10;
-      
-      sprite.x = xPos;
-      sprite.y = yPos;
-      sprite.rotation = -(rotation * Math.PI / 180);
-      
-      // Store original position for drag and drop
-      sprite.originalPosition = { x: xPos, y: yPos, rotation: -(rotation * Math.PI / 180) };
-      
-      // Make card interactive - DRAG AND DROP SUPPORT
-      sprite.interactive = true;
-      sprite.buttonMode = true;
-      sprite.cardData = cardData;
-      
-      // Add drag and drop functionality
-      this.setupDragAndDrop(sprite, cardData);
-      
-      // Default z-index
-      sprite.zIndex = index;
-      
-      // Apply highlighting based on card type - only if needed
+      // Highlight selected card
       if (selectedCard && selectedCard.id === cardData.id) {
-        // Selected card (Purple highlight)
         this.applySelectedHighlight(sprite);
-      } else if (isSetCard) {
-        // Set cards (Yellow highlight)
-        this.applySpecialHighlight(sprite, 0xFFFE7A, 0.2);
-      } else if (isRunCard) {
-        // Run cards (Green highlight)
-        this.applySpecialHighlight(sprite, 0x98FB98, 0.2);
       }
       
-      // Add to container
+      // Add click handler
+      sprite.on('pointerdown', () => {
+        if (this.onCardClick) {
+          this.onCardClick(cardData, 'player');
+        }
+      });
+      
       this.playerHandContainer.addChild(sprite);
     }
+    
+    // Sort cards by z-index
+    this.playerHandContainer.sortChildren();
   }
+
+  
 
   isOverPlayerHand(position) {
     if (!this.playerHandContainer) return false;
-    
-    // Получаем границы контейнера с веером карт
-    const handBounds = this.playerHandContainer.getBounds();
-    
-    // Расширяем зону для удобства использования
-    const padding = 60; // Увеличиваем до 60 (было 50) для лучшего эффекта
-    const handZone = {
-      left: handBounds.x - padding,
-      right: handBounds.x + handBounds.width + padding,
-      top: handBounds.y - padding * 1.5, // Делаем зону шире сверху для удобства
-      bottom: handBounds.y + handBounds.height + padding
-    };
-    
-    // Сохраняем зону веера для дальнейшего использования
-    this.playerHandZone = handZone;
-    
-    // Проверяем, находится ли позиция внутри зоны веера
+    const bounds = this.playerHandContainer.getBounds();
+    const pad = this.config.touchPadding || 60;
     return (
-      position.x >= handZone.left &&
-      position.x <= handZone.right &&
-      position.y >= handZone.top &&
-      position.y <= handZone.bottom
+      position.x >= bounds.x - pad &&
+      position.x <= bounds.x + bounds.width + pad &&
+      position.y >= bounds.y - pad &&
+      position.y <= bounds.y + bounds.height + pad
     );
   }
   
   // Apply highlight for selected card with more subtle effect
-applySelectedHighlight(sprite) {
-  // Create a color matrix filter
-  const selectedColorMatrix = new PIXI.filters.ColorMatrixFilter();
-  
-  // Instead of tint, use subtler matrix adjustments
-  // Slightly amplify purple/violet color channels
-  selectedColorMatrix.matrix[0] = 1.05; // Red channel (slight boost)
-  selectedColorMatrix.matrix[6] = 0.95; // Green channel (slight reduction)
-  selectedColorMatrix.matrix[12] = 1.1; // Blue channel (boost)
-  
-  // Apply the filter
-  sprite.filters = [selectedColorMatrix];
-  
-  // Slightly raise the card
-  sprite.y -= 10;
-}
+  applySelectedHighlight(sprite) {
+    const filter = new PIXI.filters.ColorMatrixFilter();
+    filter.matrix = [1.1,0,0,0,0, 0,1.1,0,0,0, 0,0,1.1,0,0, 0,0,0,1,0];
+    sprite.filters = [filter];
+    sprite.proj.position.y -= 10;
+  }
 
 setupDragAndDrop(sprite, cardData) {
   // Variables to track dragging state
@@ -613,33 +579,36 @@ addDraggingCardToHand() {
 }
 
 // Create a sprite for a card (face up)
-createCardSprite(cardData) {
-  if (!cardData) return null;
+async createCardSprite(cardData, isFaceDown = false) {
+  let texture;
   
-  const cardWidth = this.config.cardWidth || 80;
-  const cardHeight = this.config.cardHeight || 120;
+  try {
+    if (isFaceDown || (cardData && cardData.faceDown)) {
+      // Карта рубашкой вверх
+      texture = await this.assetLoader.loadTexture('assets/CardBack_Blue.webp');
+    } else if (cardData && cardData.suit && cardData.value) {
+      // Загружаем лицевую сторону
+      const suit = cardData.suit;
+      const value = cardData.value;
+      const frontPath = `assets/cards/${suit}/${value}_${suit.charAt(0).toUpperCase()}${suit.slice(1)}.webp`;
+      texture = await this.assetLoader.loadTexture(frontPath);
+    } else {
+      // Если данных нет, загружаем рубашку
+      texture = await this.assetLoader.loadTexture('assets/CardBack_Blue.webp');
+    }
+  } catch (err) {
+    console.warn("Ошибка загрузки текстуры карты:", err);
+    texture = PIXI.Texture.WHITE;
+  }
+
+  // Создаем обычный спрайт вместо 3D
+  const sprite = new PIXI.Sprite(texture);
   
-  // Try to load card texture
-  const sprite = new PIXI.Sprite();
-  sprite.width = cardWidth;
-  sprite.height = cardHeight;
-  
-  // Set anchor to center for better rotation
   sprite.anchor.set(0.5);
-  
-  const cardPath = `assets/cards/${cardData.suit}/${cardData.value}_${cardData.suit.charAt(0).toUpperCase()}${cardData.suit.slice(1)}.webp`;
-  
-  this.assetLoader.loadTexture(cardPath)
-    .then(texture => {
-      sprite.texture = texture;
-    })
-    .catch(err => {
-      console.warn(`Could not load card texture for ${cardData.value} of ${cardData.suit}`, err);
-      // Create fallback card
-      this.createFallbackCardTexture(sprite, cardData);
-    });
-  
-  // Store card data reference
+  sprite.width = this.config.cardWidth;
+  sprite.height = this.config.cardHeight;
+  sprite.interactive = true;
+  sprite.buttonMode = true;
   sprite.cardData = cardData;
   
   return sprite;
@@ -819,32 +788,25 @@ snapCardBack(sprite) {
 }
 
 // Apply special highlight with more subtle effect
-applySpecialHighlight(sprite, color, alpha) {
+applySpecialHighlight(sprite, color, alpha = 0.3) {
   if (!sprite) return;
   
-  // Create a color matrix filter
+  // Создаем цветовой фильтр
   const colorMatrix = new PIXI.filters.ColorMatrixFilter();
   
-  // For green highlights (runs) - MORE SATURATED
-  if (color === 0x98FB98) {
-    colorMatrix.matrix[0] = 0.92;  // Reduce red further
-    colorMatrix.matrix[6] = 1.12;  // Boost green more
-    colorMatrix.matrix[12] = 0.92; // Reduce blue further
+  // Специфические настройки для разных цветов подсветки
+  if (color === 0x98FB98) { // Зеленый для run
+    colorMatrix.matrix[0] = 0.8;  // Уменьшаем красный
+    colorMatrix.matrix[6] = 1.3;  // Увеличиваем зеленый
+    colorMatrix.matrix[12] = 0.8; // Уменьшаем синий
   } 
-  // For yellow highlights (sets) - MORE SATURATED
-  else if (color === 0xFFFE7A) {
-    colorMatrix.matrix[0] = 1.09;  // Boost red more
-    colorMatrix.matrix[6] = 1.09;  // Boost green more
-    colorMatrix.matrix[12] = 0.80; // Reduce blue significantly more
-  }
-  // For purple selections - UNCHANGED FROM PREVIOUS
-  else if (color === 0x9C27B0) {
-    colorMatrix.matrix[0] = 1.05;  // Boost red slightly
-    colorMatrix.matrix[6] = 0.95;  // Reduce green
-    colorMatrix.matrix[12] = 1.1;  // Boost blue more
+  else if (color === 0xFFFE7A) { // Желтый для set
+    colorMatrix.matrix[0] = 1.2;  // Увеличиваем красный
+    colorMatrix.matrix[6] = 1.2;  // Увеличиваем зеленый
+    colorMatrix.matrix[12] = 0.5; // Сильно уменьшаем синий
   }
   
-  // Apply the filter
+  // Применяем фильтр к карте
   sprite.filters = [colorMatrix];
 }
 
@@ -934,12 +896,12 @@ applySpecialHighlight(sprite, color, alpha) {
     const finalRotation = -(rotation * Math.PI / 180);
     
     const finalX = this.playerHandContainer.x - ((totalCards - 1) * spacing / 2) + destIndex * spacing;
-    const finalY = this.playerHandContainer.y + Math.sin(rotation * Math.PI / 180) * 10;
+    const finalY = this.playerHandContainer.y; // FIXED: Use container Y position directly
     
     // Create sprite for animation
     this.createCardSprite(cardData, false)
       .then(sprite => {
-        sprite.anchor.set(0.5, 0.9);
+        sprite.anchor.set(0.5, 0.9); // FIXED: Bottom-center anchor
         sprite.width = this.config.cardWidth;
         sprite.height = this.config.cardHeight;
         sprite.cardData = cardData;
@@ -1010,133 +972,140 @@ applySpecialHighlight(sprite, color, alpha) {
       });
   }
   
-  animateCardFlip(cardSprite, cardData, onComplete) {
-    // Save original position before animation
-    const originalX = cardSprite.x;
-    const originalY = cardSprite.y;
-    const originalRotation = cardSprite.rotation;
+  animateCardFlip(sprite, onComplete) {
+    // Сохраняем исходные размеры карты перед анимацией
+    const originalWidth = this.config.cardWidth;
+    const originalHeight = this.config.cardHeight;
     
-    // Load front texture
-    const cardPath = `assets/cards/${cardData.suit}/${cardData.value}_${cardData.suit.charAt(0).toUpperCase()}${cardData.suit.slice(1)}.webp`;
+    // Сохраняем исходное положение и поворот
+    const originalX = sprite.x;
+    const originalY = sprite.y;
+    const originalRotation = sprite.rotation;
     
-    this.assetLoader.loadTexture(cardPath)
-      .then(texture => {
-        // Create flip animation
-        const timeline = gsap.timeline({
-          onComplete: () => {
-            // VERY IMPORTANT: Restore original position
-            cardSprite.x = originalX;
-            cardSprite.y = originalY;
-            cardSprite.rotation = originalRotation;
-            
-            if (onComplete) onComplete();
-          }
-        });
-        
-        // Phase 1: Card flip first half
-        timeline.to(cardSprite.scale, {
-          x: 0.01,
-          duration: 0.15,
-          ease: "power2.in"
-        });
-        
-        // Phase 2: Switch texture at mid-point
-        timeline.call(() => {
-          cardSprite.texture = texture;
-        });
-        
-        // Phase 3: Card flip second half
-        timeline.to(cardSprite.scale, {
-          x: 1.0,
-          duration: 0.15,
-          ease: "power2.out"
-        });
-      })
-      .catch(err => {
-        console.warn(`Could not load card texture:`, err);
-        
-        // Create fallback
-        this.createFallbackCardTexture(cardSprite, cardData);
-        
-        // Simple animation
-        gsap.to(cardSprite.scale, {
-          x: 1,
-          duration: 0.3,
-          onComplete: () => {
-            // Restore position
-            cardSprite.x = originalX;
-            cardSprite.y = originalY;
-            cardSprite.rotation = originalRotation;
-            
-            if (onComplete) onComplete();
-          }
-        });
-      });
+    console.log("Переворачиваем карту");
+    
+    // Используем простую анимацию масштабирования вместо 3D
+    gsap.to(sprite.scale, {
+      x: 0.01, // Уменьшаем до почти плоского состояния
+      duration: 0.2,
+      ease: "power1.in",
+      onComplete: () => {
+        // Меняем текстуру, когда карта "на ребре"
+        if (sprite.cardData && sprite.cardData.suit && sprite.cardData.value) {
+          const { suit, value } = sprite.cardData;
+          const frontPath = `assets/cards/${suit}/${value}_${suit.charAt(0).toUpperCase()}${suit.slice(1)}.webp`;
+          
+          this.assetLoader.loadTexture(frontPath)
+            .then(texture => {
+              sprite.texture = texture;
+              
+              // КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ: Явно восстанавливаем размеры после смены текстуры
+              sprite.width = originalWidth;
+              sprite.height = originalHeight;
+              
+              // Возвращаем карту к нормальному размеру с эффектом "пружины"
+              gsap.to(sprite.scale, {
+                x: 1.0, // Точно 1.0, без увеличения
+                y: 1.0, // Важно сохранять и Y-масштаб
+                duration: 0.2,
+                ease: "back.out(1.5)",
+                onComplete: () => {
+                  // КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ: Еще раз явно задаем размеры
+                  sprite.width = originalWidth;
+                  sprite.height = originalHeight;
+                  
+                  // Восстанавливаем позицию, если она изменилась
+                  sprite.x = originalX;
+                  sprite.y = originalY;
+                  sprite.rotation = originalRotation;
+                  
+                  if (onComplete) onComplete();
+                }
+              });
+            })
+            .catch(err => {
+              console.warn("Не удалось загрузить текстуру:", err);
+              
+              // Восстанавливаем масштаб при ошибке
+              sprite.scale.x = 1.0;
+              sprite.width = originalWidth;
+              sprite.height = originalHeight;
+              
+              if (onComplete) onComplete();
+            });
+        } else {
+          // Если нет данных карты, просто завершаем анимацию
+          sprite.scale.x = 1.0;
+          sprite.width = originalWidth;
+          sprite.height = originalHeight;
+          
+          if (onComplete) onComplete();
+        }
+      }
+    });
   }
   
   // Method to flip all player cards simultaneously
   flipPlayerCards(onComplete) {
-    const playerCards = this.playerHandContainer.children;
-    
-    if (playerCards.length === 0) {
+    // Проверяем флаг для избежания двойного переворота
+    if (this.cardsFlipped) {
+      console.log("Карты уже были перевернуты, пропускаем");
       if (onComplete) onComplete();
       return;
     }
     
-    let flippedCount = 0;
+    const cards = this.playerHandContainer.children;
     
-    // IMPORTANT: Store original positions before flipping
-    playerCards.forEach(card => {
-      card.originalPosition = {
-        x: card.x,
-        y: card.y,
-        rotation: card.rotation
-      };
+    if (!cards || cards.length === 0) {
+      if (onComplete) onComplete();
+      return;
+    }
+    
+    console.log(`Переворачиваем ${cards.length} карт игрока`);
+    
+    // Отмечаем, что начали переворачивать карты
+    this.cardsFlipped = true;
+    
+    // Сохраняем исходные позиции для каждой карты
+    cards.forEach(sprite => {
+      if (sprite) {
+        // Сохраняем точные координаты и поворот карты
+        sprite.originalPosition = {
+          x: sprite.x,
+          y: sprite.y,
+          rotation: sprite.rotation
+        };
+      }
     });
     
-    // Flip cards with domino effect
-    for (let i = 0; i < playerCards.length; i++) {
-      const cardSprite = playerCards[i];
-      const cardData = cardSprite.cardData;
-      
-      if (!cardData) continue;
-      
-      // Delay between flips
-      const delay = i * 70;
+    // Используем счетчик завершенных анимаций
+    let completedCount = 0;
+    
+    // Функция для проверки завершения всех анимаций
+    const checkCompletion = () => {
+      completedCount++;
+      if (completedCount >= cards.length) {
+        console.log("Все карты перевернуты");
+        if (onComplete) setTimeout(onComplete, 50);
+      }
+    };
+    
+    // Перебираем все карты и запускаем анимацию с задержкой
+    cards.forEach((sprite, index) => {
+      if (!sprite || !sprite.cardData) {
+        checkCompletion();
+        return;
+      }
       
       setTimeout(() => {
-        // Animate card flip but maintain position
-        this.animateCardFlip(cardSprite, cardData, () => {
-          flippedCount++;
-          
-          // CRITICAL: Restore original position
-          if (cardSprite.originalPosition) {
-            cardSprite.x = cardSprite.originalPosition.x;
-            cardSprite.y = cardSprite.originalPosition.y;
-            cardSprite.rotation = cardSprite.originalPosition.rotation;
-          }
-          
-          // Make card interactive
-          cardSprite.interactive = true;
-          cardSprite.buttonMode = true;
-          
-          // Add click handler
-          cardSprite.on('pointerdown', () => {
-            if (this.onCardClick) {
-              this.onCardClick(cardData, 'player');
-            }
-          });
-          
-          // If all cards flipped, call completion callback
-          if (flippedCount === playerCards.length && onComplete) {
-            onComplete();
-          }
-        });
-      }, delay);
-    }
+        this.animateCardFlip(sprite, checkCompletion);
+      }, index * 80);
+    });
   }
   
-  
+  resetCardFlipState() {
+    this.cardsFlipped = false;
+  }
 
   flipCardWithMotionBlur(cardSprite, cardData, onComplete) {
     // Загружаем текстуру лицевой стороны карты
@@ -1465,7 +1434,7 @@ applySpecialHighlight(sprite, color, alpha) {
         // Calculate position in fan
         positions.push({
           x: -((cardCount - 1) * spacing / 2) + i * spacing,
-          y: Math.sin(rotationRad) * 10,
+          y: isPlayer ? 0 : Math.sin(rotationRad) * 10, // FIXED: Y should be 0 for player cards
           rotation: finalRotation
         });
       }
@@ -1546,15 +1515,7 @@ applySpecialHighlight(sprite, color, alpha) {
     try {
       // Validate inputs to prevent null reference errors
       if (!playerCards || !opponentCards || !playerPositions || !opponentPositions || !backTexture) {
-        console.error("Missing required parameters in createFinalCards:", {
-          playerCards: !!playerCards,
-          opponentCards: !!opponentCards,
-          playerPositions: !!playerPositions,
-          opponentPositions: !!opponentPositions,
-          backTexture: !!backTexture
-        });
-        
-        // Still call onComplete to avoid blocking the game flow
+        console.error("Missing required parameters in createFinalCards");
         if (onComplete) setTimeout(onComplete, 0);
         return;
       }
@@ -1573,11 +1534,11 @@ applySpecialHighlight(sprite, color, alpha) {
         
         const pos = opponentPositions[index];
         const sprite = new PIXI.Sprite(backTexture);
-        sprite.anchor.set(0.5, 0.9);
+        sprite.anchor.set(0.5, 0.9); // Set anchor to bottom-center
         sprite.width = this.config.cardWidth;
         sprite.height = this.config.cardHeight;
         sprite.x = pos.x;
-        sprite.y = pos.y;
+        sprite.y = pos.y; // Keep the original y position
         sprite.rotation = pos.rotation;
         sprite.zIndex = index;
         sprite.cardData = cardData;
@@ -1595,11 +1556,11 @@ applySpecialHighlight(sprite, color, alpha) {
         
         const pos = playerPositions[index];
         const sprite = new PIXI.Sprite(backTexture);
-        sprite.anchor.set(0.5, 0.9);
+        sprite.anchor.set(0.5, 0.9); // FIXED: Bottom-center anchor
         sprite.width = this.config.cardWidth;
         sprite.height = this.config.cardHeight;
         sprite.x = pos.x;
-        sprite.y = pos.y;
+        sprite.y = 0; // FIXED: Set to 0 relative to container
         sprite.rotation = pos.rotation;
         sprite.zIndex = index;
         sprite.cardData = cardData;
@@ -1819,105 +1780,41 @@ calculateCardPositions(cards, target) {
 }
   
   // Update the animateDealingCard method - now always deals face down initially
-  animateDealingCard(cardData, target, index, onComplete) {
-    // Определяем контейнер руки, в который будем раздавать карты
-    const container = target === 'player' ? this.playerHandContainer : this.opponentHandContainer;
-    
-    // Расчет параметров веера
-    const spacing = this.config.fanDistance || 30;
-    const totalCards = container.children.length + 1;
-    const fanAngle = this.config.fanAngle || 10;
-    const anglePerCard = totalCards > 1 ? fanAngle / (totalCards - 1) : 0;
-    const rotation = -fanAngle/2 + index * anglePerCard;
-    const finalRotation = rotation * Math.PI / 180;
-    
-    // Расчет финальной позиции в веере
-    const finalX = container.x - ((totalCards - 1) * spacing / 2) + index * spacing;
-    const finalY = container.y;
-    
-    // Загружаем текстуру для карты (рубашкой вверх для обоих игроков изначально)
-    this.assetLoader.loadTexture('assets/CardBack_Blue.webp')
-      .then(backTexture => {
-        // Создаем спрайт для анимации
-        const sprite = new PIXI.Sprite(backTexture);
-        sprite.anchor.set(0.5, 0.5); // Центр карты для масштабирования
-        sprite.width = this.config.cardWidth;
-        sprite.height = this.config.cardHeight;
-        
-        // Начальная позиция - немного за пределами экрана, зависит от того, чья рука
-        let startX, startY;
-        
-        if (target === 'player') {
-          // Для игрока - снизу экрана
-          startX = this.app.screen.width / 2;
-          startY = this.app.screen.height + 50;
+  animateDealingCard(cardData, targetPosition, delay = 0, faceDown = false, onComplete = null) {
+  this.createCardSprite(cardData).then(sprite => {
+    sprite.proj.euler.y = faceDown ? Math.PI : 0;  // карта перевёрнута или открыта в зависимости от faceDown
+    sprite.position.set(this.deckContainer.x, this.deckContainer.y);
+    sprite.zIndex = 200;
+    this.animationContainer.addChild(sprite);
+
+    // анимация перемещения карты
+    gsap.to(sprite, {
+      pixi: {
+        x: targetPosition.x,
+        y: targetPosition.y,
+      },
+      duration: 0.5,
+      delay: delay,
+      ease: "power2.out",
+      onComplete: () => {
+        // 3D переворот карты если это карта игрока
+        if (!faceDown) {
+          gsap.to(sprite.proj.euler, {
+            y: Math.PI * 2, // переворачиваем на 360 градусов для плавного раскрытия
+            duration: 0.6,
+            ease: "power2.out",
+            onComplete: () => {
+              if (onComplete) onComplete(sprite);
+            }
+          });
         } else {
-          // Для оппонента - сверху экрана
-          startX = this.app.screen.width / 2;
-          startY = -50;
+          if (onComplete) onComplete(sprite);
         }
-        
-        // Устанавливаем начальную позицию и поворот
-        sprite.x = startX;
-        sprite.y = startY;
-        sprite.rotation = 0;
-        sprite.scale.set(0.8); // Начинаем с немного уменьшенного размера
-        sprite.alpha = 1;
-        sprite.zIndex = 200 + index;
-        
-        // Сохраняем данные карты для дальнейшего использования
-        sprite.cardData = cardData;
-        
-        // Добавляем в контейнер анимации
-        this.animationContainer.addChild(sprite);
-        
-        // Создаем анимацию с минимумом трансформаций
-        const timeline = gsap.timeline({
-          onComplete: () => {
-            // Удаляем временный спрайт
-            this.animationContainer.removeChild(sprite);
-            
-            // Создаем постоянный спрайт в руке
-            const permanentSprite = new PIXI.Sprite(backTexture);
-            permanentSprite.anchor.set(0.5, 0.9);
-            permanentSprite.width = this.config.cardWidth;
-            permanentSprite.height = this.config.cardHeight;
-            permanentSprite.x = finalX;
-            permanentSprite.y = finalY;
-            permanentSprite.rotation = finalRotation;
-            permanentSprite.zIndex = index;
-            
-            // Сохраняем данные карты
-            permanentSprite.cardData = cardData;
-            
-            // Добавляем в контейнер руки
-            container.addChild(permanentSprite);
-            
-            // Вызываем колбэк завершения
-            if (onComplete) onComplete();
-          }
-        });
-        
-        // Расчет длительности анимации с небольшой задержкой для карт по порядку
-        const delay = index * 0.04; // Небольшая задержка для эффекта последовательной раздачи
-        const duration = 0.25; // Быстрая анимация
-        
-        // Простая анимация движения к финальной позиции без сложных трансформаций
-        timeline.to(sprite, {
-          x: finalX, 
-          y: finalY, 
-          scale: 1,
-          rotation: finalRotation,
-          delay: delay,
-          duration: duration,
-          ease: "power1.out" // Простой тип анимации
-        });
-      })
-      .catch(err => {
-        console.error("Error in dealing card animation:", err);
-        if (onComplete) onComplete(); // Вызываем колбэк даже при ошибке
-      });
-  }
+      }
+    });
+  });
+}
+
   
   // Render opponent's hand (face down cards)
   async renderOpponentHand(opponentCards) {
@@ -2169,33 +2066,7 @@ calculateCardPositions(cards, target) {
   }
   
   // Create a card sprite
-  async createCardSprite(cardData, isBack) {
-    let sprite;
-    
-    try {
-      if (isBack || cardData.faceDown) {
-        // Card back
-        const cardBackTexture = await this.assetLoader.loadTexture('assets/CardBack_Blue.webp');
-        sprite = new PIXI.Sprite(cardBackTexture);
-      } else {
-        // Card front
-        const cardPath = `assets/cards/${cardData.suit}/${cardData.filename}`;
-        const cardTexture = await this.assetLoader.loadTexture(cardPath);
-        sprite = new PIXI.Sprite(cardTexture);
-      }
-      
-      // Set card dimensions
-      sprite.width = this.config.cardWidth;
-      sprite.height = this.config.cardHeight;
-    } catch (error) {
-      console.warn("Using fallback card graphics", error);
-      sprite = this.createFallbackCardGraphics(cardData, isBack);
-    }
-    
-    // Store card data with sprite
-    sprite.cardData = cardData;
-    return sprite;
-  }
+  
   
   // Create fallback card graphics if texture loading fails
   createFallbackCardGraphics(cardData, isBack) {
@@ -2273,140 +2144,6 @@ calculateCardPositions(cards, target) {
   enableDragging(enabled) {
     this.isDragEnabled = enabled;
   }
-  
-// Animate dealing a card with 3D bend and natural arc flight
-animateDealingCard(cardData, target, index, onComplete) {
-  // Calculate deck center position
-  const deckX = this.deckContainer.x + this.config.cardWidth / 2;
-  const deckY = this.deckContainer.y + this.config.cardHeight / 2;
-
-  // Determine which hand container to deal into
-  const container = target === 'player' ? this.playerHandContainer : this.opponentHandContainer;
-  
-  // Compute total cards after dealing this one
-  const spacing = this.config.fanDistance || 30;
-  const totalCards = container.children.length + 1;
-  
-  // Final X, Y inside the fan
-  const finalX = container.x - ((totalCards - 1) * spacing / 2) + index * spacing;
-  const finalY = container.y;
-  
-  // Compute final rotation based on fan
-  const fanAngle = this.config.fanAngle || 10;
-  const anglePerCard = totalCards > 1 ? fanAngle / (totalCards - 1) : 0;
-  const rotation = -fanAngle / 2 + index * anglePerCard;
-  const finalRotation = rotation * Math.PI / 180;
-
-  // Create a temporary sprite for animation
-  this.createCardSprite(cardData, cardData.faceDown)
-    .then(sprite => {
-      sprite.anchor.set(0.5, 0.5);
-      sprite.width = this.config.cardWidth;
-      sprite.height = this.config.cardHeight;
-      sprite.x = deckX;
-      sprite.y = deckY;
-      sprite.alpha = 1;
-      sprite.zIndex = 200 + index;
-      this.animationContainer.addChild(sprite);
-
-      // Build timeline with SLOWED DOWN durations
-      const timeline = gsap.timeline({
-        onComplete: () => {
-          // Remove temp sprite
-          this.animationContainer.removeChild(sprite);
-          
-          // Create permanent sprite in target container
-          const perm = new PIXI.Sprite(sprite.texture);
-          perm.anchor.set(0.5, 0.9);
-          perm.width = this.config.cardWidth;
-          perm.height = this.config.cardHeight;
-          perm.x = finalX;
-          perm.y = finalY;
-          perm.rotation = finalRotation;
-          perm.zIndex = index;
-          
-          if (target === 'player' && !cardData.faceDown) {
-            perm.interactive = true;
-            perm.buttonMode = true;
-            perm.on('pointerdown', this.handleCardClick.bind(this, cardData, 'player'));
-          }
-          
-          container.addChild(perm);
-          if (onComplete) onComplete();
-        }
-      });
-
-      // 1) Initial slight scaledown for preparation
-      timeline.to(sprite.scale, {
-        x: 0.95, y: 0.95,
-        duration: 0.15,
-        ease: "power1.in"
-      });
-
-      // 2) 3D bend before flight - MORE PRONOUNCED
-      if (window.CSSPlugin) {
-        timeline.to(sprite, {
-          rotationY: target === 'player' ? -Math.PI / 6 : Math.PI / 6, // MORE rotation (1/6 instead of 1/8)
-          duration: 0.2, // SLOWER (0.2 instead of 0.1)
-          ease: "power1.in"
-        });
-        timeline.to(sprite, {
-          rotationY: 0,
-          duration: 0.25, // SLOWER (0.25 instead of 0.15)
-          ease: "power1.out"
-        });
-      } else {
-        // Fallback: simulate bend via scale - MORE PRONOUNCED
-        timeline.to(sprite.scale, {
-          x: 1.15, // MORE stretch (1.15 instead of 1.1)
-          y: 0.85, // MORE squeeze (0.85 instead of 0.9)
-          duration: 0.2, // SLOWER
-          yoyo: true,
-          repeat: 1,
-          ease: "power1.inOut"
-        });
-      }
-
-      // 3) Arc flight with MULTIPLE points for smoother path
-      // Calculate bezier control points for a natural arc
-      const controlPoints = [
-        { x: deckX, y: deckY }, // Starting point
-        { x: deckX + (finalX - deckX) * 0.25, y: deckY - 20 }, // First control point
-        { x: deckX + (finalX - deckX) * 0.5, y: Math.min(deckY, finalY) - 80 }, // Highest point in arc
-        { x: deckX + (finalX - deckX) * 0.75, y: finalY - 20 }, // Third control point
-        { x: finalX, y: finalY } // End point
-      ];
-      
-      // Add bezier path animation - SLOWER
-      timeline.to(sprite, {
-        bezier: {
-          type: "soft", 
-          values: controlPoints,
-          curviness: 2 // Higher value = more curved path
-        },
-        duration: 0.7, // MUCH SLOWER (0.7 instead of 0.2)
-        ease: "power1.inOut"
-      }, "-=0.2"); // Slight overlap with previous animation
-
-      // 4) Add gradual rotation during flight to match final fan position
-      timeline.to(sprite, {
-        rotation: finalRotation,
-        duration: 0.7, // Match bezier duration
-        ease: "power1.inOut"
-      }, "-=0.7"); // Run in parallel with bezier
-      
-      // 5) Scale to final size 
-      timeline.to(sprite.scale, {
-        x: 1.0, y: 1.0,
-        duration: 0.6, // Match bezier duration
-        ease: "power1.inOut"
-      }, "-=0.7"); // Run in parallel with bezier
-    })
-    .catch(err => {
-      console.error("Error in dealing card animation:", err);
-      if (onComplete) onComplete();
-    });
-}
 
   
   // Animate discarding a card
@@ -2689,9 +2426,9 @@ animateDealingCard(cardData, target, index, onComplete) {
   
   // Position containers on screen
   updatePositions(adHeight, navHeight, screenWidth, screenHeight) {
-    // Player hand
+    // Player hand - position at the bottom with correct vertical offset
     this.playerHandContainer.x = screenWidth / 2;
-    this.playerHandContainer.y = screenHeight - this.config.cardHeight + 68;
+    this.playerHandContainer.y = screenHeight - 85; // FIXED: Consistent positioning that matches screenshot 2
     
     // Opponent hand
     this.opponentHandContainer.x = screenWidth / 2;

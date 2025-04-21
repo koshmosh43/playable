@@ -91,6 +91,20 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.2.4/pixi.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/PixiPlugin.min.js"></script>
+  <script type="module">
+    import * as pixiProjection from 'https://cdn.jsdelivr.net/npm/pixi-projection@1.0.0/+esm';
+    window.pixiProjection = pixiProjection;
+    
+    // Регистрируем с PIXI после загрузки
+    document.addEventListener('DOMContentLoaded', () => {
+      if (window.PIXI && window.pixiProjection) {
+        console.log("PIXI Projection успешно загружен");
+        // Делаем классы проекции доступными через объект PIXI
+        PIXI.projection = window.pixiProjection;
+      }
+    });
+</script>
+  
   
   <!-- Модули игры подключаются здесь, их сборка заменит их содержимое -->
   <script type="module" src="HandCursor.js"></script>

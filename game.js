@@ -2333,6 +2333,10 @@ updateGamePositions() {
   initializeGame() {
     console.log('Initializing game state');
     this.initializeGSAP();
+
+    if (this.cardRenderer) {
+      this.cardRenderer.resetCardFlipState();
+    }
       
     // Reset game state
     this.playerTurn = true;
@@ -2386,7 +2390,7 @@ updateGamePositions() {
       return;
     }
     
-    // Find sets (3+ cards with same value)
+    // Найти сеты (3+ карты одного достоинства)
     const valueGroups = {};
     this.cardManager.playerCards.forEach(card => {
       if (!valueGroups[card.value]) valueGroups[card.value] = [];
@@ -2400,7 +2404,7 @@ updateGamePositions() {
       }
     }
     
-    // Find runs (sequences of 3+ consecutive cards in the same suit)
+    // Найти раны (последовательности 3+ карт одной масти)
     const suitGroups = {};
     this.cardManager.playerCards.forEach(card => {
       if (!suitGroups[card.suit]) suitGroups[card.suit] = [];
@@ -2416,10 +2420,10 @@ updateGamePositions() {
     for (const [suit, cards] of Object.entries(suitGroups)) {
       if (cards.length < 3) continue;
       
-      // Sort cards by value
+      // Сортируем карты по значению
       const sortedCards = [...cards].sort((a, b) => valueOrder[a.value] - valueOrder[b.value]);
       
-      // Find consecutive sequences
+      // Ищем последовательности
       let run = [sortedCards[0]];
       for (let i = 1; i < sortedCards.length; i++) {
         const prevValue = valueOrder[sortedCards[i-1].value];
@@ -2460,12 +2464,17 @@ updateGamePositions() {
       this.uiRenderer.updateDeadwood(this.deadwood);
 
       // IMPORTANT: Clear containers before updating to prevent duplicates
-  if (this.cardRenderer) {
-    this.cardRenderer.playerHandContainer.removeChildren();
-    this.cardRenderer.opponentHandContainer.removeChildren();
-    this.cardRenderer.discardContainer.removeChildren();
-    this.cardRenderer.deckContainer.removeChildren();
-  }
+      if (this.cardRenderer) {
+        this.cardRenderer.updateDisplay({
+          playerCards: this.cardManager.playerCards || [],
+          opponentCards: this.cardManager.opponentCards || [],
+          discardPile: this.cardManager.discardPile || [],
+          deckCount: this.deckCount,
+          selectedCard: this.selectedCard,
+          possibleMelds: this.possibleMelds, // Важно! Передаем информацию о мелдах
+          playerTurn: this.playerTurn
+        });
+      }
 
       // Управление drag-and-drop в зависимости от состояния игры
   if (this.cardRenderer) {

@@ -116,32 +116,59 @@ export class CardManager {
     };
   }
 
-  async createCardSprite(cardData, isBack) {
-    let sprite;
-    
+  async createCardSprite(cardData, faceDown = false) {
+    // Validate card data to prevent errors
+    if (!cardData) {
+      console.warn("Invalid cardData: null or undefined");
+      return this.createCardBackSprite();
+    }
+  
+    // If explicitly asking for face down or cardData has faceDown flag
+    if (faceDown || cardData.faceDown) {
+      const backSprite = this.createCardBackSprite();
+      backSprite.cardData = cardData; // Still store the card data reference
+      return backSprite;
+    }
+  
+    // Check if we have a valid suit and value
+    if (!cardData.suit || !cardData.value) {
+      console.warn("Invalid cardData:", cardData);
+      const fallbackSprite = this.createCardBackSprite();
+      fallbackSprite.cardData = cardData;
+      return fallbackSprite;
+    }
+  
     try {
-      if (isBack || cardData.faceDown) {
-        // Обратная сторона карты
-        const cardBackTexture = await this.assetLoader.loadTexture('assets/CardBack_Blue.webp');
-        sprite = new PIXI.Sprite(cardBackTexture);
-      } else {
-        // Лицевая сторона карты
-        const cardPath = `assets/cards/${cardData.suit}/${cardData.filename}`;
-        const cardTexture = await this.assetLoader.loadTexture(cardPath);
-        sprite = new PIXI.Sprite(cardTexture);
-      }
+      // Try to load the card texture
+      const texture = await this.assetLoader.loadTexture(
+        `assets/cards/${cardData.suit}/${cardData.value}_${cardData.suit.charAt(0).toUpperCase()}${cardData.suit.slice(1)}.webp`
+      );
       
-      // ВАЖНО: Устанавливаем точные размеры карты
+      const sprite = new PIXI.projection.Sprite3d(texture);
+      sprite.anchor.set(0.5);
       sprite.width = this.config.cardWidth;
       sprite.height = this.config.cardHeight;
+      sprite.interactive = true;
+      sprite.buttonMode = true;
+      sprite.cardData = cardData;
+      return sprite;
     } catch (error) {
-      console.warn("Using fallback card graphics", error);
-      sprite = this.createFallbackCardGraphics(cardData, isBack);
+      console.warn(`Error loading card texture for ${cardData.value} of ${cardData.suit}:`, error);
+      
+      // Create fallback card using graphics
+      const fallbackSprite = new PIXI.projection.Sprite3d(PIXI.Texture.WHITE);
+      fallbackSprite.anchor.set(0.5);
+      fallbackSprite.width = this.config.cardWidth;
+      fallbackSprite.height = this.config.cardHeight;
+      fallbackSprite.interactive = true;
+      fallbackSprite.buttonMode = true;
+      fallbackSprite.cardData = cardData;
+      
+      // Apply fallback styling
+      this.createFallbackCardTexture(fallbackSprite, cardData);
+      
+      return fallbackSprite;
     }
-    
-    // Сохраняем данные карты в спрайте
-    sprite.cardData = cardData;
-    return sprite;
   }
 
   createCardBackGraphics() {
