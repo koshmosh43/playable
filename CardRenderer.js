@@ -46,7 +46,7 @@ this.playerHandZone = null;    // Зона веера карт игрока
   }
   
   sortCardsBySuitAndRank(cards) {
-    // Suit order: clubs, diamonds, hearts, spades
+    // Custom suit order: clubs first, then diamonds, hearts, spades
     const suitOrder = {
       'clubs': 0,
       'diamonds': 1,
@@ -54,21 +54,43 @@ this.playerHandZone = null;    // Зона веера карт игрока
       'spades': 3
     };
     
-    // Card value order: A, 2, 3, ..., 10, J, Q, K
+    // Card value order
     const valueOrder = {
       'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7,
       '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13
     };
     
-    // Sort by suit first, then by value within each suit
-    return [...cards].sort((a, b) => {
+    // Debug the input
+    console.log("Sorting cards:", cards.map(c => `${c.value} of ${c.suit}`));
+    
+    // Make a copy of the array before sorting
+    const sortedCards = [...cards].sort((a, b) => {
       // First sort by suit
-      const suitDiff = suitOrder[a.suit] - suitOrder[b.suit];
+      const aSuit = a.suit || '';
+      const bSuit = b.suit || '';
+      
+      // Get suit order values with safety checks
+      const aSuitOrder = suitOrder[aSuit] !== undefined ? suitOrder[aSuit] : 999;
+      const bSuitOrder = suitOrder[bSuit] !== undefined ? suitOrder[bSuit] : 999;
+      
+      const suitDiff = aSuitOrder - bSuitOrder;
       if (suitDiff !== 0) return suitDiff;
       
       // Then sort by value within the same suit
-      return valueOrder[a.value] - valueOrder[b.value];
+      const aValue = a.value || '';
+      const bValue = b.value || '';
+      
+      // Get value order with safety checks
+      const aValueOrder = valueOrder[aValue] !== undefined ? valueOrder[aValue] : 999;
+      const bValueOrder = valueOrder[bValue] !== undefined ? valueOrder[bValue] : 999;
+      
+      return aValueOrder - bValueOrder;
     });
+    
+    // Debug the output
+    console.log("After sorting:", sortedCards.map(c => `${c.value} of ${c.suit}`));
+    
+    return sortedCards;
   }
   
   // Update the card display based on game state
@@ -100,13 +122,31 @@ this.playerHandZone = null;    // Зона веера карт игрока
   
   // Render player's hand of cards with fan effect
   async renderPlayerHand(playerCards, selectedCard, possibleMelds) {
+    // Clear the container first to ensure clean rendering
     this.playerHandContainer.removeChildren();
     
     if (!playerCards || playerCards.length === 0) return;
     
+    // Log the cards we're rendering for debugging
+    console.log("Rendering player hand with cards:", playerCards.map(c => `${c.value} of ${c.suit}`));
+    
     const total = playerCards.length;
-    const spacing = this.config.fanDistance;
+    
+    // CRITICAL FIX: Dynamically adjust spacing based on the number of cards
+    // This ensures cards don't overlap when new cards are added
+    let spacing = this.config.fanDistance;
+    
+    // Reduce spacing when there are too many cards to fit properly
+    if (total > 10) {
+      // Gradually reduce spacing as more cards are added
+      spacing = Math.max(20, this.config.fanDistance - (total - 10) * 2);
+      console.log(`Adjusted spacing to ${spacing} for ${total} cards`);
+    }
+    
     const fanAngle = this.config.fanAngle;
+    
+    // Calculate total width of the fan
+    const totalWidth = (total - 1) * spacing;
     
     // Create cards in player's hand
     for (let i = 0; i < total; i++) {
@@ -118,7 +158,7 @@ this.playerHandZone = null;    // Зона веера карт игрока
       // Set dimensions and anchor
       sprite.width = this.config.cardWidth;
       sprite.height = this.config.cardHeight;
-      sprite.anchor.set(0.5, 0.9);
+      sprite.anchor.set(0.5, 0.9); // IMPORTANT: Use bottom center anchor for fan effect
       sprite.zIndex = i;
       
       // Calculate position in the fan
@@ -136,7 +176,8 @@ this.playerHandZone = null;    // Зона веера карт игрока
       // Check if this is the rightmost card (last in the fan)
       if (i === total - 1) {
         sprite.rightmost = true;
-        console.log("Marked rightmost card:", cardData);
+        // Log the rightmost card for debugging
+        console.log("Rightmost card:", cardData.value, "of", cardData.suit, "at position", x);
       }
       
       // Highlight cards in melds
@@ -187,23 +228,6 @@ this.playerHandZone = null;    // Зона веера карт игрока
     
     // Sort cards by z-index
     this.playerHandContainer.sortChildren();
-    
-    // ADDITIONAL: After sorting, identify and mark the visual rightmost card
-    if (this.playerHandContainer.children.length > 0) {
-      let rightmostSprite = null;
-      let maxX = -Infinity;
-      
-      for (const sprite of this.playerHandContainer.children) {
-        if (sprite.x > maxX) {
-          maxX = sprite.x;
-          rightmostSprite = sprite;
-        }
-      }
-      
-      if (rightmostSprite && rightmostSprite.cardData) {
-        console.log("Marked rightmost card:", rightmostSprite.cardData);
-      }
-    }
   }
   
 
@@ -267,12 +291,19 @@ this.playerHandZone = null;    // Зона веера карт игрока
       sprite.zIndex = 1000;
       this.playerHandContainer.sortChildren();
     
-      // Увеличиваем только если карта НЕ из колоды
+      // Scale down slightly for dragging
       if (sprite.cardData && sprite.cardData.source !== 'deck') {
         sprite.scale.set(0.7);
       }
     
       this.applySimpleSelectedHighlight(sprite);
+    
+      // Check the game phase
+      const isDrawPhase = window.game && window.game.playerTurn && window.game.gameStep % 2 === 0;
+      const isDiscardPhase = window.game && window.game.playerTurn && window.game.gameStep % 2 === 1;
+  
+      // IMPORTANT: Store the game phase information with the dragging data
+      sprite.dragPhaseInfo = { isDrawPhase, isDiscardPhase };
     
       const dragStartEvent = new CustomEvent('cardDragStart', { 
         detail: { cardData, sprite }
@@ -301,17 +332,36 @@ this.playerHandZone = null;    // Зона веера карт игрока
       const globalPos = sprite.toGlobal(new PIXI.Point(0, 0));
       const isOverDiscard = this.isOverDiscardPile(globalPos);
       
-      // Visual feedback when over discard pile
+      // Check if we're in draw phase and this is a player card
+      const isPlayerCardInDrawPhase = 
+        sprite.dragPhaseInfo && 
+        sprite.dragPhaseInfo.isDrawPhase && 
+        cardData.source !== 'deck' && 
+        cardData.source !== 'discard';
+      
+      // Visual feedback when over discard pile - with special case for draw phase
       if (isOverDiscard && !sprite.isOverDiscard) {
         sprite.isOverDiscard = true;
-        // Add glow effect or different highlight when over discard pile
-        gsap.to(sprite.scale, {
-          x: 0.65, y: 0.65,
-          duration: 0.2
-        });
         
-        // Apply a special "valid drop" highlight
-        this.applySpecialHighlight(sprite, 0x00FF00, 0.3); // Green when valid drop
+        if (isPlayerCardInDrawPhase) {
+          // Special case - show "invalid" visual feedback
+          gsap.to(sprite.scale, {
+            x: 0.65, y: 0.65,
+            duration: 0.2
+          });
+          
+          // Apply a red highlight to indicate invalid move
+          this.applySpecialHighlight(sprite, 0xFF0000, 0.3); // Red when trying to discard during draw phase
+        } else {
+          // Normal case - show "valid drop" visual feedback
+          gsap.to(sprite.scale, {
+            x: 0.65, y: 0.65,
+            duration: 0.2
+          });
+          
+          // Apply a special "valid drop" highlight
+          this.applySpecialHighlight(sprite, 0x00FF00, 0.3); // Green when valid drop
+        }
       } else if (!isOverDiscard && sprite.isOverDiscard) {
         sprite.isOverDiscard = false;
         // Restore normal drag appearance
@@ -338,9 +388,31 @@ this.playerHandZone = null;    // Зона веера карт игрока
       // Check if the card was dropped over discard pile
       const isOverDiscard = this.isOverDiscardPile(globalPos);
       
-      console.log("Drag ended, over discard:", isOverDiscard);
+      // Check if we're in draw phase and this is a player card
+      const isPlayerCardInDrawPhase = 
+        sprite.dragPhaseInfo && 
+        sprite.dragPhaseInfo.isDrawPhase;
       
-      // Emit custom event that game can listen to
+      console.log("Drag ended, over discard:", isOverDiscard, "draw phase:", isPlayerCardInDrawPhase);
+      
+      // Special case: if trying to discard in draw phase, emit a special event
+      if (isOverDiscard && isPlayerCardInDrawPhase) {
+        const wrongPhaseEvent = new CustomEvent('cardDragEnd', { 
+          detail: { 
+            cardData, 
+            sprite, 
+            targetArea: 'wrong-phase-discard',
+            position: globalPos
+          }
+        });
+        document.dispatchEvent(wrongPhaseEvent);
+        
+        // Always return card to hand in this case
+        this.snapCardBack(sprite);
+        return;
+      }
+      
+      // Normal case: emit regular drag end event
       const dragEndEvent = new CustomEvent('cardDragEnd', { 
         detail: { 
           cardData, 
@@ -382,7 +454,7 @@ this.playerHandZone = null;    // Зона веера карт игрока
     this.deckContainer.scale.set(1, 1); // Reset to normal scale - IMPORTANT
     this.discardContainer.scale.set(1, 1);
   
-    // FIXED: For discard pile, only remove the top card, not the entire pile
+    // MODIFIED: For discard pile, remove the top card immediately when dragging starts
     if (source === 'discard') {
       // Get number of cards in discard pile
       const discardCount = this.discardContainer.children.length;
@@ -396,7 +468,7 @@ this.playerHandZone = null;    // Зона веера карт игрока
         // Remove only the top card
         this.discardContainer.removeChildAt(topCardIndex);
         
-        console.log('Removed only the top card from discard pile!');
+        console.log('Removed top card from discard pile!');
       }
     }
   
@@ -451,197 +523,290 @@ this.playerHandZone = null;    // Зона веера карт игрока
     });
   }
 
-moveCardHandler = (event) => {
-  if (!this.draggingCard) return;
-
-   // Если тянем карту из колоды — только обновляем позицию, без масштабирования
- if (this.draggingCardSource === 'deck') {
-   // обновляем позицию без лишних анимаций
-   let clientX, clientY;
-   if (event.type === 'touchmove') {
-     clientX = event.touches[0].clientX;
-     clientY = event.touches[0].clientY;
-   } else {
-     clientX = event.clientX;
-     clientY = event.clientY;
-   }
-   const rect = this.app.view.getBoundingClientRect();
-   const x = (clientX - rect.left) * (this.app.screen.width / rect.width);
-   const y = (clientY - rect.top) * (this.app.screen.height / rect.height);
-   this.draggingCard.x = x;
-   this.draggingCard.y = y;
-   return;
- }
+  moveCardHandler = (event) => {
+    if (!this.draggingCard) return;
   
-  // Получаем координаты курсора/касания
-  let clientX, clientY;
-  
-  if (event.type === 'touchmove') {
-    clientX = event.touches[0].clientX;
-    clientY = event.touches[0].clientY;
-  } else {
-    clientX = event.clientX;
-    clientY = event.clientY;
-  }
-  
-  // Конвертируем координаты экрана в координаты внутри игры
-  const rect = this.app.view.getBoundingClientRect();
-  const x = (clientX - rect.left) * (this.app.screen.width / rect.width);
-  const y = (clientY - rect.top) * (this.app.screen.height / rect.height);
-  
-  // Обновляем позицию карты
-  this.draggingCard.x = x;
-  this.draggingCard.y = y;
-  
-  // ВАЖНОЕ ИЗМЕНЕНИЕ: Проверяем, находится ли карта над отбоем ИЛИ над веером игрока
-  const position = { x, y };
-  const isOverDiscard = this.isOverDiscardPile(position);
-  const isOverPlayerHand = this.isOverPlayerHand(position);
-  
-  // Если карта над отбоем или над веером, плавно уменьшаем ее до нормального размера
-  if ((isOverDiscard || isOverPlayerHand) && this.draggingCard.scale.x > 1.0) {
-    // Плавно уменьшаем масштаб до нормального (1.0)
-    gsap.to(this.draggingCard.scale, {
-      x: 0.7, 
-      y: 0.7,
-      duration: 0.2, // Быстрая анимация для отзывчивости
-      ease: "power2.out"
-    });
-  } 
-  // Если карта НЕ над отбоем И НЕ над веером и уже уменьшена, возвращаем увеличенный размер
-  else if (!isOverDiscard && !isOverPlayerHand && this.draggingCard.scale.x < 1.29) {
-    // Возвращаем увеличенный масштаб
-    gsap.to(this.draggingCard.scale, {
-      x: 0.65, 
-      y: 0.65,
-      duration: 0.2,
-      ease: "power2.out"
-    });
-  }
-};
-
-// CardRenderer.js
-
-releaseCardHandler = (event) => {
-  if (!this.draggingCard) return;
-
-  // Immediately stop any pulsing animations and reset container scales
-  gsap.killTweensOf(this.deckContainer.scale);
-  gsap.killTweensOf(this.discardContainer.scale);
-  this.deckContainer.scale.set(1, 1);
-  this.discardContainer.scale.set(1, 1);
-
-  // Get release coordinates
-  let clientX, clientY;
-  if (event.type === 'touchend') {
-    const touch = event.changedTouches[0];
-    clientX = touch.clientX;
-    clientY = touch.clientY;
-  } else {
-    clientX = event.clientX;
-    clientY = event.clientY;
-  }
-
-  // Convert screen coordinates to game coordinates
-  const rect = this.app.view.getBoundingClientRect();
-  const x = (clientX - rect.left) * (this.app.screen.width / rect.width);
-  const y = (clientY - rect.top) * (this.app.screen.height / rect.height);
-  const position = { x, y };
-
-  // Check where the card was dropped
-  const isOverHand = this.isOverPlayerHand(position);
-  const isOverDiscard = this.isOverDiscardPile(position);
-
-  // Log the drop location
-  console.log(`Card dropped: over hand = ${isOverHand}, over discard = ${isOverDiscard}`);
-
-  // Notify game logic about the drag and drop event
-  document.dispatchEvent(new CustomEvent('cardDragReleased', {
-    detail: {
-      cardData: this.draggingCardData,
-      source: this.draggingCardSource,
-      targetArea: isOverHand ? 'hand' : (isOverDiscard ? 'discard' : 'none'),
-      position
+    // Get cursor/touch coordinates
+    let clientX, clientY;
+    
+    if (event.type === 'touchmove') {
+      clientX = event.touches[0].clientX;
+      clientY = event.touches[0].clientY;
+    } else {
+      clientX = event.clientX;
+      clientY = event.clientY;
     }
-  }));
+    
+    // Convert screen coordinates to game coordinates
+    const rect = this.app.view.getBoundingClientRect();
+    const x = (clientX - rect.left) * (this.app.screen.width / rect.width);
+    const y = (clientY - rect.top) * (this.app.screen.height / rect.height);
+    
+    // Update card position
+    this.draggingCard.x = x;
+    this.draggingCard.y = y;
+    
+    // MODIFIED: For deck cards, don't scale at all - keep consistent size
+    if (this.draggingCardSource === 'deck') {
+      // Only update position without scaling
+      return;
+    }
+    
+    // For cards from discard or player hand, check if over valid drop areas
+    const position = { x, y };
+    const isOverDiscard = this.isOverDiscardPile(position);
+    const isOverPlayerHand = this.isOverPlayerHand(position);
+    
+    // Adjust scale based on position
+    if ((isOverDiscard || isOverPlayerHand) && this.draggingCard.scale.x > 0.7) {
+      // Smoothly reduce scale to normal
+      gsap.to(this.draggingCard.scale, {
+        x: 0.7, 
+        y: 0.7,
+        duration: 0.2, // Fast animation for responsiveness
+        ease: "power2.out"
+      });
+    } 
+    // If not over discard or hand and already reduced, restore enlarged scale
+    else if (!isOverDiscard && !isOverPlayerHand && this.draggingCard.scale.x < 0.7) {
+      // Restore enlarged scale
+      gsap.to(this.draggingCard.scale, {
+        x: 0.65, 
+        y: 0.65,
+        duration: 0.2,
+        ease: "power2.out"
+      });
+    }
+  }
 
-  // Remove event listeners
-  window.removeEventListener('mousemove', this.moveCardHandler);
-  window.removeEventListener('touchmove', this.moveCardHandler);
-  window.removeEventListener('mouseup', this.releaseCardHandler);
-  window.removeEventListener('touchend', this.releaseCardHandler);
 
-  // Handle animation and cleanup based on drop target
-  if (isOverHand) {
-    // If dropped over hand, animate to final size and add to hand
-    gsap.to(this.draggingCard.scale, {
-      x: 1.0, y: 1.0,
-      duration: 0.15,
-      ease: "power2.out",
-      onComplete: () => this.addDraggingCardToHand()
-    });
-  } else if (isOverDiscard) {
-    // If dropped on discard pile, just clean up the dragging state
-    gsap.to(this.draggingCard.scale, {
-      x: 1.0, y: 1.0,
-      duration: 0.15,
-      ease: "power2.out",
+  releaseCardHandler = (event) => {
+    if (!this.draggingCard) return;
+  
+    // Immediately stop any pulsing animations and reset container scales
+    gsap.killTweensOf(this.deckContainer.scale);
+    gsap.killTweensOf(this.discardContainer.scale);
+    this.deckContainer.scale.set(1, 1);
+    this.discardContainer.scale.set(1, 1);
+  
+    // Get release coordinates
+    let clientX, clientY;
+    if (event.type === 'touchend') {
+      const touch = event.changedTouches[0];
+      clientX = touch.clientX;
+      clientY = touch.clientY;
+    } else {
+      clientX = event.clientX;
+      clientY = event.clientY;
+    }
+  
+    // Convert screen coordinates to game coordinates
+    const rect = this.app.view.getBoundingClientRect();
+    const x = (clientX - rect.left) * (this.app.screen.width / rect.width);
+    const y = (clientY - rect.top) * (this.app.screen.height / rect.height);
+    const position = { x, y };
+  
+    // Check where the card was dropped
+    const isOverHand = this.isOverPlayerHand(position);
+    const isOverDiscard = this.isOverDiscardPile(position);
+  
+    // Check game phase - is it the draw phase or discard phase?
+    const isDrawPhase = window.game && window.game.playerTurn && window.game.gameStep % 2 === 0;
+    const isDiscardPhase = window.game && window.game.playerTurn && window.game.gameStep % 2 === 1;
+  
+    // Log drop location and game phase
+    console.log(`Card dropped: over hand = ${isOverHand}, over discard = ${isOverDiscard}, draw phase = ${isDrawPhase}`);
+  
+    // SPECIAL CASE: If trying to discard during draw phase, always return card to hand
+    if (isOverDiscard && isDrawPhase && this.draggingCardSource === 'player') {
+      console.log("Cannot discard during draw phase - returning card to hand");
+      
+      // Notify game logic about the wrong-phase discard attempt
+      document.dispatchEvent(new CustomEvent('cardDragReleased', {
+        detail: {
+          cardData: this.draggingCardData,
+          source: this.draggingCardSource,
+          targetArea: 'wrong-phase-discard',
+          position
+        }
+      }));
+      
+      // Return card to hand with animation
+      this.returnDraggingCard();
+      return;
+    }
+  
+    // Normal drag and drop event handling
+    document.dispatchEvent(new CustomEvent('cardDragReleased', {
+      detail: {
+        cardData: this.draggingCardData,
+        source: this.draggingCardSource,
+        targetArea: isOverHand ? 'hand' : (isOverDiscard ? 'discard' : 'none'),
+        position
+      }
+    }));
+  
+    // Remove event listeners
+    window.removeEventListener('mousemove', this.moveCardHandler);
+    window.removeEventListener('touchmove', this.moveCardHandler);
+    window.removeEventListener('mouseup', this.releaseCardHandler);
+    window.removeEventListener('touchend', this.releaseCardHandler);
+  
+    // Handle animation and cleanup based on drop target
+    if (isOverHand) {
+      // If dropped over hand, animate to final size and add to hand
+      gsap.to(this.draggingCard.scale, {
+        x: 1.0, y: 1.0,
+        duration: 0.15,
+        ease: "power2.out",
+        onComplete: () => this.addDraggingCardToHand()
+      });
+    } else if (isOverDiscard) {
+      // If dropped on discard pile, just clean up the dragging state
+      gsap.to(this.draggingCard.scale, {
+        x: 1.0, y: 1.0,
+        duration: 0.15,
+        ease: "power2.out",
+        onComplete: () => {
+          if (this.draggingCard) {
+            this.animationContainer.removeChild(this.draggingCard);
+            this.draggingCard = null;
+          }
+          // Game will handle updating its state based on the cardDragReleased event
+          this.draggingCardData = null;
+          this.draggingCardSource = null;
+        }
+      });
+    } else {
+      // If dropped elsewhere, return card to original position
+      this.returnDraggingCard();
+    }
+  }
+
+  returnDraggingCard() {
+    if (!this.draggingCard) return;
+    
+    // Special case: if this is a player card being dragged during draw phase
+    const isPlayerCardInDrawPhase = 
+      this.draggingCardSource === 'player' && 
+      window.game && 
+      window.game.playerTurn && 
+      window.game.gameStep % 2 === 0;
+    
+    if (isPlayerCardInDrawPhase) {
+      console.log("Returning player card during draw phase");
+      
+      // Get the original index of the card in the player's hand
+      const cardIndex = window.game.cardManager.playerCards.findIndex(
+        c => c.id === this.draggingCardData.id
+      );
+      
+      if (cardIndex === -1) {
+        console.warn("Card not found in player hand, adding it back");
+        // Add the card back to player hand if it was somehow removed
+        window.game.cardManager.playerCards.push(this.draggingCardData);
+        // Re-sort
+        window.game.cardManager.playerCards = window.game.sortCardsWithMelds();
+      }
+      
+      // Calculate the card's correct position in the fan
+      const fanSpacing = this.config.fanDistance || 30;
+      const totalCards = window.game.cardManager.playerCards.length;
+      const fanAngle = this.config.fanAngle || 10;
+      const anglePerCard = totalCards > 1 ? fanAngle / (totalCards - 1) : 0;
+      
+      // Find the updated index (may have changed after sorting)
+      const updatedIndex = window.game.cardManager.playerCards.findIndex(
+        c => c.id === this.draggingCardData.id
+      );
+      
+      // Calculate position and rotation
+      const x = this.playerHandContainer.x - ((totalCards - 1) * fanSpacing / 2) + updatedIndex * fanSpacing;
+      const y = this.playerHandContainer.y;
+      const rotation = -fanAngle/2 + updatedIndex * anglePerCard;
+      const rotationRad = -(rotation * Math.PI / 180);
+      
+      // Animate to the correct position in the fan
+      gsap.to(this.draggingCard, {
+        x: x,
+        y: y,
+        rotation: rotationRad,
+        scale: 1,
+        duration: 0.4,
+        ease: "back.out(1.2)",
+        onComplete: () => {
+          // Remove dragging card
+          if (this.draggingCard) {
+            this.animationContainer.removeChild(this.draggingCard);
+            this.draggingCard = null;
+            this.draggingCardData = null;
+            this.draggingCardSource = null;
+          }
+          
+          // Update the display to show all cards correctly
+          window.game.updatePlayScreen();
+        }
+      });
+      
+      return;
+    }
+    
+    // Default behavior for other cases
+    let targetX, targetY;
+    if (this.draggingCardSource === 'deck') {
+      targetX = this.deckContainer.x + this.config.cardWidth / 2;
+      targetY = this.deckContainer.y + this.config.cardHeight / 2;
+    } else if (this.draggingCardSource === 'discard') {
+      targetX = this.discardContainer.x + this.config.cardWidth / 2;
+      targetY = this.discardContainer.y + this.config.cardHeight / 2;
+    } else {
+      // For player cards, calculate the proper fan position
+      const cardIndex = window.game?.cardManager?.playerCards?.findIndex(
+        c => c.id === this.draggingCardData.id
+      ) || 0;
+      
+      const fanSpacing = this.config.fanDistance || 30;
+      const totalCards = window.game?.cardManager?.playerCards?.length || 10;
+      
+      targetX = this.playerHandContainer.x - ((totalCards - 1) * fanSpacing / 2) + cardIndex * fanSpacing;
+      targetY = this.playerHandContainer.y;
+    }
+    
+    // Animate return
+    gsap.to(this.draggingCard, {
+      x: targetX,
+      y: targetY,
+      scale: 1,
+      duration: 0.3,
+      ease: "power2.inOut",
       onComplete: () => {
+        // Remove card after animation
         if (this.draggingCard) {
           this.animationContainer.removeChild(this.draggingCard);
           this.draggingCard = null;
+          this.draggingCardData = null;
+          this.draggingCardSource = null;
         }
-        // Game will handle updating its state based on the cardDragReleased event
-        this.draggingCardData = null;
-        this.draggingCardSource = null;
+        
+        // Update display
+        if (window.game) {
+          window.game.updatePlayScreen();
+        }
       }
     });
-  } else {
-    // If dropped elsewhere, return card to original position
-    this.returnDraggingCard();
   }
-};
 
-
-
-returnDraggingCard() {
-  if (!this.draggingCard) return;
-  
-  // Определяем конечную позицию в зависимости от источника
-  let targetX, targetY;
-  if (this.draggingCardSource === 'deck') {
-    targetX = this.deckContainer.x + this.config.cardWidth / 2;
-    targetY = this.deckContainer.y + this.config.cardHeight / 2;
-  } else if (this.draggingCardSource === 'discard') {
-    targetX = this.discardContainer.x + this.config.cardWidth / 2;
-    targetY = this.discardContainer.y + this.config.cardHeight / 2;
-  }
-  
-  // Анимируем возврат карты
-  gsap.to(this.draggingCard, {
-    x: targetX,
-    y: targetY,
-    scale: 1,
-    duration: 0.3,
-    ease: "power2.inOut",
-    onComplete: () => {
-      // Удаляем карту после возврата
-      if (this.draggingCard) {
-        this.animationContainer.removeChild(this.draggingCard);
-        this.draggingCard = null;
-        this.draggingCardData = null;
-        this.draggingCardSource = null;
-      }
-    }
-  });
-}
-
-// 7. Метод для добавления карты в веер
+// Метод для добавления карты в веер
 addDraggingCardToHand() {
   if (!this.draggingCard || !this.draggingCardData) return;
   
   // Calculate where to add the new card in the fan
   const newIndex = this.calculateNewCardIndex();
+  
+  // If this card is coming from the discard pile, make sure it's completely removed
+  if (this.draggingCardSource === 'discard') {
+    console.log("Card added from discard, ensuring it's removed from discard pile");
+  }
   
   // Trigger event to notify the game that card was added to hand
   document.dispatchEvent(new CustomEvent('cardAddedToHand', {
@@ -658,13 +823,32 @@ addDraggingCardToHand() {
   this.draggingCardData = null;
   this.draggingCardSource = null;
   
-  // Force update to ensure the card is properly added and displayed
-  // This will ensure proper highlighting and setup of drag events
-  setTimeout(() => {
-    // The game should update display in response to cardAddedToHand event
-    // which will re-render all cards with proper setup
+  // IMPROVED: Properly refresh fan layout after adding card
+  // Force a complete redraw of the player's hand to ensure proper fan layout
+  if (window.game) {
+    // First, completely remove all cards from the visual container
+    this.playerHandContainer.removeChildren();
+    
+    // Make sure to update the fan layout when a new card is added
+    window.game.cardManager.playerCards = window.game.sortCardsWithMelds();
+    
+    console.log("Card add complete - triggering complete redraw of player hand");
+    
+    // Force a slight delay to ensure other processes complete first
+    setTimeout(() => {
+      // Update the game display to show the new card in the fan
+      window.game.updatePlayScreen();
+    }, 50);
+  } else {
+    // Fallback if window.game isn't available
     console.log("Card add complete - triggering redraw");
-  }, 50);
+    setTimeout(() => {
+      // Force update to ensure proper display
+      if (window.game) {
+        window.game.updatePlayScreen();
+      }
+    }, 50);
+  }
 }
 
 // Create a sprite for a card (face up)
@@ -2100,74 +2284,114 @@ calculateCardPositions(cards, target) {
     
     return dialogBg;
   }
+
+  returnCardToHand(cardData) {
+    if (!cardData) return;
+    
+    console.log("Returning card to hand:", cardData);
+    
+    // Find if this card is already in the player's hand
+    const cardIndex = this.playerHandContainer.children.findIndex(sprite => 
+      sprite.cardData && sprite.cardData.id === cardData.id
+    );
+    
+    // If card is already in hand, just update the display
+    if (cardIndex !== -1) {
+      console.log("Card already in hand at index:", cardIndex);
+      this.updateDisplay({
+        playerCards: window.game.cardManager.playerCards || [],
+        opponentCards: window.game.cardManager.opponentCards || [],
+        discardPile: window.game.cardManager.discardPile || [],
+        deckCount: window.game.deckCount,
+        selectedCard: window.game.selectedCard,
+        possibleMelds: window.game.possibleMelds,
+        playerTurn: window.game.playerTurn
+      });
+      return;
+    }
+    
+    // Create animation to show card returning to hand
+    this.createCardSprite(cardData, false).then(sprite => {
+      // Set up sprite
+      sprite.anchor.set(0.5);
+      sprite.width = this.config.cardWidth;
+      sprite.height = this.config.cardHeight;
+      sprite.zIndex = 1000;
+      
+      // Position initially where the discard pile is
+      sprite.x = this.discardContainer.x + this.config.cardWidth / 2;
+      sprite.y = this.discardContainer.y + this.config.cardHeight / 2;
+      
+      // Add to animation container
+      this.animationContainer.addChild(sprite);
+      
+      // Calculate destination in player's hand
+      const fanSpacing = this.config.fanDistance || 30;
+      const totalCards = window.game.cardManager.playerCards.length;
+      
+      // Find this card's position in playerCards array
+      const cardPos = window.game.cardManager.playerCards.findIndex(c => 
+        c.id === cardData.id
+      );
+      
+      // If card isn't in playerCards, add it back
+      if (cardPos === -1) {
+        console.warn("Card not found in player cards array, adding it back");
+        window.game.cardManager.playerCards.push(cardData);
+        // Re-sort cards
+        window.game.cardManager.playerCards = window.game.sortCardsWithMelds();
+      }
+      
+      // Calculate fan position
+      const destIndex = window.game.cardManager.playerCards.findIndex(c => 
+        c.id === cardData.id
+      );
+      
+      // Default position if not found
+      let destX = this.playerHandContainer.x;
+      let destY = this.playerHandContainer.y;
+      
+      if (destIndex !== -1) {
+        // Calculate position in fan
+        const fanAngle = this.config.fanAngle || 10;
+        const anglePerCard = totalCards > 1 ? fanAngle / (totalCards - 1) : 0;
+        const rotation = -fanAngle/2 + destIndex * anglePerCard;
+        const rotationRad = -(rotation * Math.PI / 180);
+        
+        destX = this.playerHandContainer.x - ((totalCards - 1) * fanSpacing / 2) + destIndex * fanSpacing;
+        destY = this.playerHandContainer.y;
+      }
+      
+      // Animate card back to hand
+      gsap.to(sprite, {
+        x: destX,
+        y: destY,
+        duration: 0.4,
+        ease: "back.out(1.2)",
+        onComplete: () => {
+          // Remove animation sprite
+          this.animationContainer.removeChild(sprite);
+          
+          // Update the display to show card correctly in hand
+          window.game.updatePlayScreen();
+        }
+      });
+    }).catch(err => {
+      console.error("Error creating sprite for return animation:", err);
+      // Still update the display even if animation fails
+      window.game.updatePlayScreen();
+    });
+  }
   
   // Render the discard pile
   async renderDiscardPile(discardPile) {
     console.log("Rendering discard pile with", discardPile?.length || 0, "cards");
     
-    // Явно очищаем контейнер дисканта при каждом рендере
+    // Explicitly clear the discard container
     this.discardContainer.removeChildren();
     
-    if (discardPile && discardPile.length > 0) {
-      // Показываем все карты в отбое, до 5 штук максимум
-      const visibleDiscards = Math.min(discardPile.length, 5);
-      
-      // Отцентрированная позиция для всех карт в отбое
-      const centerX = this.config.cardWidth / 2;
-      const centerY = this.config.cardHeight / 2;
-      
-      // Показываем карты, начиная с низа стопки
-      for (let i = 0; i < visibleDiscards; i++) {
-        const discardIndex = discardPile.length - visibleDiscards + i;
-        const discard = discardPile[discardIndex];
-        
-        const sprite = await this.createCardSprite(discard, false);
-        
-        // Увеличиваем размер карты
-        sprite.width = this.config.cardWidth;
-        sprite.height = this.config.cardHeight;
-        
-        // Устанавливаем якорь в центр для правильного вращения
-        sprite.anchor.set(0.5);
-        
-        // Добавляем небольшой случайный поворот и смещение для естественного вида
-        const randomRotation = ((i * 137 + 547) % 100) / 500 - 0.1; // От -0.1 до 0.1
-        const randomOffsetX = ((i * 263 + 821) % 10) - 5;           // От -5 до 5
-        const randomOffsetY = ((i * 521 + 347) % 10) - 5;           // От -5 до 5
-        
-        // Всегда центрируем карту с небольшими случайными вариациями
-        sprite.x = centerX + randomOffsetX;
-        sprite.y = centerY + randomOffsetY;
-        sprite.rotation = randomRotation;
-        
-        // Z-индекс для правильного наложения
-        sprite.zIndex = i;
-        
-        // Делаем верхнюю карту интерактивной
-        if (i === visibleDiscards - 1) {
-          sprite.interactive = true;
-          sprite.buttonMode = true;
-          
-          // Очищаем все предыдущие обработчики
-          sprite.removeAllListeners();
-          
-          // Добавляем обработчик клика для начала перетаскивания
-          sprite.on('pointerdown', (event) => {
-            // Предотвращаем всплытие события
-            event.stopPropagation();
-            
-            // Начинаем перетаскивание карты из отбоя
-            this.startCardDragging(discard, 'discard');
-          });
-        }
-        
-        this.discardContainer.addChild(sprite);
-      }
-      
-      // Сортируем дочерние элементы контейнера отбоя для правильного наложения
-      this.discardContainer.sortChildren();
-    } else {
-      // Пустой отбой
+    if (!discardPile || discardPile.length === 0) {
+      // Empty discard pile case
       const emptyDiscard = new PIXI.Graphics();
       emptyDiscard.beginFill(0xFFFFFF, 0.2);
       emptyDiscard.drawRoundedRect(0, 0, this.config.cardWidth, this.config.cardHeight, 5);
@@ -2185,7 +2409,79 @@ calculateCardPositions(cards, target) {
       
       emptyDiscard.addChild(emptyText);
       this.discardContainer.addChild(emptyDiscard);
+      return;
     }
+    
+    // Show visible cards in discard pile, up to 5 max
+    const visibleDiscards = Math.min(discardPile.length, 5);
+    
+    // Center position for all cards in discard
+    const centerX = this.config.cardWidth / 2;
+    const centerY = this.config.cardHeight / 2;
+    
+    // Create an array to track all card IDs that are rendered
+    const renderedCardIds = new Set();
+    
+    // Show cards starting from bottom of stack
+    for (let i = 0; i < visibleDiscards; i++) {
+      const discardIndex = discardPile.length - visibleDiscards + i;
+      const discard = discardPile[discardIndex];
+      
+      // Skip if this card has already been rendered (prevents duplicates)
+      const cardKey = `${discard.value}_${discard.suit}`;
+      if (renderedCardIds.has(cardKey)) {
+        console.warn(`Skipping duplicate discard card: ${cardKey}`);
+        continue;
+      }
+      
+      // Add this card to our tracking set
+      renderedCardIds.add(cardKey);
+      
+      const sprite = await this.createCardSprite(discard, false);
+      
+      // Set card dimensions
+      sprite.width = this.config.cardWidth;
+      sprite.height = this.config.cardHeight;
+      
+      // Center anchor for proper rotation
+      sprite.anchor.set(0.5);
+      
+      // Add slight random rotation and offset for natural look
+      const randomRotation = ((i * 137 + 547) % 100) / 500 - 0.1; // -0.1 to 0.1
+      const randomOffsetX = ((i * 263 + 821) % 10) - 5;           // -5 to 5
+      const randomOffsetY = ((i * 521 + 347) % 10) - 5;           // -5 to 5
+      
+      // Always center card with small random variations
+      sprite.x = centerX + randomOffsetX;
+      sprite.y = centerY + randomOffsetY;
+      sprite.rotation = randomRotation;
+      
+      // Z-index for proper stacking
+      sprite.zIndex = i;
+      
+      // Make top card interactive
+      if (i === visibleDiscards - 1) {
+        sprite.interactive = true;
+        sprite.buttonMode = true;
+        
+        // Clear previous handlers
+        sprite.removeAllListeners();
+        
+        // Add handler for dragging from discard
+        sprite.on('pointerdown', (event) => {
+          // Prevent event bubbling
+          event.stopPropagation();
+          
+          // Start dragging card from discard
+          this.startCardDragging(discard, 'discard');
+        });
+      }
+      
+      this.discardContainer.addChild(sprite);
+    }
+    
+    // Sort for proper z-index
+    this.discardContainer.sortChildren();
   }
   
   // Create a card sprite

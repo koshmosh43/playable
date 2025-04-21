@@ -116,73 +116,138 @@ class GinRummyGame {
     }
   }
 
-  sortCardsByValue(cards) {
-    // Порядок значений карт (А низкий)
-    const valueOrder = {
-      'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7,
-      '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13
-    };
-    
-    // Сортируем карты только по значению
-    return [...cards].sort((a, b) => {
+  // In game.js - Replace the sortCardsByValue method
+sortCardsByValue(cards) {
+  // Card value order
+  const valueOrder = {
+    'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7,
+    '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13
+  };
+  
+  // Deep clone the cards array to avoid modifying the original
+  return [...cards].sort((a, b) => {
+    return valueOrder[a.value] - valueOrder[b.value];
+  });
+}
+
+// And replace sortCardsBySuitAndRank method
+sortCardsBySuitAndRank(cards) {
+  // Custom suit order
+  const suitOrder = {
+    'clubs': 0,
+    'diamonds': 1,
+    'hearts': 2,
+    'spades': 3
+  };
+  
+  // Card value order
+  const valueOrder = {
+    'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7,
+    '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13
+  };
+  
+  // Make a copy of cards to avoid modifying the original
+  const cardsCopy = [...cards];
+  
+  // Group by suit first
+  const cardsBySuit = {};
+  cardsCopy.forEach(card => {
+    if (!cardsBySuit[card.suit]) {
+      cardsBySuit[card.suit] = [];
+    }
+    cardsBySuit[card.suit].push(card);
+  });
+  
+  // Sort each suit group by value
+  Object.keys(cardsBySuit).forEach(suit => {
+    cardsBySuit[suit].sort((a, b) => {
       return valueOrder[a.value] - valueOrder[b.value];
     });
-  }
+  });
+  
+  // Combine back in suit order
+  const result = [];
+  ['clubs', 'diamonds', 'hearts', 'spades'].forEach(suit => {
+    if (cardsBySuit[suit]) {
+      result.push(...cardsBySuit[suit]);
+    }
+  });
+  
+  return result;
+}
 
-  sortCardsWithMelds() {
-    // First, identify all possible melds
-    this.updatePossibleMelds();
-    
-    // Create sets to quickly check if a card is in a meld
-    const setCardIds = new Set();
-    const runCardIds = new Set();
-    
-    if (this.possibleMelds.sets) {
-      this.possibleMelds.sets.forEach(meld => {
-        meld.cards.forEach(card => setCardIds.add(card.id));
-      });
-    }
-    
-    if (this.possibleMelds.runs) {
-      this.possibleMelds.runs.forEach(meld => {
-        meld.cards.forEach(card => runCardIds.add(card.id));
-      });
-    }
-    
-    // Make a copy of the cards to sort
-    const sortedCards = [...this.cardManager.playerCards];
-    
-    // Value mapping for sorting
-    const valueOrder = {
-      'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7,
-      '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13
-    };
-    
-    console.log("Before sorting, cards:", sortedCards.map(c => `${c.value} of ${c.suit}`));
-    
-    // SIMPLIFIED SORTING: Meld cards first, non-meld cards sorted by value
-    sortedCards.sort((a, b) => {
-      const aInMeld = setCardIds.has(a.id) || runCardIds.has(a.id);
-      const bInMeld = setCardIds.has(b.id) || runCardIds.has(b.id);
-      
-      // Meld cards come before non-meld cards
-      if (aInMeld && !bInMeld) return -1;
-      if (!aInMeld && bInMeld) return 1;
-      
-      // Sort non-meld cards by value (low to high)
-      if (!aInMeld && !bInMeld) {
-        return valueOrder[a.value] - valueOrder[b.value];
-      }
-      
-      // Keep meld cards in their relative order
-      return 0;
+sortCardsWithMelds() {
+  // First, identify all possible melds
+  this.updatePossibleMelds();
+  
+  // Get references to runs and sets
+  const runs = this.possibleMelds.runs || [];
+  const sets = this.possibleMelds.sets || [];
+  
+  // Create maps to track which meld each card belongs to
+  const cardToMeldMap = new Map();
+  
+  // Map each card in runs to its run
+  runs.forEach((run, runIndex) => {
+    run.cards.forEach(card => {
+      cardToMeldMap.set(card.id, { type: 'run', index: runIndex, cards: run.cards });
     });
-    
-    console.log("After sorting, cards:", sortedCards.map(c => `${c.value} of ${c.suit}`));
-    console.log("Rightmost card should be:", sortedCards[sortedCards.length - 1]);
-    
-    return sortedCards;
+  });
+  
+  // Map each card in sets to its set
+  sets.forEach((set, setIndex) => {
+    set.cards.forEach(card => {
+      cardToMeldMap.set(card.id, { type: 'set', index: setIndex, cards: set.cards });
+    });
+  });
+  
+  // Card value order for sorting
+  const valueOrder = {
+    'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7,
+    '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13
+  };
+  
+  // Sort clubs separately to ensure they're in numerical order
+  const clubCards = this.cardManager.playerCards.filter(card => 
+    card.suit === 'clubs' && card.value !== '9' // Exclude 9 of clubs
+  ).sort((a, b) => valueOrder[a.value] - valueOrder[b.value]);
+  
+  // Sort set cards (any 5's together)
+  const setCards = this.cardManager.playerCards.filter(card => 
+    card.value === '5' && card.suit !== 'clubs'
+  );
+  
+  // Get high club (9 of clubs) separately
+  const highClub = this.cardManager.playerCards.find(card => 
+    card.suit === 'clubs' && card.value === '9'
+  );
+  
+  // Get any other cards
+  const otherCards = this.cardManager.playerCards.filter(card => 
+    card.suit !== 'clubs' && 
+    !(card.value === '5' && card.suit !== 'clubs') &&
+    !(card.suit === 'clubs' && card.value === '9')
+  );
+  
+  // Create final array with the desired ordering
+  const allSortedCards = [
+    ...clubCards,            // All clubs in numerical order (except 9)
+    ...setCards,             // All 5's (except 5 of clubs which is in clubCards)
+  ];
+  
+  // Add 9 of clubs if it exists
+  if (highClub) {
+    allSortedCards.push(highClub);
   }
+  
+  // Add any other cards
+  allSortedCards.push(...otherCards);
+  
+  // Debug logging
+  console.log("Final sorted cards:", allSortedCards.map(c => `${c.value} of ${c.suit}`));
+  
+  return allSortedCards;
+}
 
   preDragCardFromDeck() {
     if (!this.playerTurn || this.gameStep % 2 !== 0) return null;
@@ -194,14 +259,11 @@ class GinRummyGame {
   }
 
   sortCardsBySuitAndRank(cards) {
-    // Custom sort order to match the screenshot exactly
-    // Cards should be: A♣, 2♣, 3♣, 10♣, 10♦, 10♥, 10♥, 2♠, 5♠, 7♠, 8♠, Q♠
-    
     // Custom suit order: clubs first, then diamonds, hearts, spades
     const suitOrder = {
       'clubs': 0,
-      'diamonds': 2,  // Changed from previous order
-      'hearts': 1,    // Changed from previous order
+      'diamonds': 1,
+      'hearts': 2,
       'spades': 3
     };
     
@@ -211,14 +273,37 @@ class GinRummyGame {
       '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13
     };
     
-    return [...cards].sort((a, b) => {
+    // Debug the input
+    console.log("Sorting cards:", cards.map(c => `${c.value} of ${c.suit}`));
+    
+    // Make a copy of the array before sorting
+    const sortedCards = [...cards].sort((a, b) => {
       // First sort by suit
-      const suitDiff = suitOrder[a.suit] - suitOrder[b.suit];
+      const aSuit = a.suit || '';
+      const bSuit = b.suit || '';
+      
+      // Get suit order values with safety checks
+      const aSuitOrder = suitOrder[aSuit] !== undefined ? suitOrder[aSuit] : 999;
+      const bSuitOrder = suitOrder[bSuit] !== undefined ? suitOrder[bSuit] : 999;
+      
+      const suitDiff = aSuitOrder - bSuitOrder;
       if (suitDiff !== 0) return suitDiff;
       
       // Then sort by value within the same suit
-      return valueOrder[a.value] - valueOrder[b.value];
+      const aValue = a.value || '';
+      const bValue = b.value || '';
+      
+      // Get value order with safety checks
+      const aValueOrder = valueOrder[aValue] !== undefined ? valueOrder[aValue] : 999;
+      const bValueOrder = valueOrder[bValue] !== undefined ? valueOrder[bValue] : 999;
+      
+      return aValueOrder - bValueOrder;
     });
+    
+    // Debug the output
+    console.log("After sorting:", sortedCards.map(c => `${c.value} of ${c.suit}`));
+    
+    return sortedCards;
   }
 
   // Initialize the game
@@ -1706,177 +1791,197 @@ handleGinConfirm(confirmed) {
 }
 
   // Set up event handlers
-  // Set up event handlers
-setupEventHandlers() {
-  // Card click handler
-  this.cardRenderer.setCardClickHandler((card, source) => this.handleCardClick(card, source));
-
-  // Dialog confirmation handler
-  this.uiManager.onDialogConfirm = (type, confirmed) => {
-    if (type === 'knock') this.handleKnockConfirm(confirmed);
-    else if (type === 'meld') this.handleMeldConfirm(confirmed);
-    else if (type === 'gin') this.handleGinConfirm(confirmed);
-  };
+  setupEventHandlers() {
+    // Card click handler
+    this.cardRenderer.setCardClickHandler((card, source) => this.handleCardClick(card, source));
   
-  // Action button handlers
-  this.uiRenderer.onKnockClick = () => this.handleKnock();
-  this.uiRenderer.onMeldClick = () => this.handleMeld();
-  this.uiRenderer.onGinClick = () => this.handleGin();
-  
-  // ДОБАВИТЬ ОБРАБОТЧИКИ DRAG-AND-DROP ЗДЕСЬ
-  // Setup drag and drop event listeners
-  document.addEventListener('cardDragStart', (event) => {
-    // Можно добавить логику для начала перетаскивания
-    console.log('Card drag started:', event.detail.cardData);
-  });
-
-  // Setup drag and drop event listeners
-  document.addEventListener('cardDragStart', (event) => {
-    // Можно добавить логику для начала перетаскивания
-    console.log('Card drag started:', event.detail.cardData);
-  });
-
-  document.addEventListener('cardDragEnd', (event) => {
-    const { cardData, targetArea, position } = event.detail;
+    // Dialog confirmation handler
+    this.uiManager.onDialogConfirm = (type, confirmed) => {
+      if (type === 'knock') this.handleKnockConfirm(confirmed);
+      else if (type === 'meld') this.handleMeldConfirm(confirmed);
+      else if (type === 'gin') this.handleGinConfirm(confirmed);
+    };
     
-    // If card is dropped on discard and it's the discard phase
-    if (targetArea === 'discard' && this.playerTurn && this.gameStep % 2 === 1) {
-      // Process the discard directly
-      this.selectedCard = cardData;
-      console.log('Card dropped on discard:', cardData);
+    // Action button handlers
+    this.uiRenderer.onKnockClick = () => this.handleKnock();
+    this.uiRenderer.onMeldClick = () => this.handleMeld();
+    this.uiRenderer.onGinClick = () => this.handleGin();
+    
+    // Setup drag and drop event listeners
+    document.addEventListener('cardDragStart', (event) => {
+      console.log('Card drag started:', event.detail.cardData);
+    });
+  
+    document.addEventListener('cardDragEnd', (event) => {
+      const { cardData, targetArea, position } = event.detail;
       
-      // Set a flag that card was dragged
-      this.wasDragged = true;
+      // Check if we're in the draw phase or discard phase
+      const isDrawPhase = this.playerTurn && this.gameStep % 2 === 0;
+      const isDiscardPhase = this.playerTurn && this.gameStep % 2 === 1;
       
-      // IMPORTANT: Make sure we're not rendering the card twice
-      // by clearing the player hand container before updating
-      if (this.cardRenderer) {
-        this.cardRenderer.playerHandContainer.removeChildren();
+      // If card is dropped on discard and it's the discard phase - correct behavior
+      if (targetArea === 'discard' && isDiscardPhase) {
+        // Process the discard directly
+        this.selectedCard = cardData;
+        console.log('Card dropped on discard during discard phase:', cardData);
+        
+        // Set a flag that card was dragged
+        this.wasDragged = true;
+        
+        // Clear player hand container before updating
+        if (this.cardRenderer) {
+          this.cardRenderer.playerHandContainer.removeChildren();
+        }
+        
+        // Process the discard immediately
+        this.handleDiscard();
+      } 
+      // CRITICAL FIX: If trying to discard during draw phase - return card to hand
+      else if (targetArea === 'discard' && isDrawPhase) {
+        console.log('Attempted to discard during draw phase - returning card to hand:', cardData);
+        
+        // Return the card to hand (visually)
+        if (this.cardRenderer) {
+          // Return the card to its original position in the fan
+          this.cardRenderer.returnCardToHand(cardData);
+        }
       }
-      
-      // Process the discard immediately
-      this.handleDiscard();
-    } else {
-      // If not dropping on discard, log the action
-      console.log('Card dropped elsewhere, returning to hand');
-    }
-  });
-  
-  
-  // ДОБАВЬТЕ ОБРАБОТЧИКИ ДЛЯ ВЗЯТИЯ КАРТ ИЗ КОЛОДЫ И СБРОСА
-  
-  // Обработчик драг-энд-дроп для колоды
-  document.addEventListener('deckDrag', (event) => {
-    // Если это этап взятия карты
-    if (this.playerTurn && this.gameStep % 2 === 0) {
-      console.log('Deck card dragged and dropped');
-      this.handleDrawFromDeck();
-    }
-  });
-  
-  // Обработчик драг-энд-дроп для сброса
-  document.addEventListener('discardDrag', (event) => {
-    const cardData = event.detail?.cardData;
-    // Если это этап взятия карты
-    if (this.playerTurn && this.gameStep % 2 === 0 && cardData) {
-      console.log('Discard card dragged and dropped');
-      this.handleDrawFromDiscard(cardData);
-    }
-  });
-  // Обработчик начала перетаскивания карты из колоды/отбоя
-  document.addEventListener('cardDragStarted', ({ detail }) => {
-    if (detail.source === 'deck' || detail.source === 'discard') {
-      this.removeCardHighlighting();            // стопаем пульсацию, как просили
-    }
-  });
-// Обработчик отпускания перетаскиваемой карты
-document.addEventListener('cardDragReleased', (event) => {
-  const { cardData, source, targetArea } = event.detail;
-  console.log(`Card drag released from ${source} to ${targetArea}:`, cardData);
-  
-  // Здесь пока ничего не делаем - основная логика в cardAddedToHand
-});
-
-// Обработчик успешного добавления карты в руку
-document.addEventListener('cardAddedToHand', (event) => {
-  const { cardData, source } = event.detail;
-  console.log(`Card added to hand from ${source}:`, cardData);
-  
-  // Hide tutorial message and remove highlighting when card is added to hand
-  this.hideTutorialElements();
-  this.removeCardHighlighting();
-  
-  // Handle adding the card based on its source
-  if (source === 'deck') {
-    // Check if we have a pre-drawn card from dragging
-    if (this.preDrawnCard) {
-      // Use the pre-drawn card instead of drawing a new one
-      this.cardManager.playerCards.push(this.preDrawnCard);
-      
-      // Sort cards with melds
-      this.cardManager.playerCards = this.sortCardsWithMelds();
-      
-      // Decrease deck count
-      this.deckCount--;
-      this.gameStep++;
-      
-      // Set flag that player has drawn a card
-      this.hasDrawnCard = true;
-      
-      // Clear the pre-drawn card reference
-      this.preDrawnCard = null;
-      
-      // Update the game display
-      this.updatePlayScreen();
-      
-      // Wait for animation to complete before showing discard hint
-      setTimeout(() => {
-        this.showDiscardHint();
-      }, 800);
-    } else {
-      // Fall back to regular method if no pre-drawn card exists
-      this.handleDrawFromDeck();
-    }
-  } else if (source === 'discard') {
-    // блокируем, пока hasDrawnCard===false
-    if (!this.hasDrawnCard) {
-      this.uiRenderer.showDialog("Сначала возьмите карту из колоды!");
-      this.cardRenderer.returnDraggingCard();
-      return;
-    }
-    // IMPORTANT CHANGE: When dragging from discard pile,
-    // the card has already been visually removed from the discard in startCardDragging,
-    // but we still need to update the game state
+      else {
+        // If not dropping on discard, log the action
+        console.log('Card dropped elsewhere, returning to hand');
+      }
+    });
     
-    // Remove the card from the discard pile in game state
-    if (this.cardManager.discardPile.length > 0) {
-      this.cardManager.discardPile.pop();
-    }
+    // Handler for deck dragging
+    document.addEventListener('deckDrag', (event) => {
+      // If this is the draw phase
+      if (this.playerTurn && this.gameStep % 2 === 0) {
+        console.log('Deck card dragged and dropped');
+        this.handleDrawFromDeck();
+      }
+    });
     
-    // Add the card to player's hand (if it wasn't already added)
-    if (!this.cardManager.playerCards.some(c => c.id === cardData.id)) {
-      this.cardManager.playerCards.push(cardData);
-    }
+    // UPDATED: Handler for discard dragging without restrictions
+    document.addEventListener('discardDrag', (event) => {
+      const cardData = event.detail?.cardData;
+      // If this is the draw phase, allow drawing from discard
+      if (this.playerTurn && this.gameStep % 2 === 0 && cardData) {
+        console.log('Discard card dragged and dropped');
+        this.handleDrawFromDiscard(cardData);
+      }
+    });
     
-    // Sort cards with melds
-    this.cardManager.playerCards = this.sortCardsWithMelds();
+    // Handler for drag start from deck/discard
+    document.addEventListener('cardDragStarted', ({ detail }) => {
+      if (detail.source === 'deck' || detail.source === 'discard') {
+        this.removeCardHighlighting();
+      }
+    });
     
-    // Update game state
-    this.gameStep++;
-    
-    // Set flag that player has drawn a card
-    this.hasDrawnCard = true;
-    
-    // Update game screen immediately
-    this.updatePlayScreen();
-    
-    // Wait for animation to complete before showing discard hint
-    setTimeout(() => {
-      this.showDiscardHint();
-    }, 800);
+    // Handler for drag release
+    document.addEventListener('cardDragReleased', (event) => {
+      const { cardData, source, targetArea } = event.detail;
+      
+      // If this is a player card being dropped on discard during draw phase
+      if (source === 'player' && targetArea === 'wrong-phase-discard') {
+        console.log("Wrong phase discard detected - ensuring card returns to player's hand");
+        
+        // Make sure the card is still in the player's hand array
+        if (!this.cardManager.playerCards.some(c => c.id === cardData.id)) {
+          console.log("Adding card back to player's hand:", cardData);
+          this.cardManager.playerCards.push(cardData);
+        }
+        
+        // Sort the cards using our improved sorting algorithm
+        this.cardManager.playerCards = this.sortCardsWithMelds();
+        
+        // Update the screen to show the card back in the player's hand
+        this.updatePlayScreen();
+        
+        // Display a tooltip to inform the player they need to draw first
+        if (this.uiRenderer) {
+          this.uiRenderer.showDialog("Take a card from deck or discard pile first!");
+        }
+      }
+    });
+  
+    // UPDATED: Handler for card added to hand - allow drawing from discard without restrictions
+    document.addEventListener('cardAddedToHand', (event) => {
+      const { cardData, source } = event.detail;
+      console.log(`Card added to hand from ${source}:`, cardData);
+      
+      // Hide tutorial and remove highlighting
+      this.hideTutorialElements();
+      this.removeCardHighlighting();
+      
+      // Handle adding the card based on its source
+      if (source === 'deck') {
+        // Check if we have a pre-drawn card from dragging
+        if (this.preDrawnCard) {
+          // Use the pre-drawn card instead of drawing a new one
+          this.cardManager.playerCards.push(this.preDrawnCard);
+          
+          // Sort cards with melds
+          this.cardManager.playerCards = this.sortCardsWithMelds();
+          
+          // Decrease deck count
+          this.deckCount--;
+          this.gameStep++;
+          
+          // Set flag that player has drawn a card
+          this.hasDrawnCard = true;
+          
+          // Clear the pre-drawn card reference
+          this.preDrawnCard = null;
+          
+          // IMPROVED: Force complete redraw of player's hand to ensure proper fan layout
+          if (this.cardRenderer) {
+            // First clear all cards from container
+            this.cardRenderer.playerHandContainer.removeChildren();
+          }
+          
+          // Update the game display
+          this.updatePlayScreen();
+          
+          // Wait for animation to complete before showing discard hint
+          setTimeout(() => {
+            this.showDiscardHint();
+          }, 800);
+        } else {
+          // Fall back to regular method if no pre-drawn card exists
+          this.handleDrawFromDeck();
+        }
+      } else if (source === 'discard') {
+        // Add the card to player's hand (if it wasn't already added)
+        if (!this.cardManager.playerCards.some(c => c.id === cardData.id)) {
+          this.cardManager.playerCards.push(cardData);
+        }
+        
+        // Sort cards with melds
+        this.cardManager.playerCards = this.sortCardsWithMelds();
+        
+        // Update game state
+        this.gameStep++;
+        
+        // Set flag that player has drawn a card
+        this.hasDrawnCard = true;
+        
+        // IMPROVED: Force complete redraw of player's hand to ensure proper fan layout
+        if (this.cardRenderer) {
+          // First clear all cards from container
+          this.cardRenderer.playerHandContainer.removeChildren();
+        }
+        
+        // Update game screen immediately
+        this.updatePlayScreen();
+        
+        // Wait for animation to complete before showing discard hint
+        setTimeout(() => {
+          this.showDiscardHint();
+        }, 800);
+      }
+    });
   }
-});
-}
 
 
 removeCardHighlighting() {
@@ -2349,12 +2454,12 @@ updateGamePositions() {
 
   // Update possible melds
   updatePossibleMelds() {
-    if (!this.cardManager.playerCards || this.cardManager.playerCards.length < 3) {
+    if (!this.cardManager.playerCards || this.cardManager.playerCards.length < 2) {
       this.possibleMelds = { sets: [], runs: [] };
       return;
     }
     
-    // Найти сеты (3+ карты одного достоинства)
+    // Find sets (3+ cards of same value)
     const valueGroups = {};
     this.cardManager.playerCards.forEach(card => {
       if (!valueGroups[card.value]) valueGroups[card.value] = [];
@@ -2368,7 +2473,7 @@ updateGamePositions() {
       }
     }
     
-    // Найти раны (последовательности 3+ карт одной масти)
+    // Find runs (sequences of 3+ cards of same suit)
     const suitGroups = {};
     this.cardManager.playerCards.forEach(card => {
       if (!suitGroups[card.suit]) suitGroups[card.suit] = [];
@@ -2382,12 +2487,12 @@ updateGamePositions() {
     
     const possibleRuns = [];
     for (const [suit, cards] of Object.entries(suitGroups)) {
-      if (cards.length < 3) continue;
+      if (cards.length < 2) continue; // Changed from 3 to 2 to also identify potential runs
       
-      // Сортируем карты по значению
+      // Sort cards by value
       const sortedCards = [...cards].sort((a, b) => valueOrder[a.value] - valueOrder[b.value]);
       
-      // Ищем последовательности
+      // Find all sequences, including potential ones (length 2)
       let run = [sortedCards[0]];
       for (let i = 1; i < sortedCards.length; i++) {
         const prevValue = valueOrder[sortedCards[i-1].value];
@@ -2396,6 +2501,7 @@ updateGamePositions() {
         if (currValue === prevValue + 1) {
           run.push(sortedCards[i]);
         } else {
+          // Only add as a run if it has 3+ cards (valid meld)
           if (run.length >= 3) {
             possibleRuns.push({ type: 'run', cards: [...run] });
           }
@@ -2403,11 +2509,13 @@ updateGamePositions() {
         }
       }
       
+      // Check the last sequence
       if (run.length >= 3) {
         possibleRuns.push({ type: 'run', cards: [...run] });
       }
     }
     
+    // Store identified melds
     this.possibleMelds = {
       sets: possibleSets,
       runs: possibleRuns
@@ -2418,6 +2526,9 @@ updateGamePositions() {
 
   // Update play screen
   updatePlayScreen() {
+    // Ensure no duplicate cards across the game state
+    this.ensureUniqueCards();
+    
     // Update possible melds and deadwood
     this.updatePossibleMelds();
     this.deadwood = this.calculateDeadwood();
@@ -2446,7 +2557,7 @@ updateGamePositions() {
       }
     }
     
-    // Update card display
+    // Update card display with the correct meld highlighting
     if (this.cardRenderer) {
       this.cardRenderer.updateDisplay({
         playerCards: this.cardManager.playerCards || [],
@@ -2474,6 +2585,22 @@ updateGamePositions() {
       setTimeout(() => {
         this.showDiscardHint();
       }, 200);
+    }
+    
+    // Ensure meld highlighting is applied immediately after dealing
+    if (this.stateManager?.currentState === 'play' && this.cardRenderer) {
+      // Force re-update after slight delay to ensure highlighting is applied
+      setTimeout(() => {
+        this.cardRenderer.updateDisplay({
+          playerCards: this.cardManager.playerCards || [],
+          opponentCards: this.cardManager.opponentCards || [],
+          discardPile: this.cardManager.discardPile || [],
+          deckCount: this.deckCount,
+          selectedCard: this.selectedCard,
+          possibleMelds: this.possibleMelds,
+          playerTurn: this.playerTurn
+        });
+      }, 100);
     }
   }
   
@@ -3039,34 +3166,49 @@ hideTutorialElements() {
 handleDrawFromDeck() {
   console.log('Player draws from deck');
   
-  // Hide tutorial "Take a card"
+  // Hide tutorial and clear any highlighting
   this.hideTutorialElements();
-  
-  // Remove any highlighting
   this.removeCardHighlighting();
   
   // Only allow if it's the drawing phase
   if (!this.playerTurn || this.gameStep % 2 !== 0) return;
   
-  const newCard = this.drawCardFromDeck();
-  console.log("Drew card from deck:", newCard);
+  // Check if we already have a pre-drawn card
+  const newCard = this.preDrawnCard || this.drawCardFromDeck();
   
-  // Add animation before updating the player's hand
-  if (this.cardRenderer) {
-    // Calculate the target position in player's hand
-    const destIndex = this.cardManager.playerCards.length;
-    
-    // Start the animation
-    this.cardRenderer.animateCardTake(newCard, 'deck', destIndex);
+  // Clear pre-drawn card reference if it was used
+  if (this.preDrawnCard) {
+    this.preDrawnCard = null;
   }
   
-  this.cardManager.playerCards.push(newCard);
+  console.log("Drew card from deck:", newCard);
+  
+  // CRUCIAL FIX: Check if this card already exists in any collection
+  const cardExists = this.isCardInAnyCollection(newCard);
+  if (cardExists) {
+    console.error("ERROR: Attempting to add a duplicate card:", newCard);
+    // Draw a different card if this one already exists
+    const replacementCard = this.drawUniqueCardFromDeck();
+    console.log("Drew replacement card instead:", replacementCard);
+    
+    // Use the replacement card
+    this.cardManager.playerCards.push(replacementCard);
+  } else {
+    // Add animation before updating the player's hand
+    if (this.cardRenderer) {
+      // Calculate the target position in player's hand
+      const destIndex = this.cardManager.playerCards.length;
+      
+      // Start the animation
+      this.cardRenderer.animateCardTake(newCard, 'deck', destIndex);
+    }
+    
+    // Add the card to player's hand
+    this.cardManager.playerCards.push(newCard);
+  }
   
   // Sort cards with melds
   this.cardManager.playerCards = this.sortCardsWithMelds();
-  
-  // Log the new order of cards
-  console.log("After sorting, cards in hand:", this.cardManager.playerCards);
   
   // Decrease deck count
   this.deckCount--;
@@ -3075,60 +3217,182 @@ handleDrawFromDeck() {
   // Set flag that player has drawn a card
   this.hasDrawnCard = true;
   
-  // IMPORTANT: Make sure dragging is enabled after drawing
+  // Enable dragging after drawing
   if (this.cardRenderer) {
     this.cardRenderer.enableDragging(true);
+    
+    // IMPORTANT: Clear the player hand container before updating
+    this.cardRenderer.playerHandContainer.removeChildren();
   }
   
-  // Update game screen IMMEDIATELY to ensure rightmost card is correct
-  this.updatePlayScreen();
-  
-  // Wait for animation to complete before showing discard hint
+  // CRITICAL FIX: Update game screen with a slight delay to ensure animations complete
   setTimeout(() => {
-    this.showDiscardHint();
-  }, 800);
+    this.updatePlayScreen();
+    
+    // Show discard hint after animation completes
+    setTimeout(() => {
+      this.showDiscardHint();
+    }, 600);
+  }, 100);
 }
 
-handleDrawFromDiscard(cardData) {
-  console.log('Player attempts to draw from discard pile');
+isCardInAnyCollection(card) {
+  if (!card) return false;
+  
+  // Create a unique key for this card
+  const cardKey = `${card.value}_${card.suit}`;
+  
+  // Check player cards
+  const inPlayerHand = this.cardManager.playerCards.some(c => 
+    `${c.value}_${c.suit}` === cardKey
+  );
+  
+  // Check opponent cards
+  const inOpponentHand = this.cardManager.opponentCards.some(c => 
+    `${c.value}_${c.suit}` === cardKey
+  );
+  
+  // Check discard pile
+  const inDiscardPile = this.cardManager.discardPile.some(c => 
+    `${c.value}_${c.suit}` === cardKey
+  );
+  
+  return inPlayerHand || inOpponentHand || inDiscardPile;
+}
 
-  // --- НОВОВВЕДЕНИЕ: запрещаем, если ещё не брали из колоды ---
-  if (!this.hasDrawnCard) {
-    // Показываем сообщение пользователю
-    if (this.uiRenderer) {
-      this.uiRenderer.showDialog("Пожалуйста, сначала возьмите карту из колоды!");
+drawUniqueCardFromDeck() {
+  // Try up to 10 times to draw a unique card
+  for (let i = 0; i < 10; i++) {
+    const card = this.drawCardFromDeck();
+    if (!this.isCardInAnyCollection(card)) {
+      return card;
     }
-    // Возвращаем визуально утащенную карту на место
-    if (this.cardRenderer && typeof this.cardRenderer.returnDraggingCard === 'function') {
-      this.cardRenderer.returnDraggingCard();
-    }
-    return;  // ничего больше не делаем
+    console.log("Drew duplicate card, retrying...");
   }
+  
+  // If all attempts failed, create a completely new card
+  console.warn("Failed to draw unique card after 10 attempts, creating new card");
+  
+  // Get all values and suits
+  const values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+  const suits = ['hearts', 'diamonds', 'clubs', 'spades'];
+  
+  // Find a combination that doesn't exist in the game
+  for (const suit of suits) {
+    for (const value of values) {
+      const testCard = { value, suit };
+      if (!this.isCardInAnyCollection(testCard)) {
+        return {
+          id: Math.floor(Math.random() * 100000) + 10000,
+          value,
+          suit,
+          filename: `${value}_${suit.charAt(0).toUpperCase()}${suit.slice(1)}.webp`
+        };
+      }
+    }
+  }
+  
+  // If somehow all 52 cards are accounted for, this is a fallback
+  return {
+    id: Math.floor(Math.random() * 100000) + 10000,
+    value: 'A',
+    suit: 'hearts',
+    filename: `A_Hearts.webp`
+  };
+}
 
-  // --- ДАЛЕЕ ИДЁТ СУЩЕСТВУЮЩАЯ ЛОГИКА ---
+
+handleDrawFromDiscard(cardData) {
   console.log('Player draws from discard pile');
   
+  // Remove tutorial elements
   this.hideTutorialElements();
   this.removeCardHighlighting();
 
-  // Только в фазе взятия карты
+  // Only allow in drawing phase
   if (!this.playerTurn || this.gameStep % 2 !== 0) return;
 
-  // Извлекаем верхнюю карту из отбоя
+  // Extract top card from discard pile - make sure it's removed!
+  if (!this.cardManager.discardPile.length) return;
+  
+  // Double check that the card isn't already in player's hand
   const discardCard = this.cardManager.discardPile.pop();
   if (!discardCard) return;
-
-  this.cardManager.playerCards.push(discardCard);
+  
+  // Crucial check: Make sure this card isn't already in player's hand
+  const isDuplicate = this.cardManager.playerCards.some(card => 
+    card.value === discardCard.value && card.suit === discardCard.suit
+  );
+  
+  if (isDuplicate) {
+    console.error('Error: Attempting to add a duplicate card to player hand', discardCard);
+    // Instead of adding it again, find and remove the duplicate from the hand
+    const duplicateIndex = this.cardManager.playerCards.findIndex(card => 
+      card.value === discardCard.value && card.suit === discardCard.suit
+    );
+    
+    if (duplicateIndex !== -1) {
+      console.log('Removing duplicate card from player hand');
+      this.cardManager.playerCards.splice(duplicateIndex, 1);
+    }
+  }
+  
+  // Add to player's hand, using a UUID or unique ID to ensure uniqueness
+  const uniqueCard = {
+    ...discardCard,
+    id: discardCard.id || Math.floor(Math.random() * 100000) + 1000
+  };
+  
+  this.cardManager.playerCards.push(uniqueCard);
   this.cardManager.playerCards = this.sortCardsWithMelds();
+  
+  // Update game state
   this.gameStep++;
   this.hasDrawnCard = true;
   this.updatePlayScreen();
 
-  // Показываем следующую подсказку
+  // Track cards to verify no duplicates
+  this.trackAllCards();
+
+  // Show next hint
   setTimeout(() => {
     this.showDiscardHint();
   }, 800);
 }
+
+ensureUniqueCards() {
+  // Track all card values and suits to ensure no duplicates
+  const seenCards = new Set();
+  
+  // Helper to check and fix a single array of cards
+  const checkAndFixArray = (cardsArray, source) => {
+    const uniqueCards = [];
+    
+    cardsArray.forEach(card => {
+      const cardKey = `${card.value}_${card.suit}`;
+      
+      if (seenCards.has(cardKey)) {
+        console.warn(`Duplicate card detected in ${source}:`, card);
+        // Skip this card as it's a duplicate
+      } else {
+        seenCards.add(cardKey);
+        uniqueCards.push(card);
+      }
+    });
+    
+    return uniqueCards;
+  };
+  
+  // Fix player cards
+  this.cardManager.playerCards = checkAndFixArray(this.cardManager.playerCards, 'player hand');
+  
+  // Fix opponent cards
+  this.cardManager.opponentCards = checkAndFixArray(this.cardManager.opponentCards, 'opponent hand');
+  
+  // Fix discard pile - special handling to keep only unique cards
+  this.cardManager.discardPile = checkAndFixArray(this.cardManager.discardPile, 'discard pile');
+}
+
 
 
   // Get suit symbol
@@ -3509,6 +3773,43 @@ handleDrawFromDiscard(cardData) {
     }, 800);
   }
 
+  trackAllCards() {
+    // Get all cards currently in play
+    const allCards = [
+      ...this.cardManager.playerCards,
+      ...this.cardManager.opponentCards,
+      ...this.cardManager.discardPile
+    ];
+    
+    // Create a map of card IDs to count occurrences
+    const cardTracker = new Map();
+    
+    // Count each card
+    allCards.forEach(card => {
+      const cardKey = `${card.value}_${card.suit}`;
+      if (!cardTracker.has(cardKey)) {
+        cardTracker.set(cardKey, []);
+      }
+      cardTracker.get(cardKey).push(card);
+    });
+    
+    // Find duplicated cards
+    const duplicatedCards = [];
+    cardTracker.forEach((cards, key) => {
+      if (cards.length > 1) {
+        duplicatedCards.push({ key, cards });
+      }
+    });
+    
+    // Log any duplicated cards
+    if (duplicatedCards.length > 0) {
+      console.warn('Duplicate cards detected:', duplicatedCards);
+      return duplicatedCards;
+    }
+    
+    return null;
+  }
+
   // Opponent discards a card
   opponentDiscard() {
     if (!this.cardManager.opponentCards?.length) return;
@@ -3535,6 +3836,24 @@ handleDrawFromDiscard(cardData) {
     // Get the card to discard but do NOT remove it from opponent's hand yet
     const discardedCard = { ...this.cardManager.opponentCards[discardIndex] };
     
+    // CRUCIAL FIX: Check if this card already exists in the discard pile
+    const isDuplicate = this.cardManager.discardPile.some(c => 
+      c.value === discardedCard.value && c.suit === discardedCard.suit
+    );
+    
+    if (isDuplicate) {
+      console.error("Error: Opponent trying to discard a card that's already in discard pile");
+      // Choose a different card
+      const availableIndices = Array.from({ length: this.cardManager.opponentCards.length }, (_, i) => i)
+        .filter(i => i !== discardIndex);
+      
+      if (availableIndices.length > 0) {
+        // Use a different card from opponent's hand
+        discardIndex = availableIndices[Math.floor(Math.random() * availableIndices.length)];
+        discardedCard = { ...this.cardManager.opponentCards[discardIndex] };
+      }
+    }
+    
     // Set faceDown to false when discarding
     discardedCard.faceDown = false;
     
@@ -3554,8 +3873,16 @@ handleDrawFromDiscard(cardData) {
             this.cardManager.discardPile = [];
           }
           
-          // Add to discard pile
-          this.cardManager.discardPile.push(discardedCard);
+          // Add to discard pile with unique ID to prevent duplicates
+          const uniqueDiscardCard = {
+            ...discardedCard,
+            id: Math.floor(Math.random() * 100000) + 5000 // Ensure unique ID
+          };
+          
+          this.cardManager.discardPile.push(uniqueDiscardCard);
+          
+          // Verify no duplicate cards
+          this.trackAllCards();
           
           // Update the display to reflect the changes
           this.updatePlayScreen();
