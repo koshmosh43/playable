@@ -121,115 +121,103 @@ this.playerHandZone = null;    // Зона веера карт игрока
   }
   
   // Render player's hand of cards with fan effect
-  async renderPlayerHand(playerCards, selectedCard, possibleMelds) {
-    // Clear the container first to ensure clean rendering
-    this.playerHandContainer.removeChildren();
-    
-    if (!playerCards || playerCards.length === 0) return;
-    
-    // Log the cards we're rendering for debugging
-    console.log("Rendering player hand with cards:", playerCards.map(c => `${c.value} of ${c.suit}`));
-    
-    const total = playerCards.length;
-    
-    // CRITICAL FIX: Dynamically adjust spacing based on the number of cards
-    // This ensures cards don't overlap when new cards are added
-    let spacing = this.config.fanDistance;
-    
-    // Reduce spacing when there are too many cards to fit properly
-    if (total > 10) {
-      // Gradually reduce spacing as more cards are added
-      spacing = Math.max(20, this.config.fanDistance - (total - 10) * 2);
-      console.log(`Adjusted spacing to ${spacing} for ${total} cards`);
-    }
-    
-    const fanAngle = this.config.fanAngle;
-    
-    // Calculate total width of the fan
-    const totalWidth = (total - 1) * spacing;
-    
-    // Create cards in player's hand
-    for (let i = 0; i < total; i++) {
-      const cardData = playerCards[i];
-      
-      // Create card sprite
-      const sprite = await this.createCardSprite(cardData);
-      
-      // Set dimensions and anchor
-      sprite.width = this.config.cardWidth;
-      sprite.height = this.config.cardHeight;
-      sprite.anchor.set(0.5, 0.9); // IMPORTANT: Use bottom center anchor for fan effect
-      sprite.zIndex = i;
-      
-      // Calculate position in the fan
-      const x = -((total - 1) * spacing / 2) + i * spacing;
-      const angleDeg = -(-fanAngle / 2 + (fanAngle / (total - 1)) * i);
-      const angleRad = (angleDeg * Math.PI) / 180;
-      
-      sprite.x = x;
-      sprite.y = 0;
-      sprite.rotation = angleRad;
-      
-      // IMPORTANT: Store the card data directly on the sprite
-      sprite.cardData = cardData;
-      
-      // Check if this is the rightmost card (last in the fan)
-      if (i === total - 1) {
-        sprite.rightmost = true;
-        // Log the rightmost card for debugging
-        console.log("Rightmost card:", cardData.value, "of", cardData.suit, "at position", x);
+async renderPlayerHand(playerCards, selectedCard, possibleMelds) {
+  // 1) Очистка контейнера
+  this.playerHandContainer.removeChildren();
+
+  // 2) Если нет карт — выходим
+  if (!playerCards || playerCards.length === 0) return;
+
+  // 3) Стартовый массив всех карт
+  let cards = [...playerCards];
+
+  // 4) Построение meldCards в правильном порядке
+  if (possibleMelds) {
+    // 4.1) Сначала все run-карты в порядке run
+    const runCards = possibleMelds.runs
+      ? possibleMelds.runs.flatMap(run => run.cards)
+      : [];
+
+    // 4.2) Затем все set-карты
+    const setCards = possibleMelds.sets
+      ? possibleMelds.sets.flatMap(set => set.cards)
+      : [];
+
+    // 4.3) Убираем дубли и сохраняем порядок: run → set
+    const meldCards = [];
+    const seenMeld = new Set();
+    runCards.concat(setCards).forEach(card => {
+      if (!seenMeld.has(card.id)) {
+        seenMeld.add(card.id);
+        meldCards.push(card);
       }
-      
-      // Highlight cards in melds
-      if (possibleMelds) {
-        // Check if card is in any set
-        let inSet = false;
-        if (possibleMelds.sets) {
-          inSet = possibleMelds.sets.some(set => 
-            set.cards.some(card => card.id === cardData.id)
-          );
-        }
-        
-        // Check if card is in any run
-        let inRun = false;
-        if (possibleMelds.runs) {
-          inRun = possibleMelds.runs.some(run => 
-            run.cards.some(card => card.id === cardData.id)
-          );
-        }
-        
-        // Apply appropriate highlight
-        if (inRun) {
-          this.applySpecialHighlight(sprite, 0x98FB98, 0.5); // Green color for run
-        } else if (inSet) {
-          this.applySpecialHighlight(sprite, 0xFFFE7A, 0.5); // Yellow color for set
-        }
-      }
-      
-      // Highlight selected card
-      if (selectedCard && selectedCard.id === cardData.id) {
-        this.applySimpleSelectedHighlight(sprite);
-      }
-      
-      // Set up drag and drop handlers 
-      if (this.isDragEnabled) {
-        this.setupDragAndDrop(sprite, cardData);
-      }
-      
-      // Add click handler
-      sprite.on('pointerdown', () => {
-        if (this.onCardClick) {
-          this.onCardClick(cardData, 'player');
-        }
-      });
-      
-      this.playerHandContainer.addChild(sprite);
-    }
-    
-    // Sort cards by z-index
-    this.playerHandContainer.sortChildren();
+    });
+
+    // 4.4) Остальные карты — те, что не в seenMeld
+    const otherCards = cards.filter(c => !seenMeld.has(c.id));
+
+    // 4.5) Сортируем остальные только по рангу (2→A), масть вторично
+    const valueOrder = { '2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,'10':10,'J':11,'Q':12,'K':13,'A':14 };
+    const suitOrder  = { clubs:0, diamonds:1, hearts:2, spades:3 };
+    otherCards.sort((a, b) => {
+      const dv = valueOrder[a.value] - valueOrder[b.value];
+      if (dv !== 0) return dv;
+      return suitOrder[a.suit] - suitOrder[b.suit];
+    });
+
+    // 4.6) Финальный порядок: run-карты, затем set-карты, затем остальные
+    cards = [...meldCards, ...otherCards];
   }
-  
+
+  // 5) Всё как было дальше: расчёт spacing/fanAngle и отрисовка
+  const total = cards.length;
+  let spacing = this.config.fanDistance;
+  if (total > 10) {
+    spacing = Math.max(20, this.config.fanDistance - (total - 10) * 2);
+  }
+  const fanAngle  = this.config.fanAngle;
+
+  for (let i = 0; i < total; i++) {
+    const cardData = cards[i];
+    const sprite   = await this.createCardSprite(cardData);
+
+    sprite.width  = this.config.cardWidth;
+    sprite.height = this.config.cardHeight;
+    sprite.anchor.set(0.5, 0.9);
+    sprite.zIndex = i;
+    sprite.cardData = cardData;
+
+    const x        = -((total - 1) * spacing / 2) + i * spacing;
+    const angleRad = ((-(-fanAngle/2 + (fanAngle/(total-1))*i)) * Math.PI) / 180;
+    sprite.x       = x;
+    sprite.y       = 0;
+    sprite.rotation = angleRad;
+
+    if (i === total - 1) {
+      sprite.rightmost = true;
+    }
+
+    // Подсветки и drag’n’drop остаются без изменений…
+    if (possibleMelds) {
+      const inRun = possibleMelds.runs?.some(run => run.cards.some(c => c.id === cardData.id));
+      const inSet = possibleMelds.sets?.some(set => set.cards.some(c => c.id === cardData.id));
+      if (inRun) this.applySpecialHighlight(sprite, 0x98FB98, 0.5);
+      else if (inSet) this.applySpecialHighlight(sprite, 0xFFFE7A, 0.5);
+    }
+    if (selectedCard?.id === cardData.id) {
+      this.applySimpleSelectedHighlight(sprite);
+    }
+    if (this.isDragEnabled) {
+      this.setupDragAndDrop(sprite, cardData);
+    }
+    sprite.on('pointerdown', () => this.onCardClick?.(cardData, 'player'));
+
+    this.playerHandContainer.addChild(sprite);
+  }
+
+  // 6) Сортировка по z-index
+  this.playerHandContainer.sortChildren();
+}
 
   isOverPlayerHand(position) {
     if (!this.playerHandContainer) return false;

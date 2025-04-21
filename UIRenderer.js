@@ -451,134 +451,79 @@ async setupKnockButton() {
 }
   
   // Add this method to UIRenderer.js class
-  showGinButton(visible) {
-    if (!this.ginButton) {
-      // Create the button if it doesn't exist yet
-      this.ginButton = new PIXI.Container();
-      this.ginButton.interactive = true;
-      this.ginButton.buttonMode = true;
-      
-      // Try to load the Gin button texture
-      this.assetLoader.loadTexture('assets/Gin_button.webp')
-        .then(texture => {
-          const ginButtonSprite = new PIXI.Sprite(texture);
-          ginButtonSprite.anchor.set(0.5);
-          
-          // УМЕНЬШАЕМ РАЗМЕР В 3 РАЗА
-          ginButtonSprite.scale.set(0.33, 0.33);
-          
-          this.ginButton.addChild(ginButtonSprite);
-        })
-        .catch(err => {
-          console.warn("Could not load Gin button asset, using fallback", err);
-          const ginBg = new PIXI.Graphics();
-          ginBg.beginFill(0x2196F3); // Blue color
-          
-          // УМЕНЬШАЕМ РАЗМЕР В 3 РАЗА
-          ginBg.drawRoundedRect(-20, -7, 40, 14, 4); // Было -60, -20, 120, 40, 10
-          ginBg.endFill();
-          
-          const ginText = new PIXI.Text("GIN", {
-            fontFamily: "Arial",
-            fontSize: 8, // Уменьшаем размер текста (было 20)
-            fontWeight: "bold",
-            fill: 0xFFFFFF
-          });
-          ginText.anchor.set(0.5);
-          
-          this.ginButton.addChild(ginBg);
-          this.ginButton.addChild(ginText);
+showGinButton(visible) {
+  if (!this.ginButton) {
+    this.ginButton = new PIXI.Container();
+    this.ginButton.interactive = true;
+    this.ginButton.buttonMode  = true;
+
+    // Загружаем текстуру или создаём fallback
+    this.assetLoader.loadTexture('assets/Gin_button.webp')
+      .then(texture => {
+        const spr = new PIXI.Sprite(texture);
+        spr.anchor.set(0.5);
+        spr.scale.set(1, 1);
+        this.ginButton.addChild(spr);
+      })
+      .catch(err => {
+        console.warn("Could not load Gin asset, using fallback", err);
+        const bg = new PIXI.Graphics();
+        bg.beginFill(0x2196F3);
+        bg.drawRoundedRect(-60, -20, 120, 40, 10);
+        bg.endFill();
+        const txt = new PIXI.Text("GIN", {
+          fontFamily: "Arial", fontSize: 20, fontWeight: "bold", fill: 0xFFFFFF
         });
-        
-      // CRITICAL: Remove all old listeners before adding new one
-      this.ginButton.removeAllListeners('pointerdown');
-      
-      // Add click handler that hides button first, then shows overlay
-      this.ginButton.on('pointerdown', () => {
-        // Stop all animations immediately
-        gsap.killTweensOf(this.ginButton);
-        gsap.killTweensOf(this.ginButton.scale);
-        
-        // Hide button with quick fade-out
-        gsap.to(this.ginButton, {
-          alpha: 0,
-          duration: 0.2,
-          ease: "power2.in",
-          onComplete: () => {
-            // Hide the button completely
-            this.ginButton.visible = false;
-            
-            // Show play now overlay
-            this.showPlayNowOverlay();
-          }
-        });
+        txt.anchor.set(0.5);
+        this.ginButton.addChild(bg, txt);
       });
-      
-      // Add to UI container if not already added
-      if (!this.uiButtonsContainer.children.includes(this.ginButton)) {
-        this.uiButtonsContainer.addChild(this.ginButton);
-      }
-    }
-    
-    // Always position at center of screen, slightly to the left
-    this.ginButton.x = this.app.screen.width / 2;
-    this.ginButton.y = this.app.screen.height / 2;
-    
-    // ОСТАНАВЛИВАЕМ ИГРУ когда кнопка становится видимой
-    if (visible && !this.ginButton.visible) {
-      this.ginButton.visible = true;
-      this.ginButton.alpha = 0;
-      
-      // Останавливаем игровые процессы
+
+    // Remove old listener and add new one
+    this.ginButton.removeAllListeners('pointerdown');
+    this.ginButton.on('pointerdown', () => {
+      // **1) Останавливаем игру**
       if (window.game) {
         window.game.pauseGame = true;
+        console.log("Game paused on GIN click");
       }
-      
-      // Fade in animation
-      gsap.to(this.ginButton, {
-        alpha: 1,
-        duration: 0.3,
-        ease: "back.out"
-      });
-      
-      // Subtle float animation
-      gsap.to(this.ginButton, {
-        y: this.ginButton.y - 5,
-        duration: 0.8,
-        repeat: -1,
-        yoyo: true,
-        ease: "sine.inOut"
-      });
-      
-      // Subtle pulse animation
-      gsap.to(this.ginButton.scale, {
-        x: 1.05, y: 1.05,
-        duration: 1.2,
-        repeat: -1,
-        yoyo: true,
-        ease: "sine.inOut"
-      });
-    } else if (!visible && this.ginButton.visible) {
-      // Возобновляем игровые процессы
-      if (window.game) {
-        window.game.pauseGame = false;
-      }
-      
-      // Stop all animations
+      // 2) Останавливаем анимации кнопки
       gsap.killTweensOf(this.ginButton);
       gsap.killTweensOf(this.ginButton.scale);
-      
-      // Hide button with animation
+      // 3) Быстро скрываем кнопку и показываем оверлей
       gsap.to(this.ginButton, {
-        alpha: 0,
-        duration: 0.3,
-        ease: "power2.in",
+        alpha: 0, duration: 0.2, ease: "power2.in",
         onComplete: () => {
           this.ginButton.visible = false;
+          this.showPlayNowOverlay();
         }
       });
-    }
+    });
+
+    // Добавляем в UI‑контейнер
+    this.uiButtonsContainer.addChild(this.ginButton);
   }
+
+  // Позиционируем и управляем паузой при появлении
+  this.ginButton.x       = this.app.screen.width / 2;
+  this.ginButton.y       = this.app.screen.height * 0.7;
+  this.ginButton.visible = visible;
+
+  if (visible) {
+    if (window.game) window.game.pauseGame = true;
+    // Анимация появления
+    this.ginButton.alpha = 0;
+    gsap.to(this.ginButton, { alpha: 1, duration: 0.3, ease: "back.out" });
+    gsap.to(this.ginButton.scale, {
+      x: 1.05, y: 1.05, duration: 1.2, repeat: -1, yoyo: true, ease: "sine.inOut"
+    });
+  } else {
+    if (window.game) window.game.pauseGame = false;
+    gsap.killTweensOf(this.ginButton);
+    gsap.killTweensOf(this.ginButton.scale);
+    gsap.to(this.ginButton, { alpha: 0, duration: 0.3, ease: "power2.in" });
+  }
+}
+
 
   showPlayNowOverlay() {
     // Hide tutorial elements directly instead of calling hideTutorialElements
@@ -918,163 +863,92 @@ dialogBg.endFill();
     }
   }
 
-  showKnockButton(visible) {
-    // Вспомогательная функция для логирования операций с кнопкой Knock
-    const logKnockButtonState = (action) => {
-      console.log(`KNOCK Button ${action} - visible: ${visible}`);
-    };
-  
-    if (!this.knockButton) {
-      // Create the button if it doesn't exist yet
-      logKnockButtonState("initializing");
-      this.knockButton = new PIXI.Container();
-      this.knockButton.interactive = true;
-      this.knockButton.buttonMode = true;
-      
-      // Try to load the Knock button texture
-      this.assetLoader.loadTexture('assets/Knock_button.webp')
-        .then(texture => {
-          const knockButtonSprite = new PIXI.Sprite(texture);
-          knockButtonSprite.anchor.set(0.5);
-          
-          // УМЕНЬШАЕМ РАЗМЕР В 3 РАЗА
-          knockButtonSprite.scale.set(0.33, 0.33);
-          
-          this.knockButton.addChild(knockButtonSprite);
-          logKnockButtonState("texture loaded");
-        })
-        .catch(err => {
-          console.warn("Could not load Knock button asset, using fallback", err);
-          const knockBg = new PIXI.Graphics();
-          knockBg.beginFill(0xFF5722); // Orange color
-          
-          // УМЕНЬШАЕМ РАЗМЕР В 3 РАЗА
-          knockBg.drawRoundedRect(-20, -7, 40, 14, 4); // Было -60, -20, 120, 40, 10
-          knockBg.endFill();
-          
-          const knockText = new PIXI.Text("KNOCK", {
-            fontFamily: "Arial",
-            fontSize: 8, // Уменьшаем размер текста (было 20)
-            fontWeight: "bold",
-            fill: 0xFFFFFF
-          });
-          knockText.anchor.set(0.5);
-          
-          this.knockButton.addChild(knockBg);
-          this.knockButton.addChild(knockText);
-          logKnockButtonState("fallback created");
-        });
-      
-      // CRITICAL: Remove all old listeners before adding new one
-      this.knockButton.removeAllListeners('pointerdown');
-      
-      // Add click handler that hides button first, then shows overlay
-      this.knockButton.on('pointerdown', () => {
-        logKnockButtonState("clicked");
-        // Stop all animations immediately
-        gsap.killTweensOf(this.knockButton);
-        gsap.killTweensOf(this.knockButton.scale);
-        
-        // Hide button with quick fade-out
-        gsap.to(this.knockButton, {
-          alpha: 0,
-          duration: 0.2,
-          ease: "power2.in",
-          onComplete: () => {
-            // Hide the button completely
-            this.knockButton.visible = false;
-            
-            // Show play now overlay
-            this.showPlayNowOverlay();
-          }
-        });
-      });
-      
-      // Add to UI container if not already added
-      if (!this.uiButtonsContainer.children.includes(this.knockButton)) {
-        this.uiButtonsContainer.addChild(this.knockButton);
-        logKnockButtonState("added to container");
-      }
-    }
-    
-    // Явно устанавливаем позицию кнопки - всегда в центре экрана,
-    // немного ниже середины
-    this.knockButton.x = this.app.screen.width / 2;
-    this.knockButton.y = this.app.screen.height * 0.7; // Позиционируем кнопку на 70% высоты экрана
-    
-    // Принудительно применяем видимость в зависимости от параметра
-    this.knockButton.visible = visible;
+showKnockButton(visible) {
+  // Логирование для отладки
+  const logKnockButtonState = (action) => {
+    console.log(`KNOCK Button ${action} - visible: ${visible}`);
+  };
 
-       // 1) Ставим игру на паузу, когда кнопка становится видимой,
-   // и снимаем паузу, когда скрываем:
-   if (window.game) {
-     window.game.pauseGame = visible;
-     console.log(`PAUSE GAME = ${visible}`);
-   }
-    
-    // ОСТАНАВЛИВАЕМ ИГРУ когда кнопка становится видимой
-    if (visible) {
-      // Останавливаем игровые процессы
+  if (!this.knockButton) {
+    logKnockButtonState("initializing");
+    this.knockButton = new PIXI.Container();
+    this.knockButton.interactive = true;
+    this.knockButton.buttonMode  = true;
+
+    // Загружаем текстуру или создаём fallback
+    this.assetLoader.loadTexture('assets/Knock_button.webp')
+      .then(texture => {
+        const spr = new PIXI.Sprite(texture);
+        spr.anchor.set(0.5);
+        spr.scale.set(0.33, 0.33);
+        this.knockButton.addChild(spr);
+        logKnockButtonState("texture loaded");
+      })
+      .catch(err => {
+        console.warn("Could not load Knock asset, using fallback", err);
+        const bg = new PIXI.Graphics();
+        bg.beginFill(0xFF5722);
+        bg.drawRoundedRect(-20, -7, 40, 14, 4);
+        bg.endFill();
+        const txt = new PIXI.Text("KNOCK", {
+          fontFamily: "Arial", fontSize: 8, fontWeight: "bold", fill: 0xFFFFFF
+        });
+        txt.anchor.set(0.5);
+        this.knockButton.addChild(bg, txt);
+        logKnockButtonState("fallback created");
+      });
+
+    // Привязываем новый обработчик клика
+    this.knockButton.removeAllListeners('pointerdown');
+    this.knockButton.on('pointerdown', () => {
+      // **1) Останавливаем игру**
       if (window.game) {
-        // Можем приостановить некоторые таймеры или анимации
-        window.game.pauseGame = true;  // Добавьте эту переменную в GinRummyGame
-        
-        // Логирование и отладка
-        logKnockButtonState("PAUSING GAME");
-        
-        // Reset alpha to ensure button is visible
-        this.knockButton.alpha = 1;
-        
-        // Fade in animation
-        gsap.to(this.knockButton, {
-          alpha: 1,
-          duration: 0.3,
-          ease: "back.out"
-        });
-        
-        // Subtle float animation
-        gsap.to(this.knockButton, {
-          y: this.knockButton.y - 5,
-          duration: 0.8,
-          repeat: -1,
-          yoyo: true,
-          ease: "sine.inOut"
-        });
-        
-        // Subtle pulse animation
-        gsap.to(this.knockButton.scale, {
-          x: 1.05, y: 1.05,
-          duration: 1.2,
-          repeat: -1,
-          yoyo: true,
-          ease: "sine.inOut"
-        });
+        window.game.pauseGame = true;
+        console.log("Game paused on KNOCK click");
       }
-    } else if (!visible && this.knockButton.visible) {
-      // Логирование и отладка
-      logKnockButtonState("hiding with animation");
-      
-      // Возобновляем игровые процессы
-      if (window.game) {
-        window.game.pauseGame = false;
-      }
-      
-      // Stop all animations
+      // 2) Сразу убиваем анимации кнопки
       gsap.killTweensOf(this.knockButton);
       gsap.killTweensOf(this.knockButton.scale);
-      
-      // Hide button with animation
+      // 3) Быстро скрываем кнопку с fade‑out
       gsap.to(this.knockButton, {
-        alpha: 0,
-        duration: 0.3,
-        ease: "power2.in",
+        alpha: 0, duration: 0.2, ease: "power2.in",
         onComplete: () => {
           this.knockButton.visible = false;
-          logKnockButtonState("hidden completely");
+          // 4) Показываем финальный оверлей
+          this.showPlayNowOverlay();
         }
       });
-    }
+    });
+
+    // Добавляем в контейнер UI‑кнопок
+    this.uiButtonsContainer.addChild(this.knockButton);
   }
+
+  // Позиционирование и pause‑логика при появлении/скрытии
+  this.knockButton.x       = this.app.screen.width / 2;
+  this.knockButton.y       = this.app.screen.height * 0.7;
+  this.knockButton.visible = visible;
+
+  if (visible) {
+    // Когда делаем кнопку видимой — тоже ставим игру на паузу
+    if (window.game) window.game.pauseGame = true;
+    logKnockButtonState("PAUSING GAME");
+    // Анимация появления
+    this.knockButton.alpha = 0;
+    gsap.to(this.knockButton, { alpha: 1, duration: 0.3, ease: "back.out" });
+    gsap.to(this.knockButton.scale, {
+      x: 1.05, y: 1.05, duration: 1.2, repeat: -1, yoyo: true, ease: "sine.inOut"
+    });
+  } else {
+    // При скрытии — возвращаем игру
+    if (window.game) window.game.pauseGame = false;
+    logKnockButtonState("RESUMING GAME");
+    gsap.killTweensOf(this.knockButton);
+    gsap.killTweensOf(this.knockButton.scale);
+    gsap.to(this.knockButton, { alpha: 0, duration: 0.3, ease: "power2.in" });
+  }
+}
+
 
   setupDeadwoodDisplay() {
     const deadwoodContainer = new PIXI.Container();

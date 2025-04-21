@@ -1902,6 +1902,11 @@ handleGinConfirm(confirmed) {
         if (this.uiRenderer) {
           this.uiRenderer.showDialog("Take a card from deck or discard pile first!");
         }
+        // После того, как ход игрока завершился и дедвуд обновлён
+if (this.deadwood <= 10 && !this.playerTurn) {
+  this.uiRenderer.showKnockButton(true);
+}
+
       }
     });
   
@@ -3892,56 +3897,57 @@ ensureUniqueCards() {
   }
 
   drawCardFromDeck() {
-    // Предопределенные карты для победы за 2-3 хода
+    // Предопределённые карты для первых трёх ходов
     const riggedCards = [
-      { value: '7', suit: 'clubs' },     // Первый ход - 7 треф для продолжения рана
-      { value: '8', suit: 'clubs' },     // Второй ход - 8 треф для завершения длинного рана
-      { value: '2', suit: 'clubs' },     // Третий ход - 2 треф для дополнительных очков
+      { value: '7', suit: 'clubs' },
+      { value: '8', suit: 'clubs' },
+      { value: '2', suit: 'clubs' },
     ];
-    
-    // Если это один из первых ходов, возвращаем предопределенную карту
     if (this.drawCount !== undefined && this.drawCount < riggedCards.length) {
-      const riggedCard = riggedCards[this.drawCount];
-      this.drawCount++;
-      
+      const riggedCard = riggedCards[this.drawCount++];
       console.log(`Выдаем предопределенную карту: ${riggedCard.value} ${riggedCard.suit}`);
-      
       return {
-        id: Math.floor(Math.random() * 1000) + 300, // Уникальный ID
+        id: Math.floor(Math.random() * 1000) + 300,
         value: riggedCard.value,
         suit: riggedCard.suit,
         filename: `${riggedCard.value}_${riggedCard.suit.charAt(0).toUpperCase()}${riggedCard.suit.slice(1)}.webp`
       };
     }
-    
-    // Для последующих ходов используем обычную логику
-    const usedCards = [
-      ...this.cardManager.playerCards,
-      ...this.cardManager.opponentCards,
-      ...this.cardManager.discardPile
-    ].map(card => `${card.value}_${card.suit}`);
-    
+  
+    // Собираем все уже занятые карты
+    const playerCards   = this.cardManager.playerCards   || [];
+    const opponentCards = this.cardManager.opponentCards || [];
+    const discardPile   = this.cardManager.discardPile   || [];
+  
+    const usedKeys = [
+      ...playerCards,
+      ...opponentCards,
+      ...discardPile
+    ].map(c => `${c.value}_${c.suit}`);
+  
+    // Перемешанная полная колода
     const fullDeck = this.createShuffledDeck();
-    
-    const availableCards = fullDeck.filter(card => 
-      !usedCards.includes(`${card.value}_${card.suit}`)
+  
+    // Фильтруем карты, которые уже использованы
+    const availableCards = fullDeck.filter(card =>
+      !usedKeys.includes(`${card.value}_${card.suit}`)
     );
-    
+  
     if (availableCards.length > 0) {
-      const randomIndex = Math.floor(Math.random() * availableCards.length);
-      const newCard = availableCards[randomIndex];
-      
+      const idx = Math.floor(Math.random() * availableCards.length);
+      const { value, suit, filename } = availableCards[idx];
       return {
         id: Math.floor(Math.random() * 1000) + 300,
-        value: newCard.value,
-        suit: newCard.suit,
-        filename: newCard.filename
+        value,
+        suit,
+        filename
       };
     }
-    
-    console.warn("No unique cards available in deck");
+  
+    console.warn("No unique cards available in deck – возвращаю рандомную");
     return this.createRandomCard();
   }
+  
 
   showDiscardPileTutorial() {
     if (!this.stateManager || this.stateManager.currentState !== 'play' || 
@@ -4272,110 +4278,75 @@ updateEndScreen(playerScore) {
 
   // Show hint for discarding a card
   showDiscardHint() {
-    // Only proceed if player has drawn a card this turn
+    // 1) Если игрок ещё не взял карту, выходим
     if (!this.hasDrawnCard) return;
-    
-    if (!this.handCursor || !this.cardManager.playerCards.length || !this.cardRenderer) return;
+    if (!this.uiRenderer) return;
   
-    // Special cases (GIN and KNOCK) remain the same
+    // 2) Скрываем все кнопки и диалоги перед решением
+    this.uiRenderer.showGinButton(false);
+    this.uiRenderer.showKnockButton(false);
+    this.uiRenderer.hideDialog();
+  
+    // 3) Идеальная рука → GIN
     if (this.deadwood === 0) {
-      // Very prominent GIN hint
-      if (this.uiRenderer) {
-        this.uiRenderer.showGinButton(true);
-        this.uiRenderer.hideDialog();
-        this.uiRenderer.showDialog("Perfect hand! Call GIN!");
-        if (this.uiRenderer.ginButton) {
-          gsap.to(this.uiRenderer.ginButton.scale, {
-            x: 1.2, y: 1.2, duration: 0.5, repeat: -1, yoyo: true, ease: "power1.inOut"
-          });
-        }
+      this.uiRenderer.showGinButton(true);
+      this.uiRenderer.showDialog("Perfect hand! Call GIN!");
+      // Пульсация GIN‑кнопки
+      if (this.uiRenderer.ginButton) {
+        gsap.to(this.uiRenderer.ginButton.scale, {
+          x: 1.2, y: 1.2,
+          duration: 0.5,
+          repeat: -1,
+          yoyo: true,
+          ease: "power1.inOut"
+        });
       }
       return;
-    }
-    
-    if (this.deadwood <= 10) {
-      // Bright highlight for KNOCK button
-      if (this.uiRenderer) {
-        this.uiRenderer.showKnockButton(true);
-        this.uiRenderer.hideDialog();
-        this.uiRenderer.showDialog("KNOCK to win the game now!");
-        if (this.uiRenderer.knockButton) {
-          gsap.to(this.uiRenderer.knockButton.scale, {
-            x: 1.2, y: 1.2, duration: 0.5, repeat: -1, yoyo: true, ease: "power1.inOut"
-          });
-        }
-      }
-      return;
-    }
-    
-    // Show "Drag a card to discard" message to emphasize drag-and-drop
-    if (this.uiRenderer) {
-      this.uiRenderer.hideDialog();
-      this.uiRenderer.showDialog("Drag a card to discard!");
     }
   
-    // Use the VISUAL rightmost card in the renderer
-    if (!this.cardRenderer || !this.cardRenderer.playerHandContainer) {
-      console.error("Cannot access player hand container!");
+    // 4) Deadwood 1–10 → KNOCK
+    if (this.deadwood > 0 && this.deadwood <= 10) {
+      this.uiRenderer.showKnockButton(true);
+      this.uiRenderer.showDialog("KNOCK to win the game now!");
+      // Пульсация KNOCK‑кнопки
+      if (this.uiRenderer.knockButton) {
+        gsap.to(this.uiRenderer.knockButton.scale, {
+          x: 1.2, y: 1.2,
+          duration: 0.5,
+          repeat: -1,
+          yoyo: true,
+          ease: "power1.inOut"
+        });
+      }
       return;
     }
-    
+  
+    // 5) Во всех других случаях → обычный диалог “таскай карту”
+    this.uiRenderer.showDialog("Drag a card to discard!");
+  
+    // Дополнительно подсветим самую правую карту и покажем курсор
     const sprites = this.cardRenderer.playerHandContainer.children;
-    if (!sprites || sprites.length === 0) {
-      console.error("No card sprites found in player hand!");
-      return;
-    }
-    
-    // Find the card with the largest X position (rightmost in the fan)
-    let rightmostSprite = null;
-    let maxX = -Infinity;
-    
-    for (const sprite of sprites) {
-      if (sprite.x > maxX) {
-        maxX = sprite.x;
-        rightmostSprite = sprite;
+    let rightmost = null, maxX = -Infinity;
+    for (const s of sprites) {
+      if (s.x > maxX) {
+        maxX = s.x;
+        rightmost = s;
       }
     }
-    
-    if (!rightmostSprite || !rightmostSprite.cardData) {
-      console.error("Could not find rightmost card sprite or it has no card data!");
-      return;
+    if (rightmost) {
+      // подсветка и лёгкий "прыжок" правой карты
+      this.cardRenderer.applySpecialHighlight(rightmost, 0xFF00FF, 0.4);
+      gsap.to(rightmost.scale, {
+        x: 0.6, y: 0.6,
+        duration: 0.2,
+        repeat: 3,
+        yoyo: true
+      });
+  
+      // курсор под правой картой
+      const worldPos = this.cardRenderer.playerHandContainer.toGlobal(new PIXI.Point(rightmost.x, rightmost.y));
+      this.handCursor.showAt(worldPos.x, worldPos.y - 40);
     }
-    
-    const rightmostCard = rightmostSprite.cardData;
-    const rightmostIndex = sprites.indexOf(rightmostSprite);
-    
-    console.log("FORCED RIGHTMOST CARD BY POSITION:", rightmostCard, "at visual index:", rightmostIndex);
-    
-    // Apply visual highlight to this specific sprite
-    this.cardRenderer.applySpecialHighlight(rightmostSprite, 0xFF00FF, 0.4); // Bright pink highlight
-    
-    // Make the card stand out slightly
-    rightmostSprite.y -= 10;
-    
-    // Additional highlight animation
-    gsap.to(rightmostSprite.scale, {
-      x: 0.9, y: 0.9, duration: 0.2, repeat: 3, yoyo: true
-    });
-    
-    // Direct position from the sprite itself
-    const cardX = this.cardRenderer.playerHandContainer.x + rightmostSprite.x;
-    const cardY = this.cardRenderer.playerHandContainer.y + rightmostSprite.y - 40;
-    
-    const discardX = this.cardRenderer.discardContainer.x + this.config.cardWidth / 2;
-    const discardY = this.cardRenderer.discardContainer.y + this.config.cardHeight / 2;
-    
-    // Position hand cursor DIRECTLY at the rightmost sprite
-    this.handCursor.showAt(cardX, cardY);
-    
-    // Show animation that CLEARLY demonstrates dragging, not clicking
-    setTimeout(() => {
-      this.handCursor.demonstrateCardMove(
-        { x: cardX, y: cardY + 40 },
-        { x: discardX, y: discardY },
-        { dragDuration: 0.8 } // Faster animation
-      );
-    }, 300);
   }
 
   // Show loading screen
