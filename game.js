@@ -1576,7 +1576,7 @@ setupTutorialElements(introContainer) {
     const gradientBg = new PIXI.Graphics();
     const bgWidth = this.app.screen.width;
     const bgHeight = 120;
-    const bgY = this.app.screen.height * 0.35 - bgHeight/2;
+    const bgY = this.app.screen.height * 0.35 - bgHeight/2 - 50;
     
     gradientBg.beginFill(0x000000, 0.5);
     gradientBg.drawRect(0, bgY, bgWidth, bgHeight);
@@ -1603,7 +1603,7 @@ setupTutorialElements(introContainer) {
     const titleText = new PIXI.Text(tutorialText, style);
     titleText.anchor.set(0.5);
     titleText.x = this.app.screen.width / 2;
-    titleText.y = this.app.screen.height * 0.35;
+    titleText.y = this.app.screen.height * 0.35 - 50;
     
     titleContainer.addChild(titleText);
     this.app.stage.addChild(titleContainer);
