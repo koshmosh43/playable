@@ -5,33 +5,26 @@ import { UIManager } from './UIManager.js';
 import { UIRenderer } from './UIRenderer.js';
 import { CardRenderer } from './CardRenderer.js';
 
-// Initialize the game when the DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-  // Register GSAP plugins
-  if (window.gsap && window.PixiPlugin) {
+    if (window.gsap && window.PixiPlugin) {
     gsap.registerPlugin(PixiPlugin);
     PixiPlugin.registerPIXI(PIXI);
   }
   
-  // Create and initialize the game
-  const game = new GinRummyGame();
+    const game = new GinRummyGame();
   game.initialize();
 });
 
 export class GinRummyGame {
   constructor() {
-    // Game configuration
-    this.config = {
+        this.config = {
       cardWidth: 80,
       cardHeight: 120,
       targetScore: 100,
-      fanDistance: 30,    // Distance between cards in fan
-      fanAngle: -15,       // Maximum fan angle (degrees)
-      highlightColor: 0x4CAF50
+      fanDistance: 30,          fanAngle: -15,             highlightColor: 0x4CAF50
     };
 
-    // Initial game state
-    this.gameState = 'intro';
+        this.gameState = 'intro';
     this.gameStep = 0;
     this.playerTurn = true;
     this.deckCount = 31;
@@ -49,8 +42,7 @@ export class GinRummyGame {
     this.takeCardTutorialShown = false;
     this.pauseGame = false;
 
-    // Initialize PixiJS app with correct dimensions
-    const viewportWidth = window.innerWidth;
+        const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
     
     this.app = new PIXI.Application({
@@ -63,8 +55,7 @@ export class GinRummyGame {
     });
     window.game = this;
 
-    // Core components
-    this.assetLoader = new AssetLoader();
+        this.assetLoader = new AssetLoader();
     this.cardManager = { 
       playerCards: [],
       opponentCards: [],
@@ -73,14 +64,12 @@ export class GinRummyGame {
       calculateDeadwood: this.calculateDeadwood.bind(this)
     };
     
-    // Game containers 
-    this.containers = {
+        this.containers = {
       main: new PIXI.Container(),
       background: new PIXI.Container(),
     };
     
-    // Will initialize these after assets are loaded
-    this.uiRenderer = null;
+        this.uiRenderer = null;
     this.cardRenderer = null;
     this.handCursor = null;
     this.stateManager = null;
@@ -88,17 +77,14 @@ export class GinRummyGame {
   }
 
   initializeGSAP() {
-    // Check if GSAP is available
-    if (window.gsap) {
+        if (window.gsap) {
       console.log("GSAP detected");
       
-      // Disable warnings about null/undefined objects
-      gsap.config({
+            gsap.config({
         nullTargetWarn: false
       });
       
-      // Register plugins if available
-      if (window.PixiPlugin) {
+            if (window.PixiPlugin) {
         console.log("Registering PixiPlugin");
         gsap.registerPlugin(PixiPlugin);
         if (window.PIXI) {
@@ -106,8 +92,7 @@ export class GinRummyGame {
         }
       }
       
-      // Explicitly register BezierPlugin if available
-      if (window.BezierPlugin) {
+            if (window.BezierPlugin) {
         console.log("Registering BezierPlugin");
         gsap.registerPlugin(BezierPlugin);
       }
@@ -116,41 +101,33 @@ export class GinRummyGame {
     }
   }
 
-  // In game.js - Replace the sortCardsByValue method
-sortCardsByValue(cards) {
-  // Card value order
-  const valueOrder = {
+  sortCardsByValue(cards) {
+    const valueOrder = {
     'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7,
     '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13
   };
   
-  // Deep clone the cards array to avoid modifying the original
-  return [...cards].sort((a, b) => {
+    return [...cards].sort((a, b) => {
     return valueOrder[a.value] - valueOrder[b.value];
   });
 }
 
-// And replace sortCardsBySuitAndRank method
 sortCardsBySuitAndRank(cards) {
-  // Custom suit order
-  const suitOrder = {
+    const suitOrder = {
     'clubs': 0,
     'diamonds': 1,
     'hearts': 2,
     'spades': 3
   };
   
-  // Card value order
-  const valueOrder = {
+    const valueOrder = {
     'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7,
     '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13
   };
   
-  // Make a copy of cards to avoid modifying the original
-  const cardsCopy = [...cards];
+    const cardsCopy = [...cards];
   
-  // Group by suit first
-  const cardsBySuit = {};
+    const cardsBySuit = {};
   cardsCopy.forEach(card => {
     if (!cardsBySuit[card.suit]) {
       cardsBySuit[card.suit] = [];
@@ -158,15 +135,13 @@ sortCardsBySuitAndRank(cards) {
     cardsBySuit[card.suit].push(card);
   });
   
-  // Sort each suit group by value
-  Object.keys(cardsBySuit).forEach(suit => {
+    Object.keys(cardsBySuit).forEach(suit => {
     cardsBySuit[suit].sort((a, b) => {
       return valueOrder[a.value] - valueOrder[b.value];
     });
   });
   
-  // Combine back in suit order
-  const result = [];
+    const result = [];
   ['clubs', 'diamonds', 'hearts', 'spades'].forEach(suit => {
     if (cardsBySuit[suit]) {
       result.push(...cardsBySuit[suit]);
@@ -177,74 +152,57 @@ sortCardsBySuitAndRank(cards) {
 }
 
 sortCardsWithMelds() {
-  // First, identify all possible melds
-  this.updatePossibleMelds();
+    this.updatePossibleMelds();
   
-  // Get references to runs and sets
-  const runs = this.possibleMelds.runs || [];
+    const runs = this.possibleMelds.runs || [];
   const sets = this.possibleMelds.sets || [];
   
-  // Create maps to track which meld each card belongs to
-  const cardToMeldMap = new Map();
+    const cardToMeldMap = new Map();
   
-  // Map each card in runs to its run
-  runs.forEach((run, runIndex) => {
+    runs.forEach((run, runIndex) => {
     run.cards.forEach(card => {
       cardToMeldMap.set(card.id, { type: 'run', index: runIndex, cards: run.cards });
     });
   });
   
-  // Map each card in sets to its set
-  sets.forEach((set, setIndex) => {
+    sets.forEach((set, setIndex) => {
     set.cards.forEach(card => {
       cardToMeldMap.set(card.id, { type: 'set', index: setIndex, cards: set.cards });
     });
   });
   
-  // Card value order for sorting
-  const valueOrder = {
+    const valueOrder = {
     'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7,
     '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13
   };
   
-  // Sort clubs separately to ensure they're in numerical order
-  const clubCards = this.cardManager.playerCards.filter(card => 
-    card.suit === 'clubs' && card.value !== '9' // Exclude 9 of clubs
-  ).sort((a, b) => valueOrder[a.value] - valueOrder[b.value]);
+    const clubCards = this.cardManager.playerCards.filter(card => 
+    card.suit === 'clubs' && card.value !== '9'   ).sort((a, b) => valueOrder[a.value] - valueOrder[b.value]);
   
-  // Sort set cards (any 5's together)
-  const setCards = this.cardManager.playerCards.filter(card => 
+    const setCards = this.cardManager.playerCards.filter(card => 
     card.value === '5' && card.suit !== 'clubs'
   );
   
-  // Get high club (9 of clubs) separately
-  const highClub = this.cardManager.playerCards.find(card => 
+    const highClub = this.cardManager.playerCards.find(card => 
     card.suit === 'clubs' && card.value === '9'
   );
   
-  // Get any other cards
-  const otherCards = this.cardManager.playerCards.filter(card => 
+    const otherCards = this.cardManager.playerCards.filter(card => 
     card.suit !== 'clubs' && 
     !(card.value === '5' && card.suit !== 'clubs') &&
     !(card.suit === 'clubs' && card.value === '9')
   );
   
-  // Create final array with the desired ordering
-  const allSortedCards = [
-    ...clubCards,            // All clubs in numerical order (except 9)
-    ...setCards,             // All 5's (except 5 of clubs which is in clubCards)
-  ];
+    const allSortedCards = [
+    ...clubCards,                ...setCards,               ];
   
-  // Add 9 of clubs if it exists
-  if (highClub) {
+    if (highClub) {
     allSortedCards.push(highClub);
   }
   
-  // Add any other cards
-  allSortedCards.push(...otherCards);
+    allSortedCards.push(...otherCards);
   
-  // Debug logging
-  console.log("Final sorted cards:", allSortedCards.map(c => `${c.value} of ${c.suit}`));
+    console.log("Final sorted cards:", allSortedCards.map(c => `${c.value} of ${c.suit}`));
   
   return allSortedCards;
 }
@@ -252,110 +210,88 @@ sortCardsWithMelds() {
   preDragCardFromdeck() {
     if (!this.playerTurn || this.gameStep % 2 !== 0) return null;
     
-    // Pre-draw a card from the deck to show during dragging
-    const newCard = this.drawCardFromdeck();
+        const newCard = this.drawCardFromdeck();
     this.preDrawnCard = newCard;
     return newCard;
   }
 
   sortCardsBySuitAndRank(cards) {
-    // Custom suit order: clubs first, then diamonds, hearts, spades
-    const suitOrder = {
+        const suitOrder = {
       'clubs': 0,
       'diamonds': 1,
       'hearts': 2,
       'spades': 3
     };
     
-    // Card value order
-    const valueOrder = {
+        const valueOrder = {
       'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7,
       '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13
     };
     
-    // Debug the input
-    console.log("Sorting cards:", cards.map(c => `${c.value} of ${c.suit}`));
+        console.log("Sorting cards:", cards.map(c => `${c.value} of ${c.suit}`));
     
-    // Make a copy of the array before sorting
-    const sortedCards = [...cards].sort((a, b) => {
-      // First sort by suit
-      const aSuit = a.suit || '';
+        const sortedCards = [...cards].sort((a, b) => {
+            const aSuit = a.suit || '';
       const bSuit = b.suit || '';
       
-      // Get suit order values with safety checks
-      const aSuitOrder = suitOrder[aSuit] !== undefined ? suitOrder[aSuit] : 999;
+            const aSuitOrder = suitOrder[aSuit] !== undefined ? suitOrder[aSuit] : 999;
       const bSuitOrder = suitOrder[bSuit] !== undefined ? suitOrder[bSuit] : 999;
       
       const suitDiff = aSuitOrder - bSuitOrder;
       if (suitDiff !== 0) return suitDiff;
       
-      // Then sort by value within the same suit
-      const aValue = a.value || '';
+            const aValue = a.value || '';
       const bValue = b.value || '';
       
-      // Get value order with safety checks
-      const aValueOrder = valueOrder[aValue] !== undefined ? valueOrder[aValue] : 999;
+            const aValueOrder = valueOrder[aValue] !== undefined ? valueOrder[aValue] : 999;
       const bValueOrder = valueOrder[bValue] !== undefined ? valueOrder[bValue] : 999;
       
       return aValueOrder - bValueOrder;
     });
     
-    // Debug the output
-    console.log("After sorting:", sortedCards.map(c => `${c.value} of ${c.suit}`));
+        console.log("After sorting:", sortedCards.map(c => `${c.value} of ${c.suit}`));
     
     return sortedCards;
   }
 
-  // Initialize the game
-  async initialize() {
+    async initialize() {
     this.initializeGSAP();
     try {
-      // Add the game canvas to the DOM and set full size
-      const gameContainer = document.getElementById('game-container');
+            const gameContainer = document.getElementById('game-container');
       if (gameContainer) {
         gameContainer.appendChild(this.app.view);
         
-        // Set canvas to fill the container
-        this.app.view.style.width = '100%';
+                this.app.view.style.width = '100%';
         this.app.view.style.height = '100%';
       }
       
       this.removeLoadingElement();
       
-      // Set up containers
-      this.setupContainers();
+            this.setupContainers();
       
-      // Load assets with error handling
-      try {
+            try {
         await this.loadAssets();
       } catch (error) {
         console.error('Error loading assets:', error);
         this.showErrorMessage('Error loading game assets. Please refresh.');
-        return; // Exit early if we can't load critical assets
-      }
+        return;       }
       
-      // Initialize core components
-      this.initializeComponents();
+            this.initializeComponents();
 
-       // Скрываем курсор‑руку сразу при любом клике по канвасу
-    this.app.view.addEventListener('pointerdown', () => {
+           this.app.view.addEventListener('pointerdown', () => {
         this.handCursor.hide();
         this.uiRenderer.hideDialog();
       });
-      // И скрываем, когда начинается drag‑n‑drop карты
-      document.addEventListener('cardDragStart', () => {
+            document.addEventListener('cardDragStart', () => {
         this.handCursor.hide();
         this.uiRenderer.hideDialog();
       });
       
-      // Set up game
-      await this.setupGame();
+            await this.setupGame();
       
-      // Start with intro state
-      this.stateManager.changeState('intro');
+            this.stateManager.changeState('intro');
       
-      // Handle window resizing
-      window.addEventListener('resize', () => this.resize());
+            window.addEventListener('resize', () => this.resize());
       this.resize();
     } catch (error) {
       console.error('Error initializing game:', error);
@@ -363,46 +299,34 @@ sortCardsWithMelds() {
     }
   }
 
-  // Remove loading element
-  removeLoadingElement() {
+    removeLoadingElement() {
     const el = document.getElementById('loading');
     if (el && el.parentNode) {
       el.parentNode.removeChild(el);
     }
   }
 
-  // Set up game containers
-  setupContainers() {
-    // Enable z-index sorting
-    this.containers.main.sortableChildren = true;
+    setupContainers() {
+        this.containers.main.sortableChildren = true;
     this.app.stage.addChild(this.containers.main);
     
-    // Background layer
-    this.containers.background.zIndex = 0;
+        this.containers.background.zIndex = 0;
     this.containers.main.addChild(this.containers.background);
   }
 
-  // Initialize core components
-  initializeComponents() {
-    // Create UI and card renderers
-    this.uiRenderer   = new UIRenderer(this.app, this.assetLoader, this.config);
+    initializeComponents() {
+        this.uiRenderer   = new UIRenderer(this.app, this.assetLoader, this.config);
     this.cardRenderer = new CardRenderer(this.app, this.assetLoader, this.config);
   
-    // Add this line right after creating the cardRenderer
-    this.cardRenderer.setdeckDragCallback(this.preDragCardFromdeck.bind(this));
+        this.cardRenderer.setdeckDragCallback(this.preDragCardFromdeck.bind(this));
   
-    /* --- порядок слоёв ---
-      uiRenderer  z‑index 100  (TopBanner, реклама, кнопки и т.д.)
-      cardRenderer z‑index  10 (все карты, анимации)
-    */
+    
     this.uiRenderer.container.zIndex   = 20;
     this.cardRenderer.container.zIndex = 10;
   
-    // Create hand cursor for tutorials
-    this.handCursor = new HandCursor(this.app, this.assetLoader);
+        this.handCursor = new HandCursor(this.app, this.assetLoader);
     
-    // Create state manager and UI manager
-    this.stateManager = new GameStateManager(this, { 
+        this.stateManager = new GameStateManager(this, { 
       uiRenderer: this.uiRenderer, 
       cardRenderer: this.cardRenderer 
     });
@@ -410,94 +334,64 @@ sortCardsWithMelds() {
     this.uiManager = new UIManager(this.app);
   }
 
-  // Load game assets
-  async loadAssets() {
+    async loadAssets() {
     
     try {
-      // Load assets with progress tracking
-      await this.assetLoader.loadGameAssets(progress => {
+            await this.assetLoader.loadGameAssets(progress => {
         this.updateLoadingProgress(progress);
       });
       
-      // Hide loading screen when done
-      this.hideLoadingScreen();
+            this.hideLoadingScreen();
     } catch (error) {
-      // If loading fails, hide loading screen and propagate error
-      this.hideLoadingScreen();
+            this.hideLoadingScreen();
       throw error;
     }
   }
 
-  // Set up the game
-  async setupGame() {
-    // Add renderers to main container
-    this.containers.main.addChild(this.uiRenderer.container);
+    async setupGame() {
+        this.containers.main.addChild(this.uiRenderer.container);
     this.containers.main.addChild(this.cardRenderer.container);
     
-    // Важное добавление: добавляем avatarsContainer напрямую в main контейнер
-    // с низким zIndex, чтобы он был ниже, чем у карт
-    this.containers.main.addChild(this.uiRenderer.avatarsContainer);
+            this.containers.main.addChild(this.uiRenderer.avatarsContainer);
     
-    // Set up background
-    await this.setupBackground();
+        await this.setupBackground();
     
-    // Set up UI
-    await this.uiRenderer.setupUI();
+        await this.uiRenderer.setupUI();
     
-    // Set up screens
-    await this.setupScreens();
+        await this.setupScreens();
     
-    // Initialize game data
-    this.initializeGameData();
+        this.initializeGameData();
     
-    // Set up event handlers
-    this.setupEventHandlers();
+        this.setupEventHandlers();
 }
 
-  // Set up background
-  // Updated setupBackground method to center-crop the background image
-// Complete replacement for setupBackground method with iPhone SE specific adjustments
-async setupBackground() {
+    async setupBackground() {
   try {
-    // Try to load the specified background image first
-    const bgTexture = await this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/Backgr.webp');
+        const bgTexture = await this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/Backgr.webp');
     
-    // Create a background sprite that maintains aspect ratio
-    const bgSprite = new PIXI.Sprite(bgTexture);
+        const bgSprite = new PIXI.Sprite(bgTexture);
     
-    // Calculate the scaling to cover the entire screen while maintaining aspect ratio
-    const scaleX = this.app.screen.width / bgTexture.width;
+        const scaleX = this.app.screen.width / bgTexture.width;
     const scaleY = this.app.screen.height / bgTexture.height;
-    const scale = Math.max(scaleX, scaleY); // Use the larger scale to ensure covering
+    const scale = Math.max(scaleX, scaleY);     
+        bgSprite.scale.set(scale, scale);
     
-    // Apply the calculated scale
-    bgSprite.scale.set(scale, scale);
+        bgSprite.x = (this.app.screen.width - bgSprite.width) / 2;
     
-    // Center the sprite horizontally
-    bgSprite.x = (this.app.screen.width - bgSprite.width) / 2;
-    
-    // Get device information for very specific adjustments
-    const height = this.app.screen.height;
+        const height = this.app.screen.height;
     const width = this.app.screen.width;
     const aspectRatio = width / height;
     
-    // Special case for iPhone SE and very small screens
-    // iPhone SE has height around 568px and an aspect ratio close to 0.56
-    if (height <= 568) {
-      // Apply a much larger shift for iPhone SE
-      bgSprite.y = (this.app.screen.height - bgSprite.height) / 2 + 180; // Much larger shift down
-      console.log("Applied iPhone SE specific positioning");
+            if (height <= 568) {
+            bgSprite.y = (this.app.screen.height - bgSprite.height) / 2 + 180;       console.log("Applied iPhone SE specific positioning");
     }
-    // Other small screens
-    else if (height < 670) {
-      // Intermediate adjustment for small screens
-      const cardHeight = this.config.cardHeight || 120;
+        else if (height < 670) {
+            const cardHeight = this.config.cardHeight || 120;
       bgSprite.y = (this.app.screen.height - bgSprite.height) / 2 + cardHeight;
       console.log("Applied small screen positioning");
     } 
     else {
-      // Regular vertical centering for normal screens
-      bgSprite.y = (this.app.screen.height - bgSprite.height) / 2;
+            bgSprite.y = (this.app.screen.height - bgSprite.height) / 2;
       console.log("Applied standard positioning");
     }
     
@@ -506,55 +400,39 @@ async setupBackground() {
   } catch (err) {
     console.warn("Using fallback background");
     try {
-      // Try the webp version as a second option
-      const webpTexture = await this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/background.webp');
+            const webpTexture = await this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/background.webp');
       
-      // Create background sprite with center-crop approach
-      const webpSprite = new PIXI.Sprite(webpTexture);
+            const webpSprite = new PIXI.Sprite(webpTexture);
       
-      // Calculate the scaling to cover the entire screen while maintaining aspect ratio
-      const scaleX = this.app.screen.width / webpTexture.width;
+            const scaleX = this.app.screen.width / webpTexture.width;
       const scaleY = this.app.screen.height / webpTexture.height;
-      const scale = Math.max(scaleX, scaleY); // Use the larger scale to ensure covering
+      const scale = Math.max(scaleX, scaleY);       
+            webpSprite.scale.set(scale, scale);
       
-      // Apply the calculated scale
-      webpSprite.scale.set(scale, scale);
+            webpSprite.x = (this.app.screen.width - webpSprite.width) / 2;
       
-      // Center the sprite horizontally
-      webpSprite.x = (this.app.screen.width - webpSprite.width) / 2;
-      
-      // Get device information for very specific adjustments
-      const height = this.app.screen.height;
+            const height = this.app.screen.height;
       const width = this.app.screen.width;
       const aspectRatio = width / height;
       
-      // Special case for iPhone SE and very small screens
-      // iPhone SE has height around 568px and an aspect ratio close to 0.56
-      if (height <= 568) {
-        // Apply a much larger shift for iPhone SE
-        webpSprite.y = (this.app.screen.height - webpSprite.height) / 2 + 180; // Much larger shift down
-        console.log("Applied iPhone SE specific positioning (webp)");
+                  if (height <= 568) {
+                webpSprite.y = (this.app.screen.height - webpSprite.height) / 2 + 180;         console.log("Applied iPhone SE specific positioning (webp)");
       }
-      // Other small screens
-      else if (height < 670) {
-        // Intermediate adjustment for small screens
-        const cardHeight = this.config.cardHeight || 120;
+            else if (height < 670) {
+                const cardHeight = this.config.cardHeight || 120;
         webpSprite.y = (this.app.screen.height - webpSprite.height) / 2 + cardHeight;
         console.log("Applied small screen positioning (webp)");
       } 
       else {
-        // Regular vertical centering for normal screens
-        webpSprite.y = (this.app.screen.height - webpSprite.height) / 2;
+                webpSprite.y = (this.app.screen.height - webpSprite.height) / 2;
         console.log("Applied standard positioning (webp)");
       }
       
       this.containers.background.removeChildren();
       this.containers.background.addChild(webpSprite);
     } catch (err2) {
-      // Create a fallback background if texture loading fails
-      const fallbackBg = new PIXI.Graphics();
-      fallbackBg.beginFill(0x0B5D2E); // Green table color
-      fallbackBg.drawRect(0, 0, this.app.screen.width, this.app.screen.height);
+            const fallbackBg = new PIXI.Graphics();
+      fallbackBg.beginFill(0x0B5D2E);       fallbackBg.drawRect(0, 0, this.app.screen.width, this.app.screen.height);
       fallbackBg.endFill();
       
       this.containers.background.removeChildren();
@@ -563,70 +441,50 @@ async setupBackground() {
   }
 }
 
-  // Set up game screens
-  async setupScreens() {
-    // Set up intro screen
-    this.setupIntroScreen();
+    async setupScreens() {
+        this.setupIntroScreen();
     
-    // Set up dealing screen
-    this.setupDealingScreen();
+        this.setupDealingScreen();
     
-    // Set up end screen
-    this.setupEndScreen();
+        this.setupEndScreen();
   }
 
-  // Set up intro screen
-  // Updated setupIntroScreen method to use center-cropping for background
-// Updated setupIntroScreen method to use center-cropping for background
-setupIntroScreen() {
+    setupIntroScreen() {
   const introContainer = new PIXI.Container();
   
-  // Загрузка фона
-  this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/Backgr.webp')
+    this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/Backgr.webp')
     .then(bgTexture => {
-      // Create background sprite with center-crop approach
-      const bgSprite = new PIXI.Sprite(bgTexture);
+            const bgSprite = new PIXI.Sprite(bgTexture);
       
-      // Calculate the scaling to cover the entire screen while maintaining aspect ratio
-      const scaleX = this.app.screen.width / bgTexture.width;
+            const scaleX = this.app.screen.width / bgTexture.width;
       const scaleY = this.app.screen.height / bgTexture.height;
-      const scale = Math.max(scaleX, scaleY); // Use the larger scale to ensure covering
+      const scale = Math.max(scaleX, scaleY);       
+            bgSprite.scale.set(scale, scale);
       
-      // Apply the calculated scale
-      bgSprite.scale.set(scale, scale);
+            bgSprite.x = (this.app.screen.width - bgSprite.width) / 2;
       
-      // Center the sprite horizontally
-      bgSprite.x = (this.app.screen.width - bgSprite.width) / 2;
-      
-      // Special positioning for height on small screens like iPhone SE
-      const isSmallScreen = this.app.screen.height < 570; // Approximate iPhone SE height threshold
-      
+            const isSmallScreen = this.app.screen.height < 570;       
       if (isSmallScreen) {
-        // Shift down by the height of a card to show better portion of background
-        const cardHeight = this.config.cardHeight || 120;
+                const cardHeight = this.config.cardHeight || 120;
         bgSprite.y = (this.app.screen.height - bgSprite.height) / 2 + cardHeight;
       } else {
-        // Regular vertical centering for normal screens
-        bgSprite.y = (this.app.screen.height - bgSprite.height) / 2;
+                bgSprite.y = (this.app.screen.height - bgSprite.height) / 2;
       }
       
       introContainer.addChild(bgSprite);
       
-      // После загрузки фона загружаем остальные элементы обучения
-      this.setupTutorialElements(introContainer);
+            this.setupTutorialElements(introContainer);
     })
     .catch(err => {
       console.warn("Could not load background for intro screen", err);
       
-      // Запасной фон
-      const fallbackBg = new PIXI.Graphics();
+            const fallbackBg = new PIXI.Graphics();
       fallbackBg.beginFill(0x0B5D2E);
       fallbackBg.drawRect(0, 0, this.app.screen.width, this.app.screen.height);
       fallbackBg.endFill();
       introContainer.addChild(fallbackBg);
       
-      // Загрузка элементов обучения даже при ошибке фона
-      this.setupTutorialElements(introContainer);
+            this.setupTutorialElements(introContainer);
     });
   
   introContainer.visible = false;
@@ -634,16 +492,12 @@ setupIntroScreen() {
   this.introContainer = introContainer;
 }
 
-// Полностью переработанная функция setupTutorialElements в game.js
 setupTutorialElements(introContainer) {
-  // Enable z-index sorting for the intro container
-  introContainer.sortableChildren = true;
+    introContainer.sortableChildren = true;
   
-  // Determine font size based on screen width
-  const fontSize = this.app.screen.width < 500 ? 40 : 48;
+    const fontSize = this.app.screen.width < 500 ? 40 : 48;
   
-  // Title "Make Set or Run!"
-  const titleText = new PIXI.Text("Make SET or RUN!", {
+    const titleText = new PIXI.Text("Make SET or RUN!", {
     fontFamily: "Arial",
     fontSize: fontSize,
     fill: 0xFFFFFF,
@@ -656,55 +510,36 @@ setupTutorialElements(introContainer) {
   });
   titleText.anchor.set(0.5);
   titleText.position.set(this.app.screen.width / 2, 100);
-  titleText.zIndex = 20;  // Set a higher z-index for text
-  introContainer.addChild(titleText);
+  titleText.zIndex = 20;    introContainer.addChild(titleText);
   
-  // Card dimensions
-  const cardWidth = this.config.cardWidth || 80;
+    const cardWidth = this.config.cardWidth || 80;
   const cardHeight = this.config.cardHeight || 120;
-  const spacing = 50; // Spacing between cards
-  
-  // Create the main container for all cards
-  const cardsContainer = new PIXI.Container();
-  cardsContainer.x = this.app.screen.width / 2 - 180; // Center the cards
-  cardsContainer.y = 350; // Position vertically
-  cardsContainer.zIndex = 10;  // Set z-index for cards
-  introContainer.addChild(cardsContainer);
+  const spacing = 50;   
+    const cardsContainer = new PIXI.Container();
+  cardsContainer.x = this.app.screen.width / 2 - 180;   cardsContainer.y = 350;   cardsContainer.zIndex = 10;    introContainer.addChild(cardsContainer);
 
-  // Create deck with multiple cards and lower z-index
-  const deckContainer = new PIXI.Container();
-  // Position the deck slightly to the left as requested
-  deckContainer.x = cardsContainer.x + 380 - cardWidth;
+    const deckContainer = new PIXI.Container();
+    deckContainer.x = cardsContainer.x + 380 - cardWidth;
   deckContainer.y = cardsContainer.y + 10;
-  deckContainer.scale.set(0.9); // Scale down the deck
-  // Set lower z-index for the deck to appear behind the cards
-  deckContainer.zIndex = 5;  // Lower value to ensure it's behind cards
-  introContainer.addChild(deckContainer);
+  deckContainer.scale.set(0.9);     deckContainer.zIndex = 5;    introContainer.addChild(deckContainer);
 
-  // Create a stack of 4 cards to represent the deck
-  const createdeckStack = () => {
-    // Try to load the card back texture
-    this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/CardBack_Blue.webp')
+    const createdeckStack = () => {
+        this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/CardBack_Blue.webp')
       .then(texture => {
-        // Create 4 cards with slight offset for stack effect
-        for (let i = 0; i < 4; i++) {
+                for (let i = 0; i < 4; i++) {
           const deckCard = new PIXI.Sprite(texture);
           deckCard.width = cardWidth;
           deckCard.height = cardHeight;
-          // Small offset for each card to create stack effect
-          deckCard.x = -i * 2;
+                    deckCard.x = -i * 2;
           deckCard.y = -i * 2;
-          // Add slight rotation to each card for a natural look
-          deckCard.rotation = (Math.random() * 0.04) - 0.02;
+                    deckCard.rotation = (Math.random() * 0.04) - 0.02;
           deckContainer.addChild(deckCard);
         }
       })
       .catch(err => {
-        // Fallback: create 4 cards with graphics
-        console.warn("Could not load card back texture", err);
+                console.warn("Could not load card back texture", err);
         
-        // Create multiple cards with slight offsets
-        for (let i = 0; i < 4; i++) {
+                for (let i = 0; i < 4; i++) {
           const fallbackdeck = new PIXI.Graphics();
           fallbackdeck.beginFill(0x0000AA);
           fallbackdeck.drawRoundedRect(0, 0, cardWidth, cardHeight, 5);
@@ -712,8 +547,7 @@ setupTutorialElements(introContainer) {
           fallbackdeck.lineStyle(2, 0xFFFFFF);
           fallbackdeck.drawRoundedRect(5, 5, cardWidth - 10, cardHeight - 10, 3);
           
-          // Add pattern to card back
-          fallbackdeck.lineStyle(1, 0xFFFFFF, 0.5);
+                    fallbackdeck.lineStyle(1, 0xFFFFFF, 0.5);
           for (let j = 0; j < 5; j++) {
             fallbackdeck.drawRoundedRect(
               15 + j * 5, 
@@ -724,22 +558,18 @@ setupTutorialElements(introContainer) {
             );
           }
           
-          // Small offset for each card to create stack effect
-          fallbackdeck.x = -i * 2;
+                    fallbackdeck.x = -i * 2;
           fallbackdeck.y = -i * 2;
-          // Add slight rotation to each card for a natural look
-          fallbackdeck.rotation = (Math.random() * 0.04) - 0.02;
+                    fallbackdeck.rotation = (Math.random() * 0.04) - 0.02;
           
           deckContainer.addChild(fallbackdeck);
         }
       });
   };
 
-  // Create the card stack
-  createdeckStack();
+    createdeckStack();
   
-  // Add instructions text
-  const instructionText = new PIXI.Text("Tap cards to play!", {
+    const instructionText = new PIXI.Text("Tap cards to play!", {
     fontFamily: "Arial",
     fontSize: 32,
     fill: 0xFFFFFF,
@@ -752,16 +582,12 @@ setupTutorialElements(introContainer) {
   });
   instructionText.anchor.set(0.5);
   instructionText.position.set(this.app.screen.width / 2, this.app.screen.height - 100);
-  instructionText.zIndex = 20;  // Higher z-index for text
-  introContainer.addChild(instructionText);
+  instructionText.zIndex = 20;    introContainer.addChild(instructionText);
   
-  // Create container for the card row - this will handle proper z-index
-  const cardRowContainer = new PIXI.Container();
-  cardRowContainer.sortableChildren = true; // Enable sorting by zIndex
-  cardsContainer.addChild(cardRowContainer);
+    const cardRowContainer = new PIXI.Container();
+  cardRowContainer.sortableChildren = true;   cardsContainer.addChild(cardRowContainer);
   
-  // Set up card data for both layouts
-  const baseCards = [
+    const baseCards = [
     { value: '4', suit: 'spades', position: 0 },
     { value: '6', suit: 'spades', position: 2 },
     { value: '7', suit: 'spades', position: 3 },
@@ -769,17 +595,12 @@ setupTutorialElements(introContainer) {
     { value: '5', suit: 'diamonds', position: 5 }
   ];
   
-  // Movable card (5 of spades)
-  const movableCard = { value: '5', suit: 'spades' };
+    const movableCard = { value: '5', suit: 'spades' };
   
-  // Create a card-holding hand cursor
-  const createHandCursor = () => {
+    const createHandCursor = () => {
     const handContainer = new PIXI.Container();
-    handContainer.zIndex = 300; // High z-index to be above everything
-    
-    // Rest of the hand cursor implementation...
-    // Try to load the hand image
-    this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/hand.webp')
+    handContainer.zIndex = 300;     
+            this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/hand.webp')
       .then(texture => {
         const handSprite = new PIXI.Sprite(texture);
         handSprite.anchor.set(-0.1, -0.1);
@@ -787,26 +608,20 @@ setupTutorialElements(introContainer) {
         handContainer.addChild(handSprite);
       })
       .catch(err => {
-        // Create fallback hand graphic
-        console.warn("Could not load hand texture", err);
+                console.warn("Could not load hand texture", err);
         const handGraphics = new PIXI.Graphics();
         
-        // Draw hand in skin tone
-        handGraphics.beginFill(0xFFCCBB);
-        handGraphics.drawEllipse(20, 30, 15, 25);  // Palm
-        handGraphics.drawEllipse(20, 0, 8, 20);    // Finger
-        handGraphics.endFill();
+                handGraphics.beginFill(0xFFCCBB);
+        handGraphics.drawEllipse(20, 30, 15, 25);          handGraphics.drawEllipse(20, 0, 8, 20);            handGraphics.endFill();
         
-        // Blue sleeve
-        handGraphics.beginFill(0x3366CC);
+                handGraphics.beginFill(0x3366CC);
         handGraphics.drawRoundedRect(0, 50, 40, 20, 5);
         handGraphics.endFill();
         
         handContainer.addChild(handGraphics);
       });
     
-    // Position hand under the movable card initially
-    handContainer.x = cardsContainer.x + spacing * 1;
+        handContainer.x = cardsContainer.x + spacing * 1;
     handContainer.y = cardsContainer.y + cardHeight/2;
     handContainer.visible = true;
     
@@ -814,11 +629,9 @@ setupTutorialElements(introContainer) {
     return handContainer;
   };
   
-  // Create sprites for base cards
-  const cardSprites = [];
+    const cardSprites = [];
   
-  // Load base card sprites and set up highlights and animations
-  Promise.all(baseCards.map(card => {
+    Promise.all(baseCards.map(card => {
     const cardPath = `https://koshmosh43.github.io/playable/assets/cards/${card.suit}/${card.value}_${card.suit.charAt(0).toUpperCase()}${card.suit.slice(1)}.webp`;
     return this.assetLoader.loadTexture(cardPath)
       .then(texture => {
@@ -834,11 +647,9 @@ setupTutorialElements(introContainer) {
       });
   }))
   .then(sprites => {
-    // Store all base card sprites
-    cardSprites.push(...sprites);
+        cardSprites.push(...sprites);
     
-    // Now create the movable 5♠ card
-    const cardPath = `https://koshmosh43.github.io/playable/assets/cards/${movableCard.suit}/${movableCard.value}_${movableCard.suit.charAt(0).toUpperCase()}${movableCard.suit.slice(1)}.webp`;
+        const cardPath = `https://koshmosh43.github.io/playable/assets/cards/${movableCard.suit}/${movableCard.value}_${movableCard.suit.charAt(0).toUpperCase()}${movableCard.suit.slice(1)}.webp`;
     return this.assetLoader.loadTexture(cardPath)
       .then(texture => {
         const movingCard = new PIXI.Sprite(texture);
@@ -846,59 +657,45 @@ setupTutorialElements(introContainer) {
         movingCard.height = cardHeight;
         movingCard.cardData = movableCard;
         
-        // Создание текста "RUN!" над зелеными картами
-        const runText = new PIXI.Text("RUN!", {
+                const runText = new PIXI.Text("RUN!", {
           fontFamily: "Arial",
           fontSize: 40,
           fontWeight: "bold",
-          fill: 0xFFF8C9, // Кремово-желтый цвет
-          stroke: 0x8B4513, // Коричневая обводка
-          strokeThickness: 6,
+          fill: 0xFFF8C9,           stroke: 0x8B4513,           strokeThickness: 6,
           dropShadow: true,
           dropShadowColor: 0x000000,
           dropShadowDistance: 4
         });
         runText.anchor.set(0.5);
-        runText.x = spacing; // Центр 2-й слева карты
-        runText.y = -100; // 100 пикселей выше верха карт
-        runText.alpha = 1;
+        runText.x = spacing;         runText.y = -100;         runText.alpha = 1;
         runText.visible = true;
         cardRowContainer.addChild(runText);
 
-        // Создание текста "SET!" над желтыми картами
-        const setText = new PIXI.Text("SET!", {
+                const setText = new PIXI.Text("SET!", {
           fontFamily: "Arial",
           fontSize: 40,
           fontWeight: "bold",
-          fill: 0xFFF8C9, // Кремово-желтый цвет
-          stroke: 0x8B4513, // Коричневая обводка
-          strokeThickness: 6,
+          fill: 0xFFF8C9,           stroke: 0x8B4513,           strokeThickness: 6,
           dropShadow: true,
           dropShadowColor: 0x000000,
           dropShadowDistance: 4
         });
         setText.anchor.set(0.5);
-        setText.x = spacing * 4; // Центр предпоследней карты
-        setText.y = -100; // 100 пикселей выше верха карт
-        setText.alpha = 0;
+        setText.x = spacing * 4;         setText.y = -100;         setText.alpha = 0;
         setText.visible = true;
         cardRowContainer.addChild(setText);
 
-        // Создание фильтров для подсветки карт
-        const runColorMatrix = new PIXI.filters.ColorMatrixFilter();
-// Зеленый для RUN — точно такие же каналы, как в applySpecialHighlight
+                const runColorMatrix = new PIXI.filters.ColorMatrixFilter();
 runColorMatrix.matrix[0]  = 0.9;
 runColorMatrix.matrix[6]  = 1.1;
 runColorMatrix.matrix[12] = 0.9;
 
 const setColorMatrix = new PIXI.filters.ColorMatrixFilter();
-// Желтый для SET — те же значения, что и у зелёного, только цвет другой
 setColorMatrix.matrix[0]  = 1.1;
 setColorMatrix.matrix[6]  = 1.1;
 setColorMatrix.matrix[12] = 0.9;
         
-        // Create "SET!" and "RUN!" indicators
-        const runIndicator = new PIXI.Text("RUN!", {
+                const runIndicator = new PIXI.Text("RUN!", {
           fontFamily: "Arial",
           fontSize: 72,
           fontWeight: "bold",
@@ -930,131 +727,85 @@ setColorMatrix.matrix[12] = 0.9;
         setIndicator.alpha = 0;
         introContainer.addChild(setIndicator);
         
-        // Create hand cursor directly in this function
-        const handCursor = createHandCursor();
+                const handCursor = createHandCursor();
         
         const updateCardZIndices = () => {
           let order = [];
           
           if (showingRun) {
-              // Режим "RUN" - карты могут перекрываться в особом порядке
-              order = [
-                  { card: baseCards[0], zIndex: 0 },  // 4♠ (самая нижняя)
-                  { card: baseCards[1], zIndex: 2 },  // 6♠ (над 5♠)
-                  { card: movableCard, zIndex: 1 },   // 5♠ (между 4♠ и 6♠)
-                  { card: baseCards[2], zIndex: 3 },  // 7♠
-                  { card: baseCards[3], zIndex: 4 },  // 5♥
-                  { card: baseCards[4], zIndex: 5 }   // 5♦ (самая верхняя)
-              ];
+                            order = [
+                  { card: baseCards[0], zIndex: 0 },                    { card: baseCards[1], zIndex: 2 },                    { card: movableCard, zIndex: 1 },                     { card: baseCards[2], zIndex: 3 },                    { card: baseCards[3], zIndex: 4 },                    { card: baseCards[4], zIndex: 5 }                 ];
           } else {
-              // Режим "SET" - последовательные z-индексы без переплетения
-              order = [
-                  { card: baseCards[0], zIndex: 0 },  // 4♠
-                  { card: baseCards[1], zIndex: 1 },  // 6♠
-                  { card: baseCards[2], zIndex: 2 },  // 7♠
-                  { card: baseCards[3], zIndex: 3 },  // 5♥
-                  { card: movableCard, zIndex: 4 },   // 5♠
-                  { card: baseCards[4], zIndex: 5 }   // 5♦
-              ];
+                            order = [
+                  { card: baseCards[0], zIndex: 0 },                    { card: baseCards[1], zIndex: 1 },                    { card: baseCards[2], zIndex: 2 },                    { card: baseCards[3], zIndex: 3 },                    { card: movableCard, zIndex: 4 },                     { card: baseCards[4], zIndex: 5 }                 ];
           }
           
-          // Находим все карты в контейнере
-          const allCards = cardRowContainer.children.filter(child => child.cardData);
+                    const allCards = cardRowContainer.children.filter(child => child.cardData);
           
-          // Применяем z-индексы к соответствующим картам
-          allCards.forEach(sprite => {
+                    allCards.forEach(sprite => {
               const match = order.find(item => 
                   item.card.value === sprite.cardData.value && 
                   item.card.suit === sprite.cardData.suit
               );
               
-              // Устанавливаем z-индекс, если карта найдена в порядке
-              if (match) {
+                            if (match) {
                   sprite.zIndex = match.zIndex;
               }
           });
           
-          // Сортируем дочерние элементы контейнера по z-индексу
-          cardRowContainer.sortChildren();
+                    cardRowContainer.sortChildren();
         };
 
-        // Функция подсветки карт для комбинации RUN
-        const highlightRunCards = () => {
-          // Сначала сбрасываем все подсветки
-          cardSprites.forEach(sprite => {
+                const highlightRunCards = () => {
+                    cardSprites.forEach(sprite => {
             sprite.filters = null;
           });
           movingCard.filters = null;
           
-          // Применяем зеленую подсветку к картам RUN (4♠, 5♠, 6♠)
-          cardSprites[0].filters = [runColorMatrix]; // 4♠
-          movingCard.filters = [runColorMatrix];     // 5♠
-          cardSprites[1].filters = [runColorMatrix]; // 6♠
-          
-          // Обновляем z-индексы карт
-          updateCardZIndices();
+                    cardSprites[0].filters = [runColorMatrix];           movingCard.filters = [runColorMatrix];               cardSprites[1].filters = [runColorMatrix];           
+                    updateCardZIndices();
         };
 
-        // Функция подсветки карт для комбинации SET
-        const highlightSetCards = () => {
-          // Сначала сбрасываем все подсветки
-          cardSprites.forEach(sprite => {
+                const highlightSetCards = () => {
+                    cardSprites.forEach(sprite => {
             sprite.filters = null;
           });
           movingCard.filters = null;
           
-          // Применяем желтую подсветку к картам SET (три пятерки)
-          cardSprites[3].filters = [setColorMatrix]; // 5♥
-          movingCard.filters = [setColorMatrix];     // 5♠
-          cardSprites[4].filters = [setColorMatrix]; // 5♦
-          
-          // Обновляем z-индексы карт
-          updateCardZIndices();
+                    cardSprites[3].filters = [setColorMatrix];           movingCard.filters = [setColorMatrix];               cardSprites[4].filters = [setColorMatrix];           
+                    updateCardZIndices();
         };
 
-        /* Расстановка карт веером с обновлением позиций и z‑индексов */
+        
         const arrangeCardsInFan = () => {
-          // Параметры для эффекта веера
-          const fanAngle = 4;        // угол наклона между картами (в градусах)
-          const verticalOffset = 15; // вертикальное смещение
-          
+                    const fanAngle = 4;                  const verticalOffset = 15;           
           if (showingRun) {
-            // Раскладка RUN: порядок должен быть – 4♠, 5♠, 6♠, 7♠, 5♥, 5♦
-            // Карты базового набора (baseCards) и движущаяся карта (movableCard) располагаются сразу в финальные позиции
-            cardSprites[0].x = spacing * 0;
+                                    cardSprites[0].x = spacing * 0;
             cardSprites[0].y = -verticalOffset * 0;
             cardSprites[0].rotation = (-fanAngle * 2) * Math.PI / 180;
             
-            // 6♠
-            cardSprites[1].x = spacing * 2;
+                        cardSprites[1].x = spacing * 2;
             cardSprites[1].y = -verticalOffset * 2;
             cardSprites[1].rotation = 0;
             
-            // 7♠
-            cardSprites[2].x = spacing * 3;
+                        cardSprites[2].x = spacing * 3;
             cardSprites[2].y = -verticalOffset * 3;
             cardSprites[2].rotation = (fanAngle) * Math.PI / 180;
             
-            // 5♥ – эта карта должна сразу оказаться между 7♠ и 5♦
-            cardSprites[3].x = spacing * 4;
+                        cardSprites[3].x = spacing * 4;
             cardSprites[3].y = -verticalOffset * 4;
             cardSprites[3].rotation = (fanAngle * 2) * Math.PI / 180;
             
-            // 5♦
-            cardSprites[4].x = spacing * 5;
+                        cardSprites[4].x = spacing * 5;
             cardSprites[4].y = -verticalOffset * 5;
             cardSprites[4].rotation = (fanAngle * 3) * Math.PI / 180;
             
-            // Движущаяся карта (например, 5♠) позиционируется отдельно.
-            // Если она участвует только в RUN‑раскладке, её позиция задаётся так,
-            // чтобы не заказывать (перекрывать) другую карту.
-            movingCard.x = spacing * 1;
+                                                movingCard.x = spacing * 1;
             movingCard.y = -verticalOffset * 1;
             movingCard.rotation = (-fanAngle) * Math.PI / 180;
             
           } else {
-            // Раскладка SET: порядок должен быть – 4♠, 6♠, 7♠, 5♥, 5♠, 5♦
-            cardSprites[0].x = spacing * 0;
+                        cardSprites[0].x = spacing * 0;
             cardSprites[0].y = -verticalOffset * 0;
             cardSprites[0].rotation = (-fanAngle * 2) * Math.PI / 180;
             
@@ -1079,65 +830,43 @@ setColorMatrix.matrix[12] = 0.9;
             movingCard.rotation = (fanAngle * 2) * Math.PI / 180;
           }
           
-          // После того как все карты сразу установили свои координаты, обновляем их z‑индексы
-          updateCardZIndices();
+                    updateCardZIndices();
         };
         
-        // Set up animation states
-        let showingRun = true; // Start with RUN
-        let isFirstRun = true; // Flag for first run animation
-        
-        // Function to show RUN layout with synchronized card and hand animations
-        const showRunLayout = () => {
-          // For RUN: 4♠, 5♠, 6♠, 7♠, 5♥, 5♦
-          
-          // Create a synchronized timeline for all animations
-          const timeline = gsap.timeline({
+                let showingRun = true;         let isFirstRun = true;         
+                const showRunLayout = () => {
+                    
+                    const timeline = gsap.timeline({
             onComplete: updateCardZIndices
           });
           
-          // If this is first animation, don't move down first - just position cards correctly
-          if (isFirstRun) {
+                    if (isFirstRun) {
             isFirstRun = false;
             
-            // Position cards correctly for RUN layout
-            cardSprites.forEach((sprite, index) => {
+                        cardSprites.forEach((sprite, index) => {
               const pos = baseCards[index].position;
               sprite.x = pos * spacing;
               sprite.y = 0;
               cardRowContainer.addChild(sprite);
             });
             
-            // Position moving card at position 1 for RUN layout
-            movingCard.x = spacing * 1;
+                        movingCard.x = spacing * 1;
             movingCard.y = 0;
             cardRowContainer.addChild(movingCard);
             
-            // Set initial z-indices for RUN layout
-            movingCard.zIndex = 1;  // 5♠ (between 4♠ and 6♠)
-            cardSprites[0].zIndex = 0;  // 4♠ (lowest)
-            cardSprites[1].zIndex = 2;  // 6♠ (above 5♠)
-            cardSprites[2].zIndex = 3;  // 7♠
-            cardSprites[3].zIndex = 4;  // 5♥
-            cardSprites[4].zIndex = 5;  // 5♦ (highest)
-            cardRowContainer.sortChildren();
+                        movingCard.zIndex = 1;              cardSprites[0].zIndex = 0;              cardSprites[1].zIndex = 2;              cardSprites[2].zIndex = 3;              cardSprites[3].zIndex = 4;              cardSprites[4].zIndex = 5;              cardRowContainer.sortChildren();
             
-            // Position hand cursor under the card
-            handCursor.x = cardsContainer.x + spacing * 1;
+                        handCursor.x = cardsContainer.x + spacing * 1;
             handCursor.y = cardsContainer.y + cardHeight/2;
             
-            // Применяем подсветку к картам RUN
-            highlightRunCards();
+                        highlightRunCards();
 
-            // Настраиваем текст
-            runText.x = spacing; // Центр 2-й слева карты
-            runText.visible = true;
+                        runText.x = spacing;             runText.visible = true;
             runText.alpha = 1;
             setText.visible = false;
             setText.alpha = 0;
             
-            // Show RUN indicator
-            gsap.timeline()
+                        gsap.timeline()
               .to(runIndicator, {
                 alpha: 1,
                 scale: 1.2,
@@ -1154,79 +883,57 @@ setColorMatrix.matrix[12] = 0.9;
               });
           } 
           else {
-            // For subsequent animations, move from SET to RUN layout
-            // First, synchronously move card and hand down together
-            timeline.to([movingCard, handCursor], {
+                                    timeline.to([movingCard, handCursor], {
               y: (i, target) => i === 0 ? cardHeight + 30 : cardsContainer.y + cardHeight + 30,
               duration: 0.5,
               ease: "power2.out"
             });
             
-            // Move other cards to their RUN positions
-            timeline.to([
-              cardSprites[1], // 6♠ to position 2
-              cardSprites[2], // 7♠ to position 3
-              cardSprites[3], // 5♥ to position 4
-              cardSprites[4]  // 5♦ to position 5
-            ], {
+                        timeline.to([
+              cardSprites[1],               cardSprites[2],               cardSprites[3],               cardSprites[4]              ], {
               stagger: 0.05,
               x: (i, target) => spacing * (2 + i),
               duration: 0.4,
               ease: "power2.inOut"
             }, "-=0.3");
             
-            // Move card and hand horizontally to position 1
-            timeline.to([movingCard, handCursor], {
+                        timeline.to([movingCard, handCursor], {
               x: (i, target) => i === 0 ? spacing * 1 : cardsContainer.x + spacing * 1,
               duration: 0.4,
               ease: "power2.inOut",
               onUpdate: function() {
-                // Check if we're halfway through the horizontal movement animation
-                if (this.progress() >= 0.5 && movingCard.zIndex !== 1) {
-                  // Change z-index for RUN layout halfway through the animation
-                  movingCard.zIndex = 1;  // 5♠ (between 4♠ and 6♠)
-                  cardSprites[0].zIndex = 0;  // 4♠ (lowest)
-                  cardSprites[1].zIndex = 2;  // 6♠ (above 5♠)
-                  cardSprites[2].zIndex = 3;  // 7♠
-                  cardSprites[3].zIndex = 4;  // 5♥
-                  cardSprites[4].zIndex = 5;  // 5♦ (highest)
-                  cardRowContainer.sortChildren();
+                                if (this.progress() >= 0.5 && movingCard.zIndex !== 1) {
+                                    movingCard.zIndex = 1;                    cardSprites[0].zIndex = 0;                    cardSprites[1].zIndex = 2;                    cardSprites[2].zIndex = 3;                    cardSprites[3].zIndex = 4;                    cardSprites[4].zIndex = 5;                    cardRowContainer.sortChildren();
                 }
               }
             });
             
-            // Move card and hand back up together
-            timeline.to([movingCard, handCursor], {
+                        timeline.to([movingCard, handCursor], {
               y: (i, target) => i === 0 ? 0 : cardsContainer.y + cardHeight/2,
               duration: 0.3,
               ease: "power2.out"
             });
             
-            // Анимация скрытия текста SET
-            timeline.to(setText, {
+                        timeline.to(setText, {
               alpha: 0,
               duration: 0.3,
               onComplete: () => {
                 setText.visible = false;
                 
-                // Применяем подсветку карт RUN
-                highlightRunCards();
+                                highlightRunCards();
               }
             }, "-=0.4");
 
-            // Анимация появления текста RUN
-            timeline.to(runText, {
+                        timeline.to(runText, {
               alpha: 1,
               duration: 0.3,
               onStart: () => {
                 runText.visible = true;
                 runText.alpha = 0;
-                runText.x = spacing; // Центр 2-й слева карты
-              }
+                runText.x = spacing;               }
             }, "-=0.3");
             
-            // Show RUN indicator
-            timeline.add(() => {
+                        timeline.add(() => {
               runIndicator.visible = true;
               runIndicator.alpha = 0;
               runIndicator.scale.set(0.8);
@@ -1250,94 +957,70 @@ setColorMatrix.matrix[12] = 0.9;
           }
         };
         
-        // Function to show SET layout with synchronized card and hand animations
-        const showSetLayout = () => {
-          // For SET: 4♠, 6♠, 7♠, 5♥, 5♠, 5♦
-          
-          // Create a synchronized timeline for all animations
-          const timeline = gsap.timeline({
+                const showSetLayout = () => {
+                    
+                    const timeline = gsap.timeline({
             onComplete: updateCardZIndices
           });
           
-          // Move card and hand down together
-          timeline.to([movingCard, handCursor], {
+                    timeline.to([movingCard, handCursor], {
             y: (i, target) => i === 0 ? cardHeight + 30 : cardsContainer.y + cardHeight + 30,
             duration: 0.4,
             ease: "power2.out"
           });
           
-          // Move other cards to their SET positions
-          timeline.to([
-            cardSprites[1], // 6♠ to position 1
-            cardSprites[2], // 7♠ to position 2
-            cardSprites[3]  // 5♥ to position 3
-          ], {
+                    timeline.to([
+            cardSprites[1],             cardSprites[2],             cardSprites[3]            ], {
             stagger: 0.05,
             x: (i, target) => spacing * (1 + i),
             duration: 0.4,
             ease: "power2.inOut"
           }, "-=0.3");
           
-          // 5♦ to position 5
-          timeline.to(cardSprites[4], {
+                    timeline.to(cardSprites[4], {
             x: spacing * 5,
             duration: 0.4,
             ease: "power2.inOut"
           }, "-=0.4");
           
-          // Move card and hand horizontally to position 4
-          timeline.to([movingCard, handCursor], {
+                    timeline.to([movingCard, handCursor], {
             x: (i, target) => i === 0 ? spacing * 4 : cardsContainer.x + spacing * 4,
             duration: 0.4,
             ease: "power2.inOut",
             onUpdate: function() {
-              // Check if we're halfway through the horizontal movement animation
-              if (this.progress() >= 0.5 && movingCard.zIndex !== 4) {
-                // Change z-index for SET layout halfway through the animation
-                movingCard.zIndex = 4;  // 5♠ (above 5♥, below 5♦)
-                cardSprites[0].zIndex = 0;
-                cardSprites[0].zIndex = 0;  // 4♠
-                cardSprites[1].zIndex = 1;  // 6♠
-                cardSprites[2].zIndex = 2;  // 7♠
-                cardSprites[3].zIndex = 3;  // 5♥
-                cardSprites[4].zIndex = 5;  // 5♦
-                cardRowContainer.sortChildren();
+                            if (this.progress() >= 0.5 && movingCard.zIndex !== 4) {
+                                movingCard.zIndex = 4;                  cardSprites[0].zIndex = 0;
+                cardSprites[0].zIndex = 0;                  cardSprites[1].zIndex = 1;                  cardSprites[2].zIndex = 2;                  cardSprites[3].zIndex = 3;                  cardSprites[4].zIndex = 5;                  cardRowContainer.sortChildren();
               }
             }
           });
           
-          // Move card and hand back up together
-          timeline.to([movingCard, handCursor], {
+                    timeline.to([movingCard, handCursor], {
             y: (i, target) => i === 0 ? 0 : cardsContainer.y + cardHeight/2,
             duration: 0.3,
             ease: "power2.out"
           });
           
-          // Анимация скрытия текста RUN
-          timeline.to(runText, {
+                    timeline.to(runText, {
             alpha: 0,
             duration: 0.3,
             onComplete: () => {
               runText.visible = false;
               
-              // Применяем подсветку карт SET
-              highlightSetCards();
+                            highlightSetCards();
             }
           }, "-=0.4");
 
-          // Анимация появления текста SET
-          timeline.to(setText, {
+                    timeline.to(setText, {
             alpha: 1,
             duration: 0.3,
             onStart: () => {
               setText.visible = true;
               setText.alpha = 0;
-              setText.x = spacing * 4; // Центр предпоследней карты
-            }
+              setText.x = spacing * 4;             }
           }, "-=0.3");
           
-          // Show SET indicator
-          timeline.add(() => {
+                    timeline.add(() => {
             setIndicator.visible = true;
             setIndicator.alpha = 0;
             setIndicator.scale.set(0.8);
@@ -1360,13 +1043,10 @@ setColorMatrix.matrix[12] = 0.9;
           }, "-=0.3");
         };
         
-        // Show initial RUN layout without animation
-        showRunLayout();
+                showRunLayout();
         
-        // Start alternating between layouts with slight delay for the first transition
-        setTimeout(() => {
-          // Start alternating animations
-          let animationIntervalId = setInterval(() => {
+                setTimeout(() => {
+                    let animationIntervalId = setInterval(() => {
             showingRun = !showingRun;
             if (showingRun) {
               showRunLayout();
@@ -1375,17 +1055,14 @@ setColorMatrix.matrix[12] = 0.9;
             }
           }, 1900);
           
-          // Store interval ID for cleanup if needed
-          this.tutorialAnimationInterval = animationIntervalId;
+                    this.tutorialAnimationInterval = animationIntervalId;
         }, 0.005);
         
-        // Make everything interactive
-        [cardsContainer, deckContainer].forEach(container => {
+                [cardsContainer, deckContainer].forEach(container => {
           container.interactive = true;
           container.buttonMode = true;
           container.on('pointerdown', () => {
-            // Clear the animation interval when starting the game
-            if (this.tutorialAnimationInterval) {
+                        if (this.tutorialAnimationInterval) {
               clearInterval(this.tutorialAnimationInterval);
               this.tutorialAnimationInterval = null;
             }
@@ -1402,24 +1079,20 @@ setColorMatrix.matrix[12] = 0.9;
   });
 }
   
-  // Helper method to create a fallback card
-  createFallbackCard(cardData) {
+    createFallbackCard(cardData) {
     const cardWidth = this.config.cardWidth || 80;
     const cardHeight = this.config.cardHeight || 120;
     
     const graphics = new PIXI.Graphics();
     
-    // White card background
-    graphics.beginFill(0xFFFFFF);
+        graphics.beginFill(0xFFFFFF);
     graphics.drawRoundedRect(0, 0, cardWidth, cardHeight, 5);
     graphics.endFill();
     
-    // Determine color based on suit
-    const isRed = cardData.suit === 'hearts' || cardData.suit === 'diamonds';
+        const isRed = cardData.suit === 'hearts' || cardData.suit === 'diamonds';
     const color = isRed ? 0xFF0000 : 0x000000;
     
-    // Add card value at top left
-    const valueText = new PIXI.Text(cardData.value, {
+        const valueText = new PIXI.Text(cardData.value, {
       fontFamily: 'Arial',
       fontSize: 16,
       fill: color,
@@ -1428,8 +1101,7 @@ setColorMatrix.matrix[12] = 0.9;
     valueText.position.set(5, 5);
     graphics.addChild(valueText);
     
-    // Add suit symbol in center
-    let suitSymbol = '♠';
+        let suitSymbol = '♠';
     if (cardData.suit === 'hearts') suitSymbol = '♥';
     else if (cardData.suit === 'diamonds') suitSymbol = '♦';
     else if (cardData.suit === 'clubs') suitSymbol = '♣';
@@ -1444,8 +1116,7 @@ setColorMatrix.matrix[12] = 0.9;
     suitText.position.set(cardWidth / 2, cardHeight / 2);
     graphics.addChild(suitText);
     
-    // Add reversed value at bottom right
-    const valueText2 = new PIXI.Text(cardData.value, {
+        const valueText2 = new PIXI.Text(cardData.value, {
       fontFamily: 'Arial',
       fontSize: 16,
       fill: color,
@@ -1459,11 +1130,9 @@ setColorMatrix.matrix[12] = 0.9;
   }
   
   
-  // Helper method for intro screen content
-  setupIntroScreenContent(introContainer) {
+    setupIntroScreenContent(introContainer) {
     
-    // Title text - "Make Set or Run!" to match screenshots
-    const introText = new PIXI.Text("Make Set or Run!", {
+        const introText = new PIXI.Text("Make Set or Run!", {
       fontFamily: "Arial",
       fontSize: 48,
       fill: 0xFFFFFF,
@@ -1478,8 +1147,7 @@ setColorMatrix.matrix[12] = 0.9;
     introText.position.set(this.app.screen.width / 2, this.app.screen.height / 2);
     introContainer.addChild(introText);
     
-    // Start button
-    this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/newGameButton.webp')
+        this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/newGameButton.webp')
       .then(texture => {
         const startButton = new PIXI.Sprite(texture);
         startButton.anchor.set(0.5);
@@ -1494,8 +1162,7 @@ setColorMatrix.matrix[12] = 0.9;
       })
       .catch(err => {
         console.warn("Could not load button for intro screen", err);
-        // Create fallback button
-        const fallbackButton = new PIXI.Graphics();
+                const fallbackButton = new PIXI.Graphics();
         fallbackButton.beginFill(0x4CAF50);
         fallbackButton.drawRoundedRect(0, 0, 150, 50, 10);
         fallbackButton.endFill();
@@ -1520,27 +1187,23 @@ setColorMatrix.matrix[12] = 0.9;
       });
   }
 
-  // Set up dealing screen
-  setupDealingScreen() {
+    setupDealingScreen() {
     const dealingContainer = new PIXI.Container();
     dealingContainer.visible = false;
     this.app.stage.addChild(dealingContainer);
     this.dealingContainer = dealingContainer;
   }
 
-  // Set up end screen
-  setupEndScreen() {
+    setupEndScreen() {
     const endContainer = new PIXI.Container();
     
-    // Dark overlay
-    const overlay = new PIXI.Graphics();
+        const overlay = new PIXI.Graphics();
     overlay.beginFill(0x000000, 0.8);
     overlay.drawRect(0, 0, this.app.screen.width, this.app.screen.height);
     overlay.endFill();
     endContainer.addChild(overlay);
     
-    // End text
-    const endText = new PIXI.Text("Game Over", {
+        const endText = new PIXI.Text("Game Over", {
       fontFamily: "Arial",
       fontSize: 36,
       fill: 0xFFFFFF,
@@ -1552,34 +1215,27 @@ setColorMatrix.matrix[12] = 0.9;
     
   }
 
-  // Update to showTutorial method to make text disappear on interaction
-  showTutorial() {
+    showTutorial() {
     if (!this.handCursor || !this.cardRenderer || !this.playerTurn) return;
     
-    // ДОБАВЛЕНО: не показываем туториал если deadwood <= 10 или у оппонента нет карт
-    if (this.deadwood <= 10 || this.cardManager.opponentCards.length === 0) return;
+        if (this.deadwood <= 10 || this.cardManager.opponentCards.length === 0) return;
     
-    // Analyze discard pile top card
-    const discardAnalysis = this.analyzeDiscardPileTopCard();
+        const discardAnalysis = this.analyzeDiscardPileTopCard();
     
-    // Для ультрабыстрой игры всегда указываем на колоду для первых 3 ходов
-    const highlightDiscard = false;
+        const highlightDiscard = false;
     
-    // Позиция колоды
-    const deckPosition = {
+        const deckPosition = {
       x: this.cardRenderer.deckContainer.x + this.config.cardWidth / 2,
       y: this.cardRenderer.deckContainer.y + this.config.cardHeight / 2
     };
     
-    // Создаем контейнер для элементов туториала
-    const titleContainer = new PIXI.Container();
+        const titleContainer = new PIXI.Container();
     titleContainer.zIndex = 200;
     
     titleContainer.interactive = false;
     titleContainer.interactiveChildren = false;
     
-    // Создаем фон
-    const gradientBg = new PIXI.Graphics();
+        const gradientBg = new PIXI.Graphics();
     const bgWidth = this.app.screen.width;
     const bgHeight = 120;
     const bgY = this.app.screen.height * 0.35 - bgHeight/2 - 50;
@@ -1590,8 +1246,7 @@ setColorMatrix.matrix[12] = 0.9;
     
     titleContainer.addChild(gradientBg);
     
-    // Создаем текст подсказки
-    const style = {
+        const style = {
       fontFamily: "Arial",
       fontSize: this.app.screen.width < 500 ? 36 : 42,
       fontWeight: "bold",
@@ -1614,19 +1269,15 @@ setColorMatrix.matrix[12] = 0.9;
     titleContainer.addChild(titleText);
     this.app.stage.addChild(titleContainer);
     
-    // Сохраняем ссылку на туториал
-    this.tutorialTitleContainer = titleContainer;
+        this.tutorialTitleContainer = titleContainer;
     
-    // Highlight the deck with bouncy animation
-    this.highlightCardSource('deck');
+        this.highlightCardSource('deck');
     
-    // Show hand going to deck with faster animation
-    this.handCursor.tap(
+        this.handCursor.tap(
       deckPosition.x, 
       deckPosition.y, 
       { 
-        duration: 1.2, // Faster animation
-        onComplete: () => {
+        duration: 1.2,         onComplete: () => {
           this.handCursor.fade();
         }
       }
@@ -1636,8 +1287,7 @@ setColorMatrix.matrix[12] = 0.9;
   highlightCardSource(source) {
     if (!this.cardRenderer) return;
 
-    // Снимаем старую подсветку, если была
-    this.removeCardHighlighting();
+        this.removeCardHighlighting();
 
     const PULSE_deck    = { x: 1.25, y: 1.25, duration: 0.4, repeat: -1, yoyo: true };
     const PULSE_DISCARD = { x: 1.25, y: 1.25, duration: 0.4, repeat: -1, yoyo: true };
@@ -1656,16 +1306,12 @@ setColorMatrix.matrix[12] = 0.9;
 
     if (source === 'deck') {
       const cont = prepareContainerForPulse(this.cardRenderer.deckContainer);
-      // Подсветка топ‑карты
-      const top = cont.children.at(-1);
+            const top = cont.children.at(-1);
       if (top) this.cardRenderer.applySpecialHighlight(top, 0x00FF00, 0.5);
-      // <--- здесь, если хотите, можно запустить пульсацию колоды: 
-      // gsap.to(cont.scale, PULSE_deck);
-    }
+                }
 
     if (source === 'discard') {
-      // <<< ВСТАВИТЬ НИЖЕ: остановить пульсацию колоды и сбросить её масштаб >>>
-      const deckCont = prepareContainerForPulse(this.cardRenderer.deckContainer);
+            const deckCont = prepareContainerForPulse(this.cardRenderer.deckContainer);
       deckCont.scale.set(1, 1);
 
       const cont = prepareContainerForPulse(this.cardRenderer.discardContainer);
@@ -1677,59 +1323,45 @@ setColorMatrix.matrix[12] = 0.9;
   }
 
 
-  // Initialize game data
-  initializeGameData() {
+    initializeGameData() {
     this.cardManager.playerCards = [];
     this.cardManager.opponentCards = [];
     this.cardManager.discardPile = [];
   }
 
-  // Handle Gin action
-  handleGin() {
+    handleGin() {
     if (!this.playerTurn || this.deadwood !== 0) return;
     
     
-    // Показываем оверлей с логотипом
-    if (this.uiRenderer) {
+        if (this.uiRenderer) {
       this.uiRenderer.showPlayNowOverlay();
     }
   
-  // Show confirmation dialog
-  if (this.uiManager) {
+    if (this.uiManager) {
     this.uiManager.createDialog('Gin Confirmation', 'Do you want to call Gin?', 'gin');
   }
 }
 
-// Handle Gin confirmation
 handleGinConfirm(confirmed) {
   if (confirmed) {
-    // Для ускоренной игры увеличим бонус очков за Gin
-    const ginBonus = 50; // Увеличено с 25 до 50
+        const ginBonus = 50;     
+        this.playerScore += ginBonus;
     
-    // Add bonus to player's score
-    this.playerScore += ginBonus;
+        this.showTooltip(`Perfect GIN! No deadwood cards. +${ginBonus} bonus points!`, null);
     
-    // Show success message
-    this.showTooltip(`Perfect GIN! No deadwood cards. +${ginBonus} bonus points!`, null);
-    
-    // Сразу показываем оверлей с логотипом после небольшой задержки
-    setTimeout(() => {
+        setTimeout(() => {
       if (this.uiRenderer) {
         this.uiRenderer.showPlayNowOverlay();
       }
     }, 1500);
     
-    // Check if game should end
-    if (this.dealCount < 1) { // Уменьшено до 1 раунда вместо 2
-      // Move to next deal
-      setTimeout(() => {
+        if (this.dealCount < 1) {             setTimeout(() => {
         this.initializeGame();
         this.startGame();
         this.dealCount++;
       }, 2500);
     } else {
-      // End game after первый выигрыш
-      if (this.stateManager) {
+            if (this.stateManager) {
         setTimeout(() => {
           this.stateManager.changeState('end');
           this.updateEndScreen(this.playerScore);
@@ -1739,214 +1371,161 @@ handleGinConfirm(confirmed) {
   }
 }
 
-  // Set up event handlers
-  setupEventHandlers() {
-    // Card click handler
-    this.cardRenderer.setCardClickHandler((card, source) => this.handleCardClick(card, source));
+    setupEventHandlers() {
+        this.cardRenderer.setCardClickHandler((card, source) => this.handleCardClick(card, source));
   
-    // Dialog confirmation handler
-    this.uiManager.onDialogConfirm = (type, confirmed) => {
+        this.uiManager.onDialogConfirm = (type, confirmed) => {
       if (type === 'knock') this.handleKnockConfirm(confirmed);
       else if (type === 'meld') this.handleMeldConfirm(confirmed);
       else if (type === 'gin') this.handleGinConfirm(confirmed);
     };
     
-    // Action button handlers
-    this.uiRenderer.onKnockClick = () => this.handleKnock();
+        this.uiRenderer.onKnockClick = () => this.handleKnock();
     this.uiRenderer.onMeldClick = () => this.handleMeld();
     this.uiRenderer.onGinClick = () => this.handleGin();
     
-    // Setup drag and drop event listeners
-    document.addEventListener('cardDragStart', (event) => {
+        document.addEventListener('cardDragStart', (event) => {
       console.log('Card drag started:', event.detail.cardData);
     });
   
     document.addEventListener('cardDragEnd', (event) => {
       const { cardData, sprite, targetArea, position } = event.detail;
       
-      // Проверяем в какой фазе мы находимся
-      const isDrawPhase = this.playerTurn && this.gameStep % 2 === 0;
+            const isDrawPhase = this.playerTurn && this.gameStep % 2 === 0;
       const isDiscardPhase = this.playerTurn && this.gameStep % 2 === 1;
       
-      // ПЕРВАЯ ПРОВЕРКА: Если это карта игрока в фазе взятия и её пытаются положить в отбой
-      if (targetArea === 'wrong-phase-discard' || (targetArea === 'discard' && isDrawPhase)) {
+            if (targetArea === 'wrong-phase-discard' || (targetArea === 'discard' && isDrawPhase)) {
         console.log("Отмена сброса карты в фазе взятия:", cardData);
         
-        // Убедимся, что карта остаётся в руке игрока
-        if (!this.cardManager.playerCards.some(c => c.id === cardData.id)) {
+                if (!this.cardManager.playerCards.some(c => c.id === cardData.id)) {
           console.log("Возвращаем карту в руку игрока:", cardData);
           this.cardManager.playerCards.push(cardData);
         }
         
-        // Принудительно сортируем карты
-        this.cardManager.playerCards = this.sortCardsWithMelds();
+                this.cardManager.playerCards = this.sortCardsWithMelds();
         
-        // Полностью обновляем руку игрока
-        if (this.cardRenderer) {
-          // Сначала очищаем все карты из контейнера
-          this.cardRenderer.playerHandContainer.removeChildren();
+                if (this.cardRenderer) {
+                    this.cardRenderer.playerHandContainer.removeChildren();
         }
         
-        // Обновляем отображение игры
-        this.updatePlayScreen();
+                this.updatePlayScreen();
         
-        // Показываем сообщение игроку
-        if (this.uiRenderer) {
+                if (this.uiRenderer) {
           this.uiRenderer.showDialog("Take a card from deck\nor discard pile first!");
         }
         
-        return; // Прерываем обработку
-      }
+        return;       }
       
-      // ВТОРАЯ ПРОВЕРКА: Для фазы сброса - всё как раньше
-      if (targetArea === 'discard' && isDiscardPhase) {
-        // Обработка карты как сброса
-        this.selectedCard = cardData;
+            if (targetArea === 'discard' && isDiscardPhase) {
+                this.selectedCard = cardData;
         console.log('Card dropped on discard during discard phase:', cardData);
         
-        // Устанавливаем флаг перетаскивания
-        this.wasDragged = true;
+                this.wasDragged = true;
         
-        // Очищаем контейнер руки игрока перед обновлением
-        if (this.cardRenderer) {
+                if (this.cardRenderer) {
           this.cardRenderer.playerHandContainer.removeChildren();
         }
         
-        // Обрабатываем сброс карты
-        this.handleDiscard();
+                this.handleDiscard();
       }
     });
     
-    // Handler for deck dragging
-    document.addEventListener('deckDrag', (event) => {
-      // If this is the draw phase
-      if (this.playerTurn && this.gameStep % 2 === 0) {
+        document.addEventListener('deckDrag', (event) => {
+            if (this.playerTurn && this.gameStep % 2 === 0) {
         console.log('deck card dragged and dropped');
         this.handleDrawFromdeck();
       }
     });
     
-    // UPDATED: Handler for discard dragging without restrictions
-    document.addEventListener('discardDrag', (event) => {
+        document.addEventListener('discardDrag', (event) => {
       const cardData = event.detail?.cardData;
-      // If this is the draw phase, allow drawing from discard
-      if (this.playerTurn && this.gameStep % 2 === 0 && cardData) {
+            if (this.playerTurn && this.gameStep % 2 === 0 && cardData) {
         console.log('Discard card dragged and dropped');
         this.handleDrawFromDiscard(cardData);
       }
     });
     
-    // Handler for drag start from deck/discard
-    document.addEventListener('cardDragStarted', ({ detail }) => {
+        document.addEventListener('cardDragStarted', ({ detail }) => {
       if (detail.source === 'deck' || detail.source === 'discard') {
         this.removeCardHighlighting();
       }
     });
     
-    // Handler for drag release
-    document.addEventListener('cardDragReleased', (event) => {
+        document.addEventListener('cardDragReleased', (event) => {
       const { cardData, source, targetArea } = event.detail;
       
-      // If this is a player card being dropped on discard during draw phase
-      if (source === 'player' && targetArea === 'wrong-phase-discard') {
+            if (source === 'player' && targetArea === 'wrong-phase-discard') {
         console.log("Wrong phase discard detected - ensuring card returns to player's hand");
         
-        // Make sure the card is still in the player's hand array
-        if (!this.cardManager.playerCards.some(c => c.id === cardData.id)) {
+                if (!this.cardManager.playerCards.some(c => c.id === cardData.id)) {
           console.log("Adding card back to player's hand:", cardData);
           this.cardManager.playerCards.push(cardData);
         }
         
-        // Sort the cards using our improved sorting algorithm
-        this.cardManager.playerCards = this.sortCardsWithMelds();
+                this.cardManager.playerCards = this.sortCardsWithMelds();
         
-        // Update the screen to show the card back in the player's hand
-        this.updatePlayScreen();
+                this.updatePlayScreen();
         
-        // Display a tooltip to inform the player they need to draw first
-        if (this.uiRenderer) {
+                if (this.uiRenderer) {
           this.uiRenderer.showDialog("Take a card from deck\nor discard pile first!");
         }
-        // После того, как ход игрока завершился и дедвуд обновлён
-if (this.deadwood <= 10 && !this.playerTurn) {
+        if (this.deadwood <= 10 && !this.playerTurn) {
   this.uiRenderer.showKnockButton(true);
 }
 
       }
     });
   
-    // UPDATED: Handler for card added to hand - allow drawing from discard without restrictions
-    document.addEventListener('cardAddedToHand', (event) => {
+        document.addEventListener('cardAddedToHand', (event) => {
       const { cardData, source } = event.detail;
       console.log(`Card added to hand from ${source}:`, cardData);
       
-      // Hide tutorial and remove highlighting
-      this.hideTutorialElements();
+            this.hideTutorialElements();
       this.removeCardHighlighting();
       
-      // Handle adding the card based on its source
-      if (source === 'deck') {
-        // Check if we have a pre-drawn card from dragging
-        if (this.preDrawnCard) {
-          // Use the pre-drawn card instead of drawing a new one
-          this.cardManager.playerCards.push(this.preDrawnCard);
+            if (source === 'deck') {
+                if (this.preDrawnCard) {
+                    this.cardManager.playerCards.push(this.preDrawnCard);
           
-          // Sort cards with melds
-          this.cardManager.playerCards = this.sortCardsWithMelds();
+                    this.cardManager.playerCards = this.sortCardsWithMelds();
           
-          // Decrease deck count
-          this.deckCount--;
+                    this.deckCount--;
           this.gameStep++;
           
-          // Set flag that player has drawn a card
-          this.hasDrawnCard = true;
+                    this.hasDrawnCard = true;
           
-          // Clear the pre-drawn card reference
-          this.preDrawnCard = null;
+                    this.preDrawnCard = null;
           
-          // IMPROVED: Force complete redraw of player's hand to ensure proper fan layout
-          if (this.cardRenderer) {
-            // First clear all cards from container
-            this.cardRenderer.playerHandContainer.removeChildren();
+                    if (this.cardRenderer) {
+                        this.cardRenderer.playerHandContainer.removeChildren();
           }
           
-          // Update the game display
-          this.updatePlayScreen();
+                    this.updatePlayScreen();
           
-          // Wait for animation to complete before showing discard hint
-          setTimeout(() => {
+                    setTimeout(() => {
             this.showDiscardHint();
           }, 800);
         } else {
-          // Fall back to regular method if no pre-drawn card exists
-          this.handleDrawFromdeck();
+                    this.handleDrawFromdeck();
         }
       } else if (source === 'discard') {
-        // Add the card to player's hand (if it wasn't already added)
-        if (!this.cardManager.playerCards.some(c => c.id === cardData.id)) {
+                if (!this.cardManager.playerCards.some(c => c.id === cardData.id)) {
           this.cardManager.playerCards.push(cardData);
         }
         
-        // Sort cards with melds
-        this.cardManager.playerCards = this.sortCardsWithMelds();
+                this.cardManager.playerCards = this.sortCardsWithMelds();
         
-        // Update game state
-        this.gameStep++;
+                this.gameStep++;
         
-        // Set flag that player has drawn a card
-        this.hasDrawnCard = true;
+                this.hasDrawnCard = true;
         
-        // IMPROVED: Force complete redraw of player's hand to ensure proper fan layout
-        if (this.cardRenderer) {
-          // First clear all cards from container
-          this.cardRenderer.playerHandContainer.removeChildren();
+                if (this.cardRenderer) {
+                    this.cardRenderer.playerHandContainer.removeChildren();
         }
         
-        // Update game screen immediately
-        this.updatePlayScreen();
+                this.updatePlayScreen();
         
-        // Wait for animation to complete before showing discard hint
-        setTimeout(() => {
+                setTimeout(() => {
           this.showDiscardHint();
         }, 800);
       }
@@ -1956,13 +1535,11 @@ if (this.deadwood <= 10 && !this.playerTurn) {
 
   removeCardHighlighting() {
     if (this.highlightedSource) {
-      // 1) Останавливаем tween на контейнере
-     if (this.highlightedSource.container) {
+           if (this.highlightedSource.container) {
        gsap.killTweensOf(this.highlightedSource.container.scale);
        this.highlightedSource.container.scale.set(1, 1);
      }
-      // 2) Останавливаем tween на спрайте (если выделяли саму карту)
-      if (this.highlightedSource.sprite) {
+            if (this.highlightedSource.sprite) {
         gsap.killTweensOf(this.highlightedSource.sprite);
         gsap.killTweensOf(this.highlightedSource.sprite.scale);
         if (this.highlightedSource.sprite.filters) {
@@ -1974,8 +1551,7 @@ if (this.deadwood <= 10 && !this.playerTurn) {
     }
   }
 
-  // Start the game
-  startGame() {
+    startGame() {
     console.log('Starting game...');
 
     if (this.handCursor && this.handCursor.container) {
@@ -1989,23 +1565,19 @@ if (this.deadwood <= 10 && !this.playerTurn) {
     const prepareAndDeal = () => {
       this.stateManager.changeState('dealing');
   
-      // Полностью очищаем текущие карты перед раздачей!
-      this.cardManager.playerCards = [];
+            this.cardManager.playerCards = [];
       this.cardManager.opponentCards = [];
   
-      // Отображаем пустые руки перед началом анимации раздачи карт
-      this.cardRenderer.updateDisplay({
+            this.cardRenderer.updateDisplay({
         playerCards: [],
         opponentCards: [],
         deckCount: this.deckCount,
         discardPile: []
       });
   
-      // Инициализируем карты для раздачи (но НЕ отображаем их сразу)
-      this.initializeCards();
+            this.initializeCards();
   
-      // Начинаем анимированную раздачу
-      this.dealAllCards(() => {
+            this.dealAllCards(() => {
         console.log('Done dealing!');
         this.stateManager.changeState('play');
         this.initializeGame();
@@ -2041,82 +1613,57 @@ if (this.deadwood <= 10 && !this.playerTurn) {
   }
   
 
-  // Initialize the cards
-  initializeCards() {
-    // Clear existing cards first
-    this.cardManager.playerCards = [];
+    initializeCards() {
+        this.cardManager.playerCards = [];
     this.cardManager.opponentCards = [];
     this.cardManager.discardPile = [];
     
-    // Создаем супер-оптимальную начальную руку:
-    // 1. Полноценный ран треф (3-4-5-6)
-    // 2. Три пятерки (почти готовый сет)
-    const playerCardsData = [
-      { value: '3', suit: 'clubs' },    // Часть рана клубов (3-4-5-6)
-      { value: '4', suit: 'clubs' },    // Часть рана клубов (3-4-5-6)
-      { value: '5', suit: 'clubs' },    // Часть рана клубов (3-4-5-6)
-      { value: '6', suit: 'clubs' },    // Часть рана клубов (3-4-5-6)
-      { value: '5', suit: 'hearts' },   // Первая пятерка для сета
-      { value: '5', suit: 'diamonds' },  // Вторая пятерка для сета
-      { value: '5', suit: 'spades' },    // Третья пятерка для сета (уже готовый сет!)
-      { value: '9', suit: 'clubs' },     // Высокая карта для сброса
-      { value: '10', suit: 'diamonds' }, // Высокая карта для сброса
-      { value: 'K', suit: 'hearts' }     // Высокая карта для сброса
-    ];
+                const playerCardsData = [
+      { value: '3', suit: 'clubs' },          { value: '4', suit: 'clubs' },          { value: '5', suit: 'clubs' },          { value: '6', suit: 'clubs' },          { value: '5', suit: 'hearts' },         { value: '5', suit: 'diamonds' },        { value: '5', suit: 'spades' },          { value: '9', suit: 'clubs' },           { value: '10', suit: 'diamonds' },       { value: 'K', suit: 'hearts' }         ];
     
-    // Add id and filename to player cards
-    this.cardManager.playerCards = playerCardsData.map((card, index) => ({
+        this.cardManager.playerCards = playerCardsData.map((card, index) => ({
       ...card,
       id: index + 1,
       faceDown: false,
       filename: `${card.value}_${card.suit.charAt(0).toUpperCase()}${card.suit.slice(1)}.webp`
     }));
     
-    // Create a full standard deck of 52 cards for remaining cards
-    const fulldeck = this.createShuffleddeck();
+        const fulldeck = this.createShuffleddeck();
     
-    // Remove cards that are already dealt to player
-    const usedCardKeys = new Set(this.cardManager.playerCards.map(card => `${card.value}_${card.suit}`));
+        const usedCardKeys = new Set(this.cardManager.playerCards.map(card => `${card.value}_${card.suit}`));
     const remainingdeck = fulldeck.filter(card => 
       !usedCardKeys.has(`${card.value}_${card.suit}`)
     );
     
-    // Pick a card for the initial discard pile - выбираем высокую карту
-    let initialDiscardCard = null;
+        let initialDiscardCard = null;
     
-    // Специально кладем Q червей в отбой
-    const queenOfHeartsIndex = remainingdeck.findIndex(
+        const queenOfHeartsIndex = remainingdeck.findIndex(
       card => card.value === 'Q' && card.suit === 'hearts'
     );
     
     if (queenOfHeartsIndex !== -1) {
       initialDiscardCard = remainingdeck.splice(queenOfHeartsIndex, 1)[0];
     } else {
-      // Fallback to a random card
-      initialDiscardCard = remainingdeck.splice(0, 1)[0];
+            initialDiscardCard = remainingdeck.splice(0, 1)[0];
     }
     
-    // Deal 10 random cards to opponent
-    this.cardManager.opponentCards = remainingdeck.splice(0, 10).map((card, index) => ({
+        this.cardManager.opponentCards = remainingdeck.splice(0, 10).map((card, index) => ({
       ...card,
       id: 100 + index,
       faceDown: true
     }));
     
-    // Set up initial discard card
-    this.cardManager.discardPile = [{ 
+        this.cardManager.discardPile = [{ 
       ...initialDiscardCard,
       id: 200,
       faceDown: false
     }];
     
-    // Save remainder of deck for step-by-step dealing
-    this.prepareddeck = remainingdeck;
+        this.prepareddeck = remainingdeck;
     this.deckCount = remainingdeck.length;
     this._idCounter = 300;
     
-    // Инициализируем счетчик карт
-    this.drawCount = 0;
+        this.drawCount = 0;
     
     console.log("Cards initialized:", {
       player: this.cardManager.playerCards.length,
@@ -2130,12 +1677,8 @@ if (this.deadwood <= 10 && !this.playerTurn) {
     const opponentCards = [];
     
     if (configType === 1) {
-      // For screenshot 1, opponent will need to eventually discard 10♥
-      // Find or create a specific set of opponent cards
-      // To match the screenshot, we need to make sure 10♥ appears in their hand
-      
-      // First, extract and remove the 10♥ from remainingdeck if it exists
-      const tenOfHeartsIndex = remainingdeck.findIndex(
+                        
+            const tenOfHeartsIndex = remainingdeck.findIndex(
         card => card.value === '10' && card.suit === 'hearts'
       );
       
@@ -2148,11 +1691,8 @@ if (this.deadwood <= 10 && !this.playerTurn) {
         });
       }
     } else {
-      // For screenshot 2, opponent will need to eventually discard 7♣
-      // Find or create specific cards for opponent
-      
-      // First, extract and remove the 7♣ from remainingdeck if it exists
-      const sevenOfClubsIndex = remainingdeck.findIndex(
+                  
+            const sevenOfClubsIndex = remainingdeck.findIndex(
         card => card.value === '7' && card.suit === 'clubs'
       );
       
@@ -2166,8 +1706,7 @@ if (this.deadwood <= 10 && !this.playerTurn) {
       }
     }
     
-    // Add more random cards to opponent's hand to reach 10 total
-    while (opponentCards.length < 10 && remainingdeck.length > 0) {
+        while (opponentCards.length < 10 && remainingdeck.length > 0) {
       const card = remainingdeck.splice(0, 1)[0];
       opponentCards.push({
         ...card,
@@ -2183,8 +1722,7 @@ if (this.deadwood <= 10 && !this.playerTurn) {
     const suits = ['hearts', 'diamonds', 'clubs', 'spades'];
     const values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
     
-    // Create a full deck of 52 cards
-    const deck = [];
+        const deck = [];
     
     for (const suit of suits) {
       for (const value of values) {
@@ -2196,8 +1734,7 @@ if (this.deadwood <= 10 && !this.playerTurn) {
       }
     }
     
-    // Shuffle the deck using Fisher-Yates algorithm
-    for (let i = deck.length - 1; i > 0; i--) {
+        for (let i = deck.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [deck[i], deck[j]] = [deck[j], deck[i]];
     }
@@ -2206,77 +1743,60 @@ if (this.deadwood <= 10 && !this.playerTurn) {
   }
 
   dealAllCards(onComplete) {
-    // Используем ранее подготовленные карты
-    const originalPlayerCards = [...this.cardManager.playerCards];
+        const originalPlayerCards = [...this.cardManager.playerCards];
     const originalOpponentCards = [...this.cardManager.opponentCards];
     
-    // Очищаем текущие карты у игрока и оппонента
-    this.cardManager.playerCards = [];
+        this.cardManager.playerCards = [];
     this.cardManager.opponentCards = [];
     
-    // Очищаем визуальные контейнеры
-    this.cardRenderer.playerHandContainer.removeChildren();
+        this.cardRenderer.playerHandContainer.removeChildren();
     this.cardRenderer.opponentHandContainer.removeChildren();
     
-    // Флаг для отслеживания прерывания анимации
-    let wasInterrupted = false;
+        let wasInterrupted = false;
     let dealingInProgress = true;
   
-    // Функция для мгновенного завершения раздачи
-    const finishDealingImmediately = () => {
+        const finishDealingImmediately = () => {
       wasInterrupted = true;
       
-      // Добавляем все карты сразу
-      this.cardManager.playerCards = [...originalPlayerCards];
+            this.cardManager.playerCards = [...originalPlayerCards];
       this.cardManager.opponentCards = [...originalOpponentCards];
       
-      // Обновляем отображение без анимации
-      this.updatePlayScreen();
+            this.updatePlayScreen();
       
-      // Завершаем процесс
-      dealingInProgress = false;
+            dealingInProgress = false;
       if (onComplete) onComplete();
       
-      // Удаляем обработчик клика
-      this.app.stage.off('pointerdown', skipDealingHandler);
+            this.app.stage.off('pointerdown', skipDealingHandler);
     };
     
-    // Обработчик для пропуска анимации
-    const skipDealingHandler = () => {
+        const skipDealingHandler = () => {
       if (dealingInProgress) {
         console.log("Skipping dealing animation...");
         finishDealingImmediately();
       }
     };
     
-    // Добавляем обработчик клика
-    this.app.stage.interactive = true;
+        this.app.stage.interactive = true;
     this.app.stage.on('pointerdown', skipDealingHandler);
     
-    // Запускаем новую анимацию раздачи
-    this.cardRenderer.animateFlyingCardDealing(
+        this.cardRenderer.animateFlyingCardDealing(
       originalPlayerCards, 
       originalOpponentCards,
       () => {
-        // Карты розданы, теперь нужно перевернуть карты игрока
-        if (wasInterrupted) {
+                if (wasInterrupted) {
           if (onComplete) onComplete();
           return;
         }
         
-        // Обновляем модель данных после раздачи
-        this.cardManager.playerCards = [...originalPlayerCards];
+                this.cardManager.playerCards = [...originalPlayerCards];
         this.cardManager.opponentCards = [...originalOpponentCards];
         
-        // Переворачиваем карты игрока
-        if (this.cardRenderer) {
+                if (this.cardRenderer) {
           this.cardRenderer.flipPlayerCards(() => {
-            // Убираем обработчик клика
-            this.app.stage.off('pointerdown', skipDealingHandler);
+                        this.app.stage.off('pointerdown', skipDealingHandler);
             dealingInProgress = false;
             
-            // Вызываем колбэк завершения всего процесса
-            if (onComplete) onComplete();
+                        if (onComplete) onComplete();
           });
         } else {
           this.app.stage.off('pointerdown', skipDealingHandler);
@@ -2289,49 +1809,38 @@ if (this.deadwood <= 10 && !this.playerTurn) {
   
 
 updateGamePositions() {
-  // Get screen dimensions
-  const width = this.app.screen.width;
+    const width = this.app.screen.width;
   const height = this.app.screen.height;
   
-  // Calculate positions based on screenshot proportions
+    
+    const tableCenterY = height * 0.4;
   
-  // Position of deck and discard pile
-  const tableCenterY = height * 0.4;
-  
-  // deck on the right side
-  if (this.cardRenderer) {
+    if (this.cardRenderer) {
     this.cardRenderer.deckContainer.x = width * 0.55;
     this.cardRenderer.deckContainer.y = tableCenterY;
     
-    // Discard pile slightly to the left of the center
-    this.cardRenderer.discardContainer.x = width * 0.45;
+        this.cardRenderer.discardContainer.x = width * 0.45;
     this.cardRenderer.discardContainer.y = tableCenterY;
     
-    // Player hand at the bottom
-    this.cardRenderer.playerHandContainer.x = width / 2;
+        this.cardRenderer.playerHandContainer.x = width / 2;
     this.cardRenderer.playerHandContainer.y = height * 0.75;
     
-    // Opponent hand at the top
-    this.cardRenderer.opponentHandContainer.x = width / 2;
+        this.cardRenderer.opponentHandContainer.x = width / 2;
     this.cardRenderer.opponentHandContainer.y = height * 0.25;
   }
   
-  // Update the positions for our custom elements
-  if (this.handCursor) {
+    if (this.handCursor) {
     this.handCursor.container.x = width / 2;
     this.handCursor.container.y = height / 2;
   }
 }
   
   
-  // маленький помощник, чтобы брать карту из заранее подготовленной колоды
-  drawFromPrepareddeck(faceDown = false) {
-    const card = this.prepareddeck.shift();  // prepareddeck сформирован в initializeCards
-    return { ...card, id: ++this._idCounter, faceDown };
+    drawFromPrepareddeck(faceDown = false) {
+    const card = this.prepareddeck.shift();      return { ...card, id: ++this._idCounter, faceDown };
   }
 
-  // Initialize game state
-  initializeGame() {
+    initializeGame() {
     console.log('Initializing game state');
     this.initializeGSAP();
 
@@ -2339,41 +1848,32 @@ updateGamePositions() {
       this.cardRenderer.resetCardFlipState();
     }
       
-    // Reset game state
-    this.playerTurn = true;
+        this.playerTurn = true;
     this.selectedCard = null;
     this.deadwood = 58;
     this.gameStep = 0;
     this.deckCount = 31;
     this.hasDrawnCard = false;
 
-    // Отключаем drag-and-drop в начале игры - когда игрок еще не взял карту
-  if (this.cardRenderer) {
+      if (this.cardRenderer) {
     this.cardRenderer.enableDragging(false);
   }
   
-  // Явно сбрасываем флаги туториала с каждой инициализацией
-  this.tutorialShown = false;
+    this.tutorialShown = false;
     
-    // Update displays - we'll call this right after card initialization
-    this.updatePlayScreen();
+        this.updatePlayScreen();
     
-    // Setup or update the "Make Set or Run!" text
-    if (!this.makeMeldText) {
+        if (!this.makeMeldText) {
       this.setupMakeMeldText();
     }
-    this.makeMeldText.visible = false; // Всегда скрываем текст
+    this.makeMeldText.visible = false;     
+        this.updatePlayScreen();
     
-    // Update displays - we'll call this right after card initialization
-    this.updatePlayScreen();
-    
-    // During dealing animation, skip heavy calculations
-    if (this.stateManager?.currentState !== 'dealing') {
+        if (this.stateManager?.currentState !== 'dealing') {
       this.updatePossibleMelds();
     }
       
-    // Position cards properly
-    if (this.cardRenderer) {
+        if (this.cardRenderer) {
       this.cardRenderer.updatePositions(
         this.uiRenderer?.adHeight || 0,
         this.uiRenderer?.navHeight || 0,
@@ -2384,15 +1884,13 @@ updateGamePositions() {
   }
   
 
-  // Update possible melds
-  updatePossibleMelds() {
+    updatePossibleMelds() {
     if (!this.cardManager.playerCards || this.cardManager.playerCards.length < 2) {
       this.possibleMelds = { sets: [], runs: [] };
       return;
     }
     
-    // Find sets (3+ cards of same value)
-    const valueGroups = {};
+        const valueGroups = {};
     this.cardManager.playerCards.forEach(card => {
       if (!valueGroups[card.value]) valueGroups[card.value] = [];
       valueGroups[card.value].push(card);
@@ -2405,8 +1903,7 @@ updateGamePositions() {
       }
     }
     
-    // Find runs (sequences of 3+ cards of same suit)
-    const suitGroups = {};
+        const suitGroups = {};
     this.cardManager.playerCards.forEach(card => {
       if (!suitGroups[card.suit]) suitGroups[card.suit] = [];
       suitGroups[card.suit].push(card);
@@ -2419,13 +1916,10 @@ updateGamePositions() {
     
     const possibleRuns = [];
     for (const [suit, cards] of Object.entries(suitGroups)) {
-      if (cards.length < 3) continue; // Need at least 3 cards for a run
+      if (cards.length < 3) continue;       
+            const sortedCards = [...cards].sort((a, b) => valueOrder[a.value] - valueOrder[b.value]);
       
-      // Sort cards by value
-      const sortedCards = [...cards].sort((a, b) => valueOrder[a.value] - valueOrder[b.value]);
-      
-      // Find sequences
-      let run = [sortedCards[0]];
+            let run = [sortedCards[0]];
       for (let i = 1; i < sortedCards.length; i++) {
         const prevValue = valueOrder[sortedCards[i-1].value];
         const currValue = valueOrder[sortedCards[i].value];
@@ -2433,45 +1927,35 @@ updateGamePositions() {
         if (currValue === prevValue + 1) {
           run.push(sortedCards[i]);
         } else {
-          // Only add as a run if it has 3+ cards
-          if (run.length >= 3) {
+                    if (run.length >= 3) {
             possibleRuns.push({ type: 'run', cards: [...run] });
           }
           run = [sortedCards[i]];
         }
       }
       
-      // Check the last sequence
-      if (run.length >= 3) {
+            if (run.length >= 3) {
         possibleRuns.push({ type: 'run', cards: [...run] });
       }
     }
     
-    // IMPORTANT: Now we need to make sure cards aren't used in both runs and sets
-    // We prioritize runs over sets
-    
-    // First, collect all cards used in runs
-    const cardsInRuns = new Set();
+            
+        const cardsInRuns = new Set();
     possibleRuns.forEach(run => {
       run.cards.forEach(card => {
         cardsInRuns.add(card.id);
       });
     });
     
-    // Then filter sets to exclude cards already used in runs
-    const filteredSets = possibleSets.map(set => {
-      // Filter out cards that are already in runs
-      const filteredCards = set.cards.filter(card => !cardsInRuns.has(card.id));
+        const filteredSets = possibleSets.map(set => {
+            const filteredCards = set.cards.filter(card => !cardsInRuns.has(card.id));
       
-      // Return a new set object with filtered cards
-      return {
+            return {
         type: 'set',
         cards: filteredCards
       };
-    }).filter(set => set.cards.length >= 3); // Keep only sets that still have 3+ cards
-    
-    // Store identified melds with runs prioritized
-    this.possibleMelds = {
+    }).filter(set => set.cards.length >= 3);     
+        this.possibleMelds = {
       sets: filteredSets,
       runs: possibleRuns
     };
@@ -2479,62 +1963,49 @@ updateGamePositions() {
     return this.possibleMelds;
   }
 
-  // Update play screen
-  updatePlayScreen() {
-    // Ensure no duplicate cards across the game state
-    this.ensureUniqueCards();
+    updatePlayScreen() {
+        this.ensureUniqueCards();
     
-    // Update possible melds and deadwood
-    this.updatePossibleMelds();
+        this.updatePossibleMelds();
     this.deadwood = this.calculateDeadwood();
     
-    // IMPROVED PAUSE LOGIC: Проверяем переход через порог 10 для дедвуда
-    const previousDeadwood = this._previousDeadwood || 999;
+        const previousDeadwood = this._previousDeadwood || 999;
     this._previousDeadwood = this.deadwood;
     
-    // Срабатывает только при переходе с >10 на ≤10
-    if (previousDeadwood > 10 && this.deadwood <= 10 && this.playerTurn) {
+        if (previousDeadwood > 10 && this.deadwood <= 10 && this.playerTurn) {
       console.log("DEADWOOD REACHED ≤10: PAUSING GAME");
       
-      // Устанавливаем флаг паузы
-      this.pauseGame = true;
+            this.pauseGame = true;
       
-      // Показываем кнопку KNOCK с небольшой задержкой
-      if (this.uiRenderer) {
+            if (this.uiRenderer) {
         setTimeout(() => {
           this.uiRenderer.showKnockButton(true);
         }, 100);
       }
       
-      // УБИРАЕМ автоматический клик на KNOCK - теперь только по действию пользователя
-    }
+          }
     
-    // Update UI (score, deadwood, etc.)
-    if (this.uiRenderer) {
+        if (this.uiRenderer) {
       this.uiRenderer.updateScores(this.playerScore, this.opponentScore);
       this.uiRenderer.updateDeadwood(this.deadwood);
       
-      // Check if we should show GIN or KNOCK buttons
-      const isPlayerTurn = this.playerTurn;
+            const isPlayerTurn = this.playerTurn;
       const isPlayState = this.stateManager?.currentState === 'play';
       
-      // Show GIN button when deadwood = 0 and it's player's turn
-      if (this.deadwood === 0 && isPlayerTurn && isPlayState) {
+            if (this.deadwood === 0 && isPlayerTurn && isPlayState) {
         this.uiRenderer.showGinButton(true);
       } else {
         this.uiRenderer.showGinButton(false);
       }
       
-      // Show KNOCK button when 0 < deadwood <= 10 and it's play state
-      if (this.deadwood > 0 && this.deadwood <= 10 && isPlayState) {
+            if (this.deadwood > 0 && this.deadwood <= 10 && isPlayState) {
         this.uiRenderer.showKnockButton(true);
       } else {
         this.uiRenderer.showKnockButton(false);
       }
     }
     
-    // Update card display with the correct meld highlighting
-    if (this.cardRenderer) {
+        if (this.cardRenderer) {
       this.cardRenderer.updateDisplay({
         playerCards: this.cardManager.playerCards || [],
         opponentCards: this.cardManager.opponentCards || [],
@@ -2545,28 +2016,22 @@ updateGamePositions() {
         playerTurn: this.playerTurn
       });
       
-      // Enable drag-and-drop only when it's player's turn AND game is not paused
-      const enableDrag = this.playerTurn && !this.pauseGame;
+            const enableDrag = this.playerTurn && !this.pauseGame;
       this.cardRenderer.enableDragging(enableDrag);
     }
     
-    // Force update discard hint if it's discard phase and player's turn
-    if (this.playerTurn && this.gameStep % 2 === 1 && this.hasDrawnCard && !this.pauseGame) {
-      // Clear any existing hints
-      if (this.handCursor) {
+        if (this.playerTurn && this.gameStep % 2 === 1 && this.hasDrawnCard && !this.pauseGame) {
+            if (this.handCursor) {
         this.handCursor.fade();
       }
       
-      // Wait a bit for everything to update, then show discard hint
-      setTimeout(() => {
+            setTimeout(() => {
         this.showDiscardHint();
       }, 200);
     }
     
-    // Ensure meld highlighting is applied immediately after dealing
-    if (this.stateManager?.currentState === 'play' && this.cardRenderer) {
-      // Force re-update after slight delay to ensure highlighting is applied
-      setTimeout(() => {
+        if (this.stateManager?.currentState === 'play' && this.cardRenderer) {
+            setTimeout(() => {
         this.cardRenderer.updateDisplay({
           playerCards: this.cardManager.playerCards || [],
           opponentCards: this.cardManager.opponentCards || [],
@@ -2581,7 +2046,6 @@ updateGamePositions() {
   }
   
   
-// Calculate deadwood value
 calculateDeadwood() {
   console.log("Starting deadwood calculation...");
   
@@ -2590,48 +2054,37 @@ calculateDeadwood() {
     return 0;
   }
   
-  // Логируем количество карт в руке
-  console.log(`Player has ${this.cardManager.playerCards.length} cards`);
+    console.log(`Player has ${this.cardManager.playerCards.length} cards`);
   
-  // Собираем ID карт, которые уже в мелдах
-  const meldCardIds = new Set();
+    const meldCardIds = new Set();
   
-  // Проверяем формат possibleMelds и собираем ID карт в мелдах
-  if (this.possibleMelds.sets && this.possibleMelds.runs) {
-    // Собираем ID карт из сетов
-    this.possibleMelds.sets.forEach(meld => {
+    if (this.possibleMelds.sets && this.possibleMelds.runs) {
+        this.possibleMelds.sets.forEach(meld => {
       console.log(`Found SET meld with ${meld.cards.length} cards`);
       meld.cards.forEach(card => meldCardIds.add(card.id));
     });
     
-    // Собираем ID карт из ранов
-    this.possibleMelds.runs.forEach(meld => {
+        this.possibleMelds.runs.forEach(meld => {
       console.log(`Found RUN meld with ${meld.cards.length} cards`);
       meld.cards.forEach(card => meldCardIds.add(card.id));
     });
   } 
-  // Для совместимости со старым форматом
-  else if (Array.isArray(this.possibleMelds)) {
+    else if (Array.isArray(this.possibleMelds)) {
     console.log("Using legacy meld format");
     this.possibleMelds.forEach(meld => {
       meld.forEach(card => meldCardIds.add(card.id));
     });
   }
   
-  // Логируем количество карт в мелдах
-  console.log(`Found ${meldCardIds.size} cards in melds`);
+    console.log(`Found ${meldCardIds.size} cards in melds`);
   
-  // Считаем очки только для карт, которые НЕ входят в мелды
-  const deadwoodCards = this.cardManager.playerCards.filter(card => !meldCardIds.has(card.id));
+    const deadwoodCards = this.cardManager.playerCards.filter(card => !meldCardIds.has(card.id));
   console.log(`${deadwoodCards.length} cards not in melds (deadwood)`);
   
-  // Подсчет суммы очков для свободных карт
-  let deadwoodValue = deadwoodCards.reduce((sum, card) => {
+    let deadwoodValue = deadwoodCards.reduce((sum, card) => {
     let cardValue = 0;
     
-    // Иначе считаем очки по правилам:
-    // Туз (A) = 1, картинки (J,Q,K) = 10, остальные = номинал
-    if (['J', 'Q', 'K', 'A'].includes(card.value)) {
+            if (['J', 'Q', 'K', 'A'].includes(card.value)) {
       cardValue = 10;
     } else {
       cardValue = parseInt(card.value) || 0;
@@ -2648,8 +2101,7 @@ calculateDeadwood() {
 wouldCardCompleteMeld(card, excludeCard = null) {
   if (!card) return false;
   
-  // Make a copy of player cards (excluding card to discard if provided)
-  const playerCards = [...this.cardManager.playerCards];
+    const playerCards = [...this.cardManager.playerCards];
   if (excludeCard) {
     const index = playerCards.findIndex(c => c.id === excludeCard.id);
     if (index !== -1) {
@@ -2657,45 +2109,37 @@ wouldCardCompleteMeld(card, excludeCard = null) {
     }
   }
   
-  // Add the test card if it's not already in the hand
-  if (!playerCards.some(c => c.id === card.id)) {
+    if (!playerCards.some(c => c.id === card.id)) {
     playerCards.push(card);
   }
   
-  // The value order for checking sequences
-  const valueOrder = {
+    const valueOrder = {
     'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7,
     '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13
   };
   
-  // Check for sets (3+ cards with same value)
-  const valueGroups = {};
+    const valueGroups = {};
   playerCards.forEach(c => {
     if (!valueGroups[c.value]) valueGroups[c.value] = [];
     valueGroups[c.value].push(c);
   });
   
-  // Check if card creates a set
-  if (valueGroups[card.value] && valueGroups[card.value].length >= 3) {
+    if (valueGroups[card.value] && valueGroups[card.value].length >= 3) {
     return { type: 'set', cards: valueGroups[card.value] };
   }
   
-  // Check for runs (3+ consecutive cards in same suit)
-  const suitGroups = {};
+    const suitGroups = {};
   playerCards.forEach(c => {
     if (!suitGroups[c.suit]) suitGroups[c.suit] = [];
     suitGroups[c.suit].push(c);
   });
   
-  // Check if card creates a run
-  if (suitGroups[card.suit] && suitGroups[card.suit].length >= 3) {
-    // Sort cards by value
-    const sortedCards = suitGroups[card.suit].sort((a, b) => 
+    if (suitGroups[card.suit] && suitGroups[card.suit].length >= 3) {
+        const sortedCards = suitGroups[card.suit].sort((a, b) => 
       valueOrder[a.value] - valueOrder[b.value]
     );
     
-    // Find consecutive sequences
-    let run = [sortedCards[0]];
+        let run = [sortedCards[0]];
     for (let i = 1; i < sortedCards.length; i++) {
       const prevValue = valueOrder[sortedCards[i-1].value];
       const currValue = valueOrder[sortedCards[i].value];
@@ -2724,48 +2168,38 @@ getCardMeldPotential(card) {
   let potential = 0;
   const playerCards = this.cardManager.playerCards;
   
-  // The value order for checking sequences
-  const valueOrder = {
+    const valueOrder = {
     'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7,
     '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13
   };
   
-  // Check set potential (cards with same value)
-  const sameValueCards = playerCards.filter(c => 
+    const sameValueCards = playerCards.filter(c => 
     c.id !== card.id && c.value === card.value
   );
   
-  // If we have 1 matching card, that's ok. If we have 2+, that's great!
-  if (sameValueCards.length === 1) potential += 3;
+    if (sameValueCards.length === 1) potential += 3;
   if (sameValueCards.length >= 2) potential += 8;
   
-  // Check run potential (consecutive cards in same suit)
-  const sameSuitCards = playerCards.filter(c => 
+    const sameSuitCards = playerCards.filter(c => 
     c.id !== card.id && c.suit === card.suit
   );
   
   if (sameSuitCards.length > 0) {
     const cardValue = valueOrder[card.value];
     
-    // Check for adjacent values (card value +1, card value -1)
-    const hasValueMinus1 = sameSuitCards.some(c => valueOrder[c.value] === cardValue - 1);
+        const hasValueMinus1 = sameSuitCards.some(c => valueOrder[c.value] === cardValue - 1);
     const hasValueMinus2 = sameSuitCards.some(c => valueOrder[c.value] === cardValue - 2);
     const hasValuePlus1 = sameSuitCards.some(c => valueOrder[c.value] === cardValue + 1);
     const hasValuePlus2 = sameSuitCards.some(c => valueOrder[c.value] === cardValue + 2);
     
-    // Different scenarios for run potential
-    if (hasValueMinus1 && hasValuePlus1) {
-      // Card bridges a gap (e.g., we have 3♠, 5♠ and this is 4♠)
-      potential += 10;
+        if (hasValueMinus1 && hasValuePlus1) {
+            potential += 10;
     } else if ((hasValueMinus1 && hasValueMinus2) || (hasValuePlus1 && hasValuePlus2)) {
-      // Card extends a sequence of 2 to make a run
-      potential += 8;
+            potential += 8;
     } else if (hasValueMinus1 || hasValuePlus1) {
-      // Card is adjacent to one other card
-      potential += 4;
+            potential += 4;
     } else if (hasValueMinus2 || hasValuePlus2) {
-      // Card is 2 away from another card (e.g., 3♠ and 5♠)
-      potential += 2;
+            potential += 2;
     }
   }
   
@@ -2777,8 +2211,7 @@ findOptimalDiscardCard() {
     return null;
   }
   
-  // Collect IDs of cards in melds to exclude them
-  const meldCardIds = new Set();
+    const meldCardIds = new Set();
   
   if (this.possibleMelds.sets) {
     this.possibleMelds.sets.forEach(meld => {
@@ -2792,15 +2225,12 @@ findOptimalDiscardCard() {
     });
   }
   
-  // Filter to cards not in melds
-  const nonMeldCards = this.cardManager.playerCards.filter(card => 
+    const nonMeldCards = this.cardManager.playerCards.filter(card => 
     !meldCardIds.has(card.id)
   );
   
   if (nonMeldCards.length === 0) {
-    // If all cards are in melds, we'll have to break a meld
-    // For simplicity, return the highest value card
-    const valueMap = {
+            const valueMap = {
       'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7,
       '8': 8, '9': 9, '10': 10, 'J': 10, 'Q': 10, 'K': 10
     };
@@ -2810,30 +2240,25 @@ findOptimalDiscardCard() {
     )[0];
   }
   
-  // FIXED: Instead of potential calculation, just return the highest value card
-  const valueMap = {
+    const valueMap = {
     'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7,
     '8': 8, '9': 9, '10': 10, 'J': 10, 'Q': 10, 'K': 10
   };
   
-  // Sort by value (descending) to find highest value card
-  const sortedByValue = [...nonMeldCards].sort((a, b) => 
+    const sortedByValue = [...nonMeldCards].sort((a, b) => 
     valueMap[b.value] - valueMap[a.value]
   );
   
-  // Return the highest value card (first in sorted array)
-  return sortedByValue[0];
+    return sortedByValue[0];
 }
 
 
-// Helper to get a card's deadwood value
 getCardValue(card) {
   if (card.value === 'A') return 1;
   if (['J', 'Q', 'K'].includes(card.value)) return 10;
   return parseInt(card.value) || 0;
 }
 
-// 4. Analyze if discard pile top card would help complete a meld
 analyzeDiscardPileTopCard() {
   if (!this.cardManager.discardPile || this.cardManager.discardPile.length === 0) {
     return { useful: false, reason: "No cards in discard pile" };
@@ -2841,8 +2266,7 @@ analyzeDiscardPileTopCard() {
   
   const topCard = this.cardManager.discardPile[this.cardManager.discardPile.length - 1];
   
-  // Check if the card would complete a meld
-  const meldResult = this.wouldCardCompleteMeld(topCard);
+    const meldResult = this.wouldCardCompleteMeld(topCard);
   if (meldResult) {
     return { 
       useful: true, 
@@ -2851,8 +2275,7 @@ analyzeDiscardPileTopCard() {
     };
   }
   
-  // Even if it doesn't complete a meld, check its potential
-  const potential = this.getCardMeldPotential(topCard);
+    const potential = this.getCardMeldPotential(topCard);
   if (potential >= 5) {
     return { 
       useful: true, 
@@ -2865,38 +2288,24 @@ analyzeDiscardPileTopCard() {
 }
 
   setupMakeMeldText() {
-    // Create a container for the text and background
-    const textContainer = new PIXI.Container();
-    textContainer.zIndex = 100; // Ensure it's above most elements
+        const textContainer = new PIXI.Container();
+    textContainer.zIndex = 100;     
+        const gradientBg = new PIXI.Graphics();
     
-    // Create gradient background
-    const gradientBg = new PIXI.Graphics();
+        const bgWidth = this.app.screen.width;
+        const bgHeight = 90;
     
-    // Full screen width 
-    const bgWidth = this.app.screen.width;
-    // Height for the text band
-    const bgHeight = 90;
+        const bgY = this.app.screen.height * 0.2 - bgHeight/2;
     
-    // Position background vertically where the text will be
-    const bgY = this.app.screen.height * 0.2 - bgHeight/2;
+        gradientBg.beginFill(0x000000, 0);     gradientBg.drawRect(0, bgY, bgWidth * 0.2, bgHeight);     gradientBg.endFill();
     
-    // Create horizontal gradient background
-    gradientBg.beginFill(0x000000, 0); // Start with transparent
-    gradientBg.drawRect(0, bgY, bgWidth * 0.2, bgHeight); // Left transparent portion
-    gradientBg.endFill();
+    gradientBg.beginFill(0x000000, 0.5);     gradientBg.drawRect(bgWidth * 0.2, bgY, bgWidth * 0.6, bgHeight);     gradientBg.endFill();
     
-    gradientBg.beginFill(0x000000, 0.5); // Black with 0.5 opacity (middle)
-    gradientBg.drawRect(bgWidth * 0.2, bgY, bgWidth * 0.6, bgHeight); // Middle section with opacity
-    gradientBg.endFill();
-    
-    gradientBg.beginFill(0x000000, 0); // End with transparent
-    gradientBg.drawRect(bgWidth * 0.8, bgY, bgWidth * 0.2, bgHeight); // Right transparent portion
-    gradientBg.endFill();
+    gradientBg.beginFill(0x000000, 0);     gradientBg.drawRect(bgWidth * 0.8, bgY, bgWidth * 0.2, bgHeight);     gradientBg.endFill();
     
     textContainer.addChild(gradientBg);
     
-    // Create the "Make Set or Run!" text
-    const fontSize = this.getFontSizeForTitle ? this.getFontSizeForTitle() : (this.app.screen.width < 500 ? 40 : 48);
+        const fontSize = this.getFontSizeForTitle ? this.getFontSizeForTitle() : (this.app.screen.width < 500 ? 40 : 48);
     
     const makeMeldText = new PIXI.Text("Make Set or Run !", {
       fontFamily: "Arial",
@@ -2917,13 +2326,10 @@ analyzeDiscardPileTopCard() {
     
     textContainer.addChild(makeMeldText);
     
-    // Add to main container
-    this.containers.main.addChild(textContainer);
-    this.makeMeldText = textContainer; // Store reference to the container
-  }
+        this.containers.main.addChild(textContainer);
+    this.makeMeldText = textContainer;   }
 
-  // Helper method to show/hide the Make Set or Run text
-showMakeMeldText(visible) {
+  showMakeMeldText(visible) {
   if (this.makeMeldText) {
     this.makeMeldText.visible = visible;
   }
@@ -2932,16 +2338,14 @@ showMakeMeldText(visible) {
   checkAndShowMelds() {
     if (!this.possibleMelds || !this.uiRenderer) return;
     
-    // Check for valid sets (3+ cards of same rank)
-    if (this.possibleMelds.sets && this.possibleMelds.sets.length > 0) {
+        if (this.possibleMelds.sets && this.possibleMelds.sets.length > 0) {
       setTimeout(() => {
         this.uiRenderer.showMeldText("SET!");
       }, 500);
       return;
     }
     
-    // Check for valid runs (3+ sequential cards of same suit)
-    if (this.possibleMelds.runs && this.possibleMelds.runs.length > 0) {
+        if (this.possibleMelds.runs && this.possibleMelds.runs.length > 0) {
       setTimeout(() => {
         this.uiRenderer.showMeldText("RUN!");
       }, 500);
@@ -2950,33 +2354,27 @@ showMakeMeldText(visible) {
   }
 
   showMeldText(meldType) {
-    // Создаем текстовый объект для отображения типа мелда
-    const meldText = new PIXI.Text(meldType, {
+        const meldText = new PIXI.Text(meldType, {
       fontFamily: "Arial",
       fontSize: 72,
       fontWeight: "bold",
-      fill: meldType === "RUN!" ? 0x98FB98 : 0xFFFE7A, // Зеленый для Run, Желтый для Set
-      stroke: 0x000000,
+      fill: meldType === "RUN!" ? 0x98FB98 : 0xFFFE7A,       stroke: 0x000000,
       strokeThickness: 8,
       dropShadow: true,
       dropShadowColor: 0x000000,
       dropShadowDistance: 4
     });
     
-    // Центрируем текст
-    meldText.anchor.set(0.5);
+        meldText.anchor.set(0.5);
     meldText.x = this.app.screen.width / 2;
     meldText.y = this.app.screen.height / 2 - 100;
     
-    // Начальные настройки для анимации
-    meldText.alpha = 0;
+        meldText.alpha = 0;
     meldText.scale.set(0.5);
     
-    // Добавляем в контейнер
-    this.container.addChild(meldText);
+        this.container.addChild(meldText);
     
-    // Анимация появления и исчезновения текста
-    gsap.timeline()
+        gsap.timeline()
       .to(meldText, {
         alpha: 1,
         scale: 1.2,
@@ -3004,56 +2402,42 @@ showMakeMeldText(visible) {
     
     this.currentMeld = meld;
     
-    // Show confirmation tooltip
-    
+        
   }
 
-  // Handle card click
-  // Update to handleCardClick method to remove tutorial text on interaction
-  handleCardClick(cardData, source) {
-    // Сохраняем ссылку на подсветку, чтобы не потерять ее
-    let highlightBar = null;
+      handleCardClick(cardData, source) {
+        let highlightBar = null;
     let filters = null;
     let originalSprite = null;
     
-    // Находим спрайт карты, если это карта игрока
-    if (source === 'player') {
+        if (source === 'player') {
       this.cardRenderer.playerHandContainer.children.forEach(sprite => {
         
         if (sprite.cardData && sprite.cardData.id === cardData.id) {
-          // Сохраняем ссылки на подсветку и фильтры
-          highlightBar = sprite.highlightBar;
+                    highlightBar = sprite.highlightBar;
           filters = sprite.filters;
           originalSprite = sprite;
         }
       });
     }
     
-    // Вызываем оригинальный обработчик клика
-    if (this.onCardClick) {
+        if (this.onCardClick) {
       this.onCardClick(cardData, source);
     }
     
-    // Если это карта из руки игрока и у нее была подсветка,
-    // восстанавливаем ее после клика
-    if (source === 'player' && originalSprite) {
-      // Применяем визуальный эффект без изменения масштаба
-      this.cardRenderer.enhanceCardClickFeedback(originalSprite);
+            if (source === 'player' && originalSprite) {
+            this.cardRenderer.enhanceCardClickFeedback(originalSprite);
       
-      // Восстанавливаем подсветку, если она была
-      setTimeout(() => {
-        // Проверяем, входит ли карта в мелд
-        const meldType = window.game && 
+            setTimeout(() => {
+                const meldType = window.game && 
                          window.game.checkCardInMeld && 
                          cardData &&
                          window.game.checkCardInMeld(cardData);
         
         if (meldType === 'set' || meldType === 'run') {
-          // Определяем цвет подсветки по типу мелда
-          const color = meldType === 'set' ? 0xFFFE7A : 0x98FB98;
+                    const color = meldType === 'set' ? 0xFFFE7A : 0x98FB98;
           
-          // Применяем подсветку с сохранением исходного highlightBar
-          if (!originalSprite.highlightBar || originalSprite.highlightBar !== highlightBar) {
+                    if (!originalSprite.highlightBar || originalSprite.highlightBar !== highlightBar) {
             this.applySpecialHighlight(originalSprite, color, 0.5);
           }
         }
@@ -3064,45 +2448,33 @@ showMakeMeldText(visible) {
   
 
 showTakeCardTutorial() {
-  // Пропускаем, если полное обучение показано или подсказка уже показана на этом ходу
-  // ДОБАВЛЕНО: или если deadwood <= 10 или у оппонента нет карт
-  if (this.tutorialShown || this.takeCardTutorialShown || 
+      if (this.tutorialShown || this.takeCardTutorialShown || 
       this.deadwood <= 10 || this.cardManager.opponentCards.length === 0) return;
   
-  // Показываем подсказку
-  this.showTutorial();
+    this.showTutorial();
 }
 
-// Helper method to hide all tutorial elements
 hideTutorialElements() {
-  // Флаг, чтобы отслеживать была ли удалена подсказка
-  let tutorialRemoved = false;
+    let tutorialRemoved = false;
   
-  // Remove any source highlighting
-  if (this.highlightedSource && this.highlightedSource.sprite) {
-    // Stop any animations on the sprite
-    gsap.killTweensOf(this.highlightedSource.sprite);
+    if (this.highlightedSource && this.highlightedSource.sprite) {
+        gsap.killTweensOf(this.highlightedSource.sprite);
     gsap.killTweensOf(this.highlightedSource.sprite.scale);
     
-    // Remove highlight
-    if (this.highlightedSource.sprite.filters) {
+        if (this.highlightedSource.sprite.filters) {
       this.highlightedSource.sprite.filters = null;
     }
     
-    // Reset scale
-    this.highlightedSource.sprite.scale.set(1, 1);
+        this.highlightedSource.sprite.scale.set(1, 1);
     
-    // Clear reference
-    this.highlightedSource = null;
+        this.highlightedSource = null;
   }
   
-  // Ищем и удаляем элементы туториала со сцены
-  if (this.app && this.app.stage) {
+    if (this.app && this.app.stage) {
     for (let i = this.app.stage.children.length - 1; i >= 0; i--) {
       const child = this.app.stage.children[i];
       
-      // Проверяем, является ли дочерний элемент контейнером с текстом туториала
-      if (child && child.children) {
+            if (child && child.children) {
         const hasTutorialText = child.children.some(grandchild => 
           grandchild instanceof PIXI.Text && 
           grandchild.text && 
@@ -3111,8 +2483,7 @@ hideTutorialElements() {
            grandchild.text.includes("shown card"))
         );
         
-        // Если это контейнер с текстом туториала, удаляем его
-        if (hasTutorialText) {
+                if (hasTutorialText) {
           this.app.stage.removeChild(child);
           tutorialRemoved = true;
           console.log("Removed tutorial text");
@@ -3121,24 +2492,21 @@ hideTutorialElements() {
     }
   }
   
-  // Если у нас есть ссылка на конкретный контейнер с туториалом, удаляем его также
-  if (this.tutorialTitleContainer) {
+    if (this.tutorialTitleContainer) {
     this.app.stage.removeChild(this.tutorialTitleContainer);
     this.tutorialTitleContainer = null;
     tutorialRemoved = true;
     console.log("Removed tutorialTitleContainer");
   }
   
-  // Если у нас есть ссылка на элемент tutorialTitle, удаляем его
-  if (this.tutorialTitle) {
+    if (this.tutorialTitle) {
     this.app.stage.removeChild(this.tutorialTitle);
     this.tutorialTitle = null;
     tutorialRemoved = true;
     console.log("Removed tutorialTitle");
   }
   
-  // Сбрасываем флаги туториала
-  this.takeCardTutorialShown = false;
+    this.takeCardTutorialShown = false;
   
   if (tutorialRemoved) {
     console.log("Successfully removed all tutorial elements");
@@ -3147,75 +2515,56 @@ hideTutorialElements() {
   }
 }
 
-// Update to handleDrawFromdeck method to remove tutorial text
 handleDrawFromdeck() {
   console.log('Player draws from deck');
   
-  // Hide tutorial and clear any highlighting
-  this.hideTutorialElements();
+    this.hideTutorialElements();
   this.removeCardHighlighting();
   
-  // Only allow if it's the drawing phase
-  if (!this.playerTurn || this.gameStep % 2 !== 0) return;
+    if (!this.playerTurn || this.gameStep % 2 !== 0) return;
   
-  // Check if we already have a pre-drawn card
-  const newCard = this.preDrawnCard || this.drawCardFromdeck();
+    const newCard = this.preDrawnCard || this.drawCardFromdeck();
   
-  // Clear pre-drawn card reference if it was used
-  if (this.preDrawnCard) {
+    if (this.preDrawnCard) {
     this.preDrawnCard = null;
   }
   
   console.log("Drew card from deck:", newCard);
   
-  // CRUCIAL FIX: Check if this card already exists in any collection
-  const cardExists = this.isCardInAnyCollection(newCard);
+    const cardExists = this.isCardInAnyCollection(newCard);
   if (cardExists) {
     console.error("ERROR: Attempting to add a duplicate card:", newCard);
-    // Draw a different card if this one already exists
-    const replacementCard = this.drawUniqueCardFromdeck();
+        const replacementCard = this.drawUniqueCardFromdeck();
     console.log("Drew replacement card instead:", replacementCard);
     
-    // Use the replacement card
-    this.cardManager.playerCards.push(replacementCard);
+        this.cardManager.playerCards.push(replacementCard);
   } else {
-    // Add animation before updating the player's hand
-    if (this.cardRenderer) {
-      // Calculate the target position in player's hand
-      const destIndex = this.cardManager.playerCards.length;
+        if (this.cardRenderer) {
+            const destIndex = this.cardManager.playerCards.length;
       
-      // Start the animation
-      this.cardRenderer.animateCardTake(newCard, 'deck', destIndex);
+            this.cardRenderer.animateCardTake(newCard, 'deck', destIndex);
     }
     
-    // Add the card to player's hand
-    this.cardManager.playerCards.push(newCard);
+        this.cardManager.playerCards.push(newCard);
   }
   
-  // Sort cards with melds
-  this.cardManager.playerCards = this.sortCardsWithMelds();
+    this.cardManager.playerCards = this.sortCardsWithMelds();
   
-  // Decrease deck count
-  this.deckCount--;
+    this.deckCount--;
   this.gameStep++;
   
-  // Set flag that player has drawn a card
-  this.hasDrawnCard = true;
+    this.hasDrawnCard = true;
   
-  // Enable dragging after drawing
-  if (this.cardRenderer) {
+    if (this.cardRenderer) {
     this.cardRenderer.enableDragging(true);
     
-    // IMPORTANT: Clear the player hand container before updating
-    this.cardRenderer.playerHandContainer.removeChildren();
+        this.cardRenderer.playerHandContainer.removeChildren();
   }
   
-  // CRITICAL FIX: Update game screen with a slight delay to ensure animations complete
-  setTimeout(() => {
+    setTimeout(() => {
     this.updatePlayScreen();
     
-    // Show discard hint after animation completes
-    setTimeout(() => {
+        setTimeout(() => {
       this.showDiscardHint();
     }, 600);
   }, 100);
@@ -3224,21 +2573,17 @@ handleDrawFromdeck() {
 isCardInAnyCollection(card) {
   if (!card) return false;
   
-  // Create a unique key for this card
-  const cardKey = `${card.value}_${card.suit}`;
+    const cardKey = `${card.value}_${card.suit}`;
   
-  // Check player cards
-  const inPlayerHand = this.cardManager.playerCards.some(c => 
+    const inPlayerHand = this.cardManager.playerCards.some(c => 
     `${c.value}_${c.suit}` === cardKey
   );
   
-  // Check opponent cards
-  const inOpponentHand = this.cardManager.opponentCards.some(c => 
+    const inOpponentHand = this.cardManager.opponentCards.some(c => 
     `${c.value}_${c.suit}` === cardKey
   );
   
-  // Check discard pile
-  const inDiscardPile = this.cardManager.discardPile.some(c => 
+    const inDiscardPile = this.cardManager.discardPile.some(c => 
     `${c.value}_${c.suit}` === cardKey
   );
   
@@ -3246,8 +2591,7 @@ isCardInAnyCollection(card) {
 }
 
 drawUniqueCardFromdeck() {
-  // Try up to 10 times to draw a unique card
-  for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 10; i++) {
     const card = this.drawCardFromdeck();
     if (!this.isCardInAnyCollection(card)) {
       return card;
@@ -3255,15 +2599,12 @@ drawUniqueCardFromdeck() {
     console.log("Drew duplicate card, retrying...");
   }
   
-  // If all attempts failed, create a completely new card
-  console.warn("Failed to draw unique card after 10 attempts, creating new card");
+    console.warn("Failed to draw unique card after 10 attempts, creating new card");
   
-  // Get all values and suits
-  const values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+    const values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
   const suits = ['hearts', 'diamonds', 'clubs', 'spades'];
   
-  // Find a combination that doesn't exist in the game
-  for (const suit of suits) {
+    for (const suit of suits) {
     for (const value of values) {
       const testCard = { value, suit };
       if (!this.isCardInAnyCollection(testCard)) {
@@ -3277,8 +2618,7 @@ drawUniqueCardFromdeck() {
     }
   }
   
-  // If somehow all 52 cards are accounted for, this is a fallback
-  return {
+    return {
     id: Math.floor(Math.random() * 100000) + 10000,
     value: 'A',
     suit: 'hearts',
@@ -3290,29 +2630,23 @@ drawUniqueCardFromdeck() {
 handleDrawFromDiscard(cardData) {
   console.log('Player draws from discard pile');
   
-  // Remove tutorial elements
-  this.hideTutorialElements();
+    this.hideTutorialElements();
   this.removeCardHighlighting();
 
-  // Only allow in drawing phase
-  if (!this.playerTurn || this.gameStep % 2 !== 0) return;
+    if (!this.playerTurn || this.gameStep % 2 !== 0) return;
 
-  // Extract top card from discard pile - make sure it's removed!
-  if (!this.cardManager.discardPile.length) return;
+    if (!this.cardManager.discardPile.length) return;
   
-  // Double check that the card isn't already in player's hand
-  const discardCard = this.cardManager.discardPile.pop();
+    const discardCard = this.cardManager.discardPile.pop();
   if (!discardCard) return;
   
-  // Crucial check: Make sure this card isn't already in player's hand
-  const isDuplicate = this.cardManager.playerCards.some(card => 
+    const isDuplicate = this.cardManager.playerCards.some(card => 
     card.value === discardCard.value && card.suit === discardCard.suit
   );
   
   if (isDuplicate) {
     console.error('Error: Attempting to add a duplicate card to player hand', discardCard);
-    // Instead of adding it again, find and remove the duplicate from the hand
-    const duplicateIndex = this.cardManager.playerCards.findIndex(card => 
+        const duplicateIndex = this.cardManager.playerCards.findIndex(card => 
       card.value === discardCard.value && card.suit === discardCard.suit
     );
     
@@ -3322,8 +2656,7 @@ handleDrawFromDiscard(cardData) {
     }
   }
   
-  // Add to player's hand, using a UUID or unique ID to ensure uniqueness
-  const uniqueCard = {
+    const uniqueCard = {
     ...discardCard,
     id: discardCard.id || Math.floor(Math.random() * 100000) + 1000
   };
@@ -3331,27 +2664,22 @@ handleDrawFromDiscard(cardData) {
   this.cardManager.playerCards.push(uniqueCard);
   this.cardManager.playerCards = this.sortCardsWithMelds();
   
-  // Update game state
-  this.gameStep++;
+    this.gameStep++;
   this.hasDrawnCard = true;
   this.updatePlayScreen();
 
-  // Track cards to verify no duplicates
-  this.trackAllCards();
+    this.trackAllCards();
 
-  // Show next hint
-  setTimeout(() => {
+    setTimeout(() => {
     this.showDiscardHint();
   }, 800);
 }
 
 ensureUniqueCards() {
-  // Track all card values and suits to ensure no duplicates
-  const seenCards = new Set();
+    const seenCards = new Set();
   const duplicates = [];
   
-  // Helper to check and fix a single array of cards
-  const checkAndFixArray = (cardsArray, source) => {
+    const checkAndFixArray = (cardsArray, source) => {
     const uniqueCards = [];
     
     cardsArray.forEach(card => {
@@ -3360,8 +2688,7 @@ ensureUniqueCards() {
       if (seenCards.has(cardKey)) {
         console.warn(`Duplicate card detected in ${source}:`, card);
         duplicates.push({ card, source });
-        // Skip this card as it's a duplicate
-      } else {
+              } else {
         seenCards.add(cardKey);
         uniqueCards.push(card);
       }
@@ -3370,32 +2697,25 @@ ensureUniqueCards() {
     return uniqueCards;
   };
   
-  // Fix player cards
-  this.cardManager.playerCards = checkAndFixArray(this.cardManager.playerCards, 'player hand');
+    this.cardManager.playerCards = checkAndFixArray(this.cardManager.playerCards, 'player hand');
   
-  // Fix opponent cards
-  this.cardManager.opponentCards = checkAndFixArray(this.cardManager.opponentCards, 'opponent hand');
+    this.cardManager.opponentCards = checkAndFixArray(this.cardManager.opponentCards, 'opponent hand');
   
-  // Fix discard pile - special handling to keep only unique cards
-  this.cardManager.discardPile = checkAndFixArray(this.cardManager.discardPile, 'discard pile');
+    this.cardManager.discardPile = checkAndFixArray(this.cardManager.discardPile, 'discard pile');
   
-  // Log any duplicates found and fixed
-  if (duplicates.length > 0) {
+    if (duplicates.length > 0) {
     console.log(`Fixed ${duplicates.length} duplicate cards:`, duplicates);
   }
 }
 
-  // Get suit symbol
-  getSuitSymbol(suit) {
+    getSuitSymbol(suit) {
     const symbols = { hearts: '♥', diamonds: '♦', clubs: '♣', spades: '♠' };
     return symbols[suit] || suit;
   }
 
   breakMeld(meld) {
-    // Implementation of meld breaking logic
-    console.log('Breaking meld:', meld);
-    // Reset selection
-    this.selectedCard = null;
+        console.log('Breaking meld:', meld);
+        this.selectedCard = null;
     this.currentMeld = null;
     this.updatePlayScreen();
   }
@@ -3403,8 +2723,7 @@ ensureUniqueCards() {
   checkCardInMeld(card) {
     if (!this.possibleMelds || !card) return null;
     
-    // Check in set melds
-    if (this.possibleMelds.sets) {
+        if (this.possibleMelds.sets) {
       for (const set of this.possibleMelds.sets) {
         if (set.cards.some(c => c.id === card.id)) {
           return 'set';
@@ -3412,8 +2731,7 @@ ensureUniqueCards() {
       }
     }
     
-    // Check in run melds
-    if (this.possibleMelds.runs) {
+        if (this.possibleMelds.runs) {
       for (const run of this.possibleMelds.runs) {
         if (run.cards.some(c => c.id === card.id)) {
           return 'run';
@@ -3425,19 +2743,16 @@ ensureUniqueCards() {
   }
 
   isCardInMeld(card) {
-    // Check if the card is in any meld
-    if (!this.possibleMelds || !card) return false;
+        if (!this.possibleMelds || !card) return false;
     
     if (this.possibleMelds.sets && this.possibleMelds.runs) {
-      // Check sets
-      for (const set of this.possibleMelds.sets) {
+            for (const set of this.possibleMelds.sets) {
         if (set.cards.some(c => c.id === card.id)) {
           return { type: 'set', meld: set };
         }
       }
       
-      // Check runs
-      for (const run of this.possibleMelds.runs) {
+            for (const run of this.possibleMelds.runs) {
         if (run.cards.some(c => c.id === card.id)) {
           return { type: 'run', meld: run };
         }
@@ -3449,43 +2764,31 @@ ensureUniqueCards() {
 
   createHandPointer(container) {
     const handContainer = new PIXI.Container();
-    handContainer.zIndex = 1000; // Ensure hand is above everything
-    
-    // Try to load hand image
-    this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/hand.webp')
+    handContainer.zIndex = 1000;     
+        this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/hand.webp')
       .then(texture => {
         const handSprite = new PIXI.Sprite(texture);
-        handSprite.anchor.set(0.2, 0.2); // Position finger tip as reference point
-        handSprite.scale.set(0.7);
+        handSprite.anchor.set(0.2, 0.2);         handSprite.scale.set(0.7);
         handContainer.addChild(handSprite);
       })
       .catch(err => {
-        // Create fallback hand graphic
-        console.warn("Could not load hand texture", err);
+                console.warn("Could not load hand texture", err);
         const handGraphics = new PIXI.Graphics();
         
-        // Draw hand in skin tone
-        handGraphics.beginFill(0xFFCCBB);
-        handGraphics.drawEllipse(20, 30, 15, 25);  // Palm
-        handGraphics.drawEllipse(20, 0, 8, 20);    // Finger
-        handGraphics.endFill();
+                handGraphics.beginFill(0xFFCCBB);
+        handGraphics.drawEllipse(20, 30, 15, 25);          handGraphics.drawEllipse(20, 0, 8, 20);            handGraphics.endFill();
         
-        // Blue sleeve
-        handGraphics.beginFill(0x3366CC);
+                handGraphics.beginFill(0x3366CC);
         handGraphics.drawRoundedRect(0, 50, 40, 20, 5);
         handGraphics.endFill();
         
         handContainer.addChild(handGraphics);
       });
     
-    // Position hand initially (will be moved by the animation)
-    handContainer.x = this.app.screen.width / 2; 
+        handContainer.x = this.app.screen.width / 2; 
     handContainer.y = 500;
-    handContainer.rotation = 0.1; // Slight rotation
-    handContainer.scale.set(1); // Normal scale initially
-    
-    // Make hand a bit more interesting by adding subtle animations
-    const pulseHand = () => {
+    handContainer.rotation = 0.1;     handContainer.scale.set(1);     
+        const pulseHand = () => {
       gsap.timeline({ repeat: -1, yoyo: true })
         .to(handContainer, {
           rotation: 0.15,
@@ -3505,49 +2808,39 @@ ensureUniqueCards() {
     return handContainer;
   }
 
-  // Handle card discard
-  handleDiscard() {
-    // Выходим, если игра на паузе
-    if (this.pauseGame) {
+    handleDiscard() {
+        if (this.pauseGame) {
       console.log("Game is paused - discard blocked");
       return;
     }
   
     if (!this.selectedCard) return;
     
-    // НОВАЯ ПРОВЕРКА: Убеждаемся, что выбранная карта не часть мелда
-    const meldType = this.checkCardInMeld(this.selectedCard);
+        const meldType = this.checkCardInMeld(this.selectedCard);
     if (meldType) {
       console.log(`Cannot discard a card that is part of a ${meldType}`);
       
-      // Показываем сообщение игроку
-      if (this.uiRenderer) {
+            if (this.uiRenderer) {
         this.uiRenderer.showDialog(`Cannot discard a card in a ${meldType}!`);
       }
       
-      // Сбрасываем выбор и выходим
-      this.selectedCard = null;
+            this.selectedCard = null;
       return;
     }
       
-    // Скрываем подсказку дискарда
-    if (this.uiRenderer) {
+        if (this.uiRenderer) {
       this.uiRenderer.hideDialog();
     }
   
-    // Отключаем drag-and-drop после сброса
-    if (this.cardRenderer) {
+        if (this.cardRenderer) {
       this.cardRenderer.enableDragging(false);
     }
       
-    // Получаем индекс карты для анимации
-    const cardIndex = this.cardManager.playerCards.findIndex(c => c.id === this.selectedCard.id);
+        const cardIndex = this.cardManager.playerCards.findIndex(c => c.id === this.selectedCard.id);
     
-    // Пропускаем анимацию, если карта уже перетащена через drag-and-drop
-    const wasDragged = this.wasDragged || false;
+        const wasDragged = this.wasDragged || false;
     
-    // НОВОЕ: Удаляем подсветку с выбранной карты перед сбросом
-    if (this.selectedCard.highlightBar) {
+        if (this.selectedCard.highlightBar) {
       delete this.selectedCard.highlightBar;
     }
     if (this.selectedCard.filters) {
@@ -3561,55 +2854,40 @@ ensureUniqueCards() {
       );
     }
     
-    // Сбрасываем флаг перетаскивания
-    this.wasDragged = false;
+        this.wasDragged = false;
     
-    // Обновляем состояние игры
-    // Сначала удаляем карту из руки игрока
-    this.cardManager.playerCards = this.cardManager.playerCards.filter(c => c.id !== this.selectedCard.id);
+            this.cardManager.playerCards = this.cardManager.playerCards.filter(c => c.id !== this.selectedCard.id);
     
-    // Затем добавляем в отбой
-    this.cardManager.discardPile.push(this.selectedCard);
+        this.cardManager.discardPile.push(this.selectedCard);
     
-    // Обновляем другие состояния игры
-    this.selectedCard = null;
+        this.selectedCard = null;
     this.gameStep++;
     this.playerTurn = false;
     this.deadwood = this.calculateDeadwood();
     
-    // Сбрасываем флаг взятия карты в конце хода
-    this.hasDrawnCard = false;
+        this.hasDrawnCard = false;
     
-    // Очищаем контейнер руки игрока перед обновлением
-    if (this.cardRenderer) {
+        if (this.cardRenderer) {
       this.cardRenderer.playerHandContainer.removeChildren();
     }
     
-    // Обновляем экран игры
-    this.updatePlayScreen();
+        this.updatePlayScreen();
     
-    // Ход компьютера
-    setTimeout(() => this.playOpponentTurn(), 1500);
+        setTimeout(() => this.playOpponentTurn(), 1500);
   }
 
   createTutorialCards(cards, container, centerX, centerY, highlightColor, highlightAlpha, highlight3Cards = false) {
     const cardWidth = this.config.cardWidth || 80;
     const cardHeight = this.config.cardHeight || 120;
-    const spacing = 55; // Spacing between cards
+    const spacing = 55;     
+        const startX = centerX - ((cards.length - 1) * spacing / 2);
     
-    // Calculate starting position to center the cards
-    const startX = centerX - ((cards.length - 1) * spacing / 2);
-    
-    // Create and position cards
-    cards.forEach((cardData, index) => {
-      // Check if this card should be highlighted (first 3 cards when highlight3Cards is true)
-      const shouldHighlight = highlight3Cards ? index < 3 : true;
+        cards.forEach((cardData, index) => {
+            const shouldHighlight = highlight3Cards ? index < 3 : true;
       
-      // Create card container
-      const cardContainer = new PIXI.Container();
+            const cardContainer = new PIXI.Container();
       
-      // Try to load card texture
-      const cardPath = `https://koshmosh43.github.io/playable/assets/cards/${cardData.suit}/${cardData.value}_${cardData.suit.charAt(0).toUpperCase()}${cardData.suit.slice(1)}.webp`;
+            const cardPath = `https://koshmosh43.github.io/playable/assets/cards/${cardData.suit}/${cardData.value}_${cardData.suit.charAt(0).toUpperCase()}${cardData.suit.slice(1)}.webp`;
       
       this.assetLoader.loadTexture(cardPath)
         .then(texture => {
@@ -3617,8 +2895,7 @@ ensureUniqueCards() {
           cardSprite.width = cardWidth;
           cardSprite.height = cardHeight;
           
-          // Add highlight if needed
-          if (shouldHighlight) {
+                    if (shouldHighlight) {
             const highlight = new PIXI.Graphics();
             highlight.beginFill(highlightColor, highlightAlpha);
             highlight.drawRoundedRect(-cardWidth/2, -cardHeight/2, cardWidth, cardHeight, 10);
@@ -3626,8 +2903,7 @@ ensureUniqueCards() {
             
             cardSprite.anchor.set(0.5);
             
-            // Add highlight first, then card
-            cardContainer.addChild(highlight);
+                        cardContainer.addChild(highlight);
             cardContainer.addChild(cardSprite);
           } else {
             cardSprite.anchor.set(0.5);
@@ -3635,17 +2911,14 @@ ensureUniqueCards() {
           }
         })
         .catch(err => {
-          // Fallback card creation if texture load fails
-          console.warn(`Could not load card texture for ${cardData.value} of ${cardData.suit}`, err);
+                    console.warn(`Could not load card texture for ${cardData.value} of ${cardData.suit}`, err);
           
-          // Create card with graphics
-          const cardBg = new PIXI.Graphics();
+                    const cardBg = new PIXI.Graphics();
           cardBg.beginFill(0xFFFFFF);
           cardBg.drawRoundedRect(-cardWidth/2, -cardHeight/2, cardWidth, cardHeight, 10);
           cardBg.endFill();
           
-          // Add highlight for first 3 cards
-          if (shouldHighlight) {
+                    if (shouldHighlight) {
             const highlight = new PIXI.Graphics();
             highlight.beginFill(highlightColor, highlightAlpha);
             highlight.drawRoundedRect(-cardWidth/2, -cardHeight/2, cardWidth, cardHeight, 10);
@@ -3655,12 +2928,10 @@ ensureUniqueCards() {
           
           cardContainer.addChild(cardBg);
           
-          // Determine text color based on suit
-          const isRed = cardData.suit === 'hearts' || cardData.suit === 'diamonds';
+                    const isRed = cardData.suit === 'hearts' || cardData.suit === 'diamonds';
           const textColor = isRed ? 0xFF0000 : 0x000000;
           
-          // Create text for card value
-          const valueTopLeft = new PIXI.Text(cardData.value, {
+                    const valueTopLeft = new PIXI.Text(cardData.value, {
             fontFamily: 'Arial',
             fontSize: 20,
             fill: textColor,
@@ -3678,8 +2949,7 @@ ensureUniqueCards() {
           valueBottomRight.anchor.set(1, 1);
           valueBottomRight.position.set(cardWidth/2 - 5, cardHeight/2 - 5);
           
-          // Create suit symbol
-          let suitSymbol = '♠';
+                    let suitSymbol = '♠';
           if (cardData.suit === 'hearts') suitSymbol = '♥';
           else if (cardData.suit === 'diamonds') suitSymbol = '♦';
           else if (cardData.suit === 'clubs') suitSymbol = '♣';
@@ -3693,52 +2963,43 @@ ensureUniqueCards() {
           suitText.anchor.set(0.5);
           suitText.position.set(0, 0);
           
-          // Add all elements to card container
-          cardContainer.addChild(valueTopLeft);
+                    cardContainer.addChild(valueTopLeft);
           cardContainer.addChild(suitText);
           cardContainer.addChild(valueBottomRight);
         });
       
-      // Position card
-      cardContainer.x = startX + index * spacing;
+            cardContainer.x = startX + index * spacing;
       cardContainer.y = centerY;
       
-      // Make card container interactive
-      cardContainer.interactive = true;
+            cardContainer.interactive = true;
       cardContainer.buttonMode = true;
       cardContainer.on('pointerdown', () => this.startGame());
       
-      // Add to container
-      container.addChild(cardContainer);
+            container.addChild(cardContainer);
     });
   }
 
   createUniqueCard() {
-    // Get all existing cards in the game
-    const allCards = [
+        const allCards = [
       ...this.cardManager.playerCards,
       ...this.cardManager.opponentCards,
       ...this.cardManager.discardPile
     ];
     
-    // Track all value-suit combinations already in play
-    const usedCombinations = new Set();
+        const usedCombinations = new Set();
     allCards.forEach(card => {
       usedCombinations.add(`${card.value}_${card.suit}`);
     });
     
-    // All possible card values and suits
-    const values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+        const values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
     const suits = ['hearts', 'diamonds', 'clubs', 'spades'];
     
-    // Find an unused combination
-    let value, suit;
+        let value, suit;
     
     for (suit of suits) {
       for (value of values) {
         if (!usedCombinations.has(`${value}_${suit}`)) {
-          // Found an unused combination
-          return {
+                    return {
             id: Math.floor(Math.random() * 10000) + 800,
             value,
             suit,
@@ -3749,9 +3010,7 @@ ensureUniqueCards() {
       }
     }
     
-    // If all 52 combinations are used (extremely unlikely), generate a random card
-    // with a suffix to make it unique
-    value = values[Math.floor(Math.random() * values.length)];
+            value = values[Math.floor(Math.random() * values.length)];
     suit = suits[Math.floor(Math.random() * suits.length)];
     console.warn("All 52 cards in use - creating card with random variant");
     
@@ -3760,13 +3019,11 @@ ensureUniqueCards() {
       value,
       suit,
       faceDown: true,
-      variant: Math.floor(Math.random() * 1000), // Add variant to make it unique
-      filename: `${value}_${suit.charAt(0).toUpperCase()}${suit.slice(1)}.webp`
+      variant: Math.floor(Math.random() * 1000),       filename: `${value}_${suit.charAt(0).toUpperCase()}${suit.slice(1)}.webp`
     };
   }
   
-  // Play opponent's turn
-  playOpponentTurn() {
+    playOpponentTurn() {
     if (this.pauseGame) {
       console.log("Game is paused - opponent turn blocked");
       return;
@@ -3776,40 +3033,31 @@ ensureUniqueCards() {
       this.cardRenderer.enableDragging(false);
     }
     
-    // Local function to check for duplicate cards - no 'this' needed
-    const isCardDuplicate = (newCard, collection) => {
+        const isCardDuplicate = (newCard, collection) => {
       if (!newCard || !collection) return false;
       
-      // Create a unique key for the card based on value and suit
-      const newCardKey = `${newCard.value}_${newCard.suit}`;
+            const newCardKey = `${newCard.value}_${newCard.suit}`;
       
-      // Check if this card already exists in the collection
-      return collection.some(existingCard => 
+            return collection.some(existingCard => 
         `${existingCard.value}_${existingCard.suit}` === newCardKey
       );
     };
     
-    // Отложенное выполнение
-    setTimeout(() => {
-      // ИИ решает, брать из колоды или из сброса
-      const takeFromdeck = Math.random() < 0.7 || !this.cardManager.discardPile?.length;
+        setTimeout(() => {
+            const takeFromdeck = Math.random() < 0.7 || !this.cardManager.discardPile?.length;
       
       if ((takeFromdeck && this.deckCount > 0) || this.cardManager.discardPile?.length) {
         const source = takeFromdeck ? 'deck' : 'discard';
         
-        // Get or create a card for the opponent
-        let newCard;
+                let newCard;
         if (takeFromdeck) {
-          // Take a new card from the deck - ADDED DUPLICATE CHECK
-          let attempts = 0;
+                    let attempts = 0;
           let cardFound = false;
           
           while (!cardFound && attempts < 10) {
             newCard = this.drawCardFromdeck();
-            newCard.faceDown = true; // Make sure it's face down for opponent
-            
-            // Check if this card would be a duplicate - using local function
-            if (!isCardDuplicate(newCard, this.cardManager.opponentCards) &&
+            newCard.faceDown = true;             
+                        if (!isCardDuplicate(newCard, this.cardManager.opponentCards) &&
                 !isCardDuplicate(newCard, this.cardManager.playerCards) &&
                 !isCardDuplicate(newCard, this.cardManager.discardPile)) {
               cardFound = true;
@@ -3818,9 +3066,7 @@ ensureUniqueCards() {
             attempts++;
           }
           
-          // If we couldn't find a non-duplicate after several attempts,
-          // create a completely unique card
-          if (!cardFound) {
+                              if (!cardFound) {
             console.warn("Could not find non-duplicate card after multiple attempts");
             newCard = this.createUniqueCard();
             newCard.faceDown = true;
@@ -3828,77 +3074,56 @@ ensureUniqueCards() {
           
           this.deckCount--;
         } else {
-          // Take top card from discard pile
-          newCard = this.cardManager.discardPile.pop();
-          newCard.faceDown = true; // Make sure it's face down once in opponent's hand
-          
-          // Extra check to ensure it's not a duplicate - using local function
-          if (isCardDuplicate(newCard, this.cardManager.opponentCards)) {
+                    newCard = this.cardManager.discardPile.pop();
+          newCard.faceDown = true;           
+                    if (isCardDuplicate(newCard, this.cardManager.opponentCards)) {
             console.warn("Avoiding duplicate from discard pile");
-            // Return the card to discard pile
-            this.cardManager.discardPile.push(newCard);
+                        this.cardManager.discardPile.push(newCard);
             
-            // Get a fresh card from the deck instead
-            newCard = this.drawCardFromdeck();
+                        newCard = this.drawCardFromdeck();
             newCard.faceDown = true;
             this.deckCount--;
           }
         }
         
-        // IMPORTANT: Check for duplicate ID, regenerate if needed
-        const existingIds = new Set([
+                const existingIds = new Set([
           ...this.cardManager.playerCards.map(c => c.id),
           ...this.cardManager.opponentCards.map(c => c.id),
           ...this.cardManager.discardPile.map(c => c.id)
         ]);
         
-        // Ensure unique ID
-        while (existingIds.has(newCard.id)) {
+                while (existingIds.has(newCard.id)) {
           newCard.id = Math.floor(Math.random() * 10000) + 800;
         }
         
-        // Add card to opponent's hand
-        this.cardManager.opponentCards.push(newCard);
+                this.cardManager.opponentCards.push(newCard);
         
-        // Calculate the index for where the card will go (at the end of the hand)
-        const newCardIndex = this.cardManager.opponentCards.length - 1;
+                const newCardIndex = this.cardManager.opponentCards.length - 1;
         
         if (this.cardRenderer) {
-          // Animate showing the card being taken
-          this.cardRenderer.animateOpponentCardTake(source, newCardIndex);
+                    this.cardRenderer.animateOpponentCardTake(source, newCardIndex);
           
-          // Wait for animation to complete before showing discard
-          setTimeout(() => {
-            // IMPORTANT: Update the display first to show the new card in opponent's hand
-            this.updatePlayScreen();
+                    setTimeout(() => {
+                        this.updatePlayScreen();
             
-            // Slight delay before discarding to make it feel natural
-            setTimeout(() => {
+                        setTimeout(() => {
               this.opponentDiscard();
               
-              // Переход хода
-              this.playerTurn = true;
-              this.gameStep = this.gameStep % 2 === 0 ? this.gameStep : this.gameStep + 1; // Гарантируем четный шаг в начале хода игрока
-              this.updatePlayScreen();
+                            this.playerTurn = true;
+              this.gameStep = this.gameStep % 2 === 0 ? this.gameStep : this.gameStep + 1;               this.updatePlayScreen();
               
-              // ИЗМЕНЕНО: Проверяем дополнительные условия перед показом туториала
-              setTimeout(() => {
+                            setTimeout(() => {
                 if (this.playerTurn && this.gameStep % 2 === 0 && 
                     this.deadwood > 10 && this.cardManager.opponentCards.length > 0) {
                   this.showTutorial();
                 }
               }, 500);
-            }, 800); // Time before discarding
-          }, 600); // Time to see the card in opponent's hand
-        }
+            }, 800);           }, 600);         }
       } else {
-        // Если карт нет
-        this.playerTurn = true;
-        this.gameStep = this.gameStep % 2 === 0 ? this.gameStep : this.gameStep + 1; // Гарантируем четный шаг в начале хода игрока
-        this.updatePlayScreen();
+                this.playerTurn = true;
+        this.gameStep = this.gameStep % 2 === 0 ? this.gameStep : this.gameStep + 1;         this.updatePlayScreen();
         
-        // ИЗМЕНЕНО: Проверяем дополнительные условия перед показом туториала
-        setTimeout(() => {
+                setTimeout(() => {
           if (this.playerTurn && this.gameStep % 2 === 0 && 
               this.deadwood > 10 && this.cardManager.opponentCards.length > 0) {
             this.showTutorial();
@@ -3910,18 +3135,15 @@ ensureUniqueCards() {
   
 
   trackAllCards() {
-    // Get all cards currently in play
-    const allCards = [
+        const allCards = [
       ...this.cardManager.playerCards,
       ...this.cardManager.opponentCards,
       ...this.cardManager.discardPile
     ];
     
-    // Create a map of card IDs to count occurrences
-    const cardTracker = new Map();
+        const cardTracker = new Map();
     
-    // Count each card
-    allCards.forEach(card => {
+        allCards.forEach(card => {
       const cardKey = `${card.value}_${card.suit}`;
       if (!cardTracker.has(cardKey)) {
         cardTracker.set(cardKey, []);
@@ -3929,16 +3151,14 @@ ensureUniqueCards() {
       cardTracker.get(cardKey).push(card);
     });
     
-    // Find duplicated cards
-    const duplicatedCards = [];
+        const duplicatedCards = [];
     cardTracker.forEach((cards, key) => {
       if (cards.length > 1) {
         duplicatedCards.push({ key, cards });
       }
     });
     
-    // Log any duplicated cards
-    if (duplicatedCards.length > 0) {
+        if (duplicatedCards.length > 0) {
       console.warn('Duplicate cards detected:', duplicatedCards);
       return duplicatedCards;
     }
@@ -3946,90 +3166,71 @@ ensureUniqueCards() {
     return null;
   }
 
-  // Opponent discards a card
-  opponentDiscard() {
+    opponentDiscard() {
     if (!this.cardManager.opponentCards?.length) return;
     
     let discardIndex = -1;
     
     if (this.screenshotConfig === 1) {
-      // For screenshot 1, opponent should discard 10♥
-      discardIndex = this.cardManager.opponentCards.findIndex(
+            discardIndex = this.cardManager.opponentCards.findIndex(
         card => card.value === '10' && card.suit === 'hearts'
       );
     } else {
-      // For screenshot 2, opponent should discard 7♣
-      discardIndex = this.cardManager.opponentCards.findIndex(
+            discardIndex = this.cardManager.opponentCards.findIndex(
         card => card.value === '7' && card.suit === 'clubs'
       );
     }
     
-    // If target card not found, fall back to random card
-    if (discardIndex === -1) {
+        if (discardIndex === -1) {
       discardIndex = Math.floor(Math.random() * this.cardManager.opponentCards.length);
     }
     
-    // Get the card to discard but do NOT remove it from opponent's hand yet
-    const discardedCard = { ...this.cardManager.opponentCards[discardIndex] };
+        const discardedCard = { ...this.cardManager.opponentCards[discardIndex] };
     
-    // CRUCIAL FIX: Check if this card already exists in the discard pile
-    const isDuplicate = this.cardManager.discardPile.some(c => 
+        const isDuplicate = this.cardManager.discardPile.some(c => 
       c.value === discardedCard.value && c.suit === discardedCard.suit
     );
     
     if (isDuplicate) {
       console.error("Error: Opponent trying to discard a card that's already in discard pile");
-      // Choose a different card
-      const availableIndices = Array.from({ length: this.cardManager.opponentCards.length }, (_, i) => i)
+            const availableIndices = Array.from({ length: this.cardManager.opponentCards.length }, (_, i) => i)
         .filter(i => i !== discardIndex);
       
       if (availableIndices.length > 0) {
-        // Use a different card from opponent's hand
-        discardIndex = availableIndices[Math.floor(Math.random() * availableIndices.length)];
+                discardIndex = availableIndices[Math.floor(Math.random() * availableIndices.length)];
         discardedCard = { ...this.cardManager.opponentCards[discardIndex] };
       }
     }
     
-    // Set faceDown to false when discarding
-    discardedCard.faceDown = false;
+        discardedCard.faceDown = false;
     
-    // Animate the discard if renderer is available
-    if (this.cardRenderer) {
-      // Pass the original card position and a callback that will add the card to discard pile
-      // only after the animation completes
-      this.cardRenderer.animateOpponentCardDiscard(
+        if (this.cardRenderer) {
+                  this.cardRenderer.animateOpponentCardDiscard(
         discardedCard, 
         discardIndex,
         () => {
-          // Now remove the card from opponent's hand
-          this.cardManager.opponentCards.splice(discardIndex, 1);
+                    this.cardManager.opponentCards.splice(discardIndex, 1);
           
-          // Initialize discardPile if needed
-          if (!this.cardManager.discardPile) {
+                    if (!this.cardManager.discardPile) {
             this.cardManager.discardPile = [];
           }
           
-          // Add to discard pile with unique ID to prevent duplicates
-          const uniqueDiscardCard = {
+                    const uniqueDiscardCard = {
             ...discardedCard,
-            id: Math.floor(Math.random() * 100000) + 5000 // Ensure unique ID
-          };
+            id: Math.floor(Math.random() * 100000) + 5000           };
           
           this.cardManager.discardPile.push(uniqueDiscardCard);
           
-          // Verify no duplicate cards
-          this.trackAllCards();
+                    this.trackAllCards();
           
-          // Update the display to reflect the changes
-          this.updatePlayScreen();
+                    this.updatePlayScreen();
         }
       );
     }
   }
 
   drawCardFromdeck() {
-    // Предопределённые карты для первых трёх ходов
-    
+        
     const riggedCards = [
       { value: '7', suit: 'clubs' },
       { value: '8', suit: 'clubs' },
@@ -4046,8 +3247,7 @@ ensureUniqueCards() {
       };
     }
   
-    // Собираем все уже занятые карты
-    const playerCards   = this.cardManager.playerCards   || [];
+        const playerCards   = this.cardManager.playerCards   || [];
     const opponentCards = this.cardManager.opponentCards || [];
     const discardPile   = this.cardManager.discardPile   || [];
   
@@ -4057,11 +3257,9 @@ ensureUniqueCards() {
       ...discardPile
     ].map(c => `${c.value}_${c.suit}`);
   
-    // Перемешанная полная колода
-    const fulldeck = this.createShuffleddeck();
+        const fulldeck = this.createShuffleddeck();
   
-    // Фильтруем карты, которые уже использованы
-    const availableCards = fulldeck.filter(card =>
+        const availableCards = fulldeck.filter(card =>
       !usedKeys.includes(`${card.value}_${card.suit}`)
     );
   
@@ -4091,11 +3289,9 @@ ensureUniqueCards() {
         y: this.cardRenderer.discardContainer.y + this.config.cardHeight/2
       };
       
-      // Показываем только анимацию руки, без текстового тултипа
-      this.handCursor.tap(discardPos.x, discardPos.y, {
+            this.handCursor.tap(discardPos.x, discardPos.y, {
         onComplete: () => {
-          // Highlight discard pile
-          if (this.cardRenderer.discardContainer.children.length > 0) {
+                    if (this.cardRenderer.discardContainer.children.length > 0) {
             const topCard = this.cardRenderer.discardContainer.children[
               this.cardRenderer.discardContainer.children.length - 1
             ];
@@ -4112,23 +3308,16 @@ ensureUniqueCards() {
     }
   }
 
-  // Handle knock action
-handleKnock() {
+  handleKnock() {
   if (!this.playerTurn || this.deadwood > 10) return;
   
-  // Показываем оверлей с логотипом
-  if (this.uiRenderer) {
+    if (this.uiRenderer) {
     this.uiRenderer.showPlayNowOverlay();
   }
   
-  // Можно оставить или закомментировать диалог подтверждения
-  // if (this.uiManager) {
-  //   this.uiManager.createDialog('Knock Confirmation', 'Do you want to knock?', 'knock');
-  // }
-}
+        }
 
-  // Handle meld action
-  handleMeld() {
+    handleMeld() {
     if (!this.playerTurn || !this.uiManager) return;
     this.uiManager.createDialog('Meld Confirmation', 'Are you sure you want to meld?', 'meld');
   }
@@ -4151,26 +3340,20 @@ handleKnock() {
     tutorialText.anchor.set(0.5);
     tutorialText.x = this.app.screen.width / 2;
     
-    // Изменяем позицию Y, чтобы отображать ниже центра экрана
-    // Примерно на 2/3 высоты экрана
-    tutorialText.y = this.app.screen.height * 0.67;
+            tutorialText.y = this.app.screen.height * 0.67;
     tutorialText.alpha = 0;
     
     this.app.stage.addChild(tutorialText);
     
-    // Анимация появления (немного поднимаем текст при появлении)
-    gsap.to(tutorialText, {
+        gsap.to(tutorialText, {
       alpha: 1,
-      y: tutorialText.y - 10, // Небольшой сдвиг вверх для анимации
-      duration: 0.5,
+      y: tutorialText.y - 10,       duration: 0.5,
       ease: "power2.out",
       onComplete: () => {
-        // Держим, затем исчезаем
-        setTimeout(() => {
+                setTimeout(() => {
           gsap.to(tutorialText, {
             alpha: 0,
-            y: tutorialText.y - 20, // Продолжаем движение вверх при исчезновении
-            duration: 0.5,
+            y: tutorialText.y - 20,             duration: 0.5,
             ease: "power2.in",
             onComplete: () => {
               this.app.stage.removeChild(tutorialText);
@@ -4184,8 +3367,7 @@ handleKnock() {
   handleTutorials() {
     if (this.tutorialShown) return;
     
-    // Set of tutorial steps
-    const tutorialSteps = [
+        const tutorialSteps = [
       {
         message: "Welcome to Gin Rummy! Create Sets (3+ same rank) or Runs (3+ sequence in same suit)",
         delay: 2000,
@@ -4210,54 +3392,35 @@ handleKnock() {
       }
     ];
     
-    // Run through tutorial steps
-    // tutorialSteps.forEach((step, index) => {
-    //   setTimeout(() => {
-    //     this.showTutorialMessage(step.message, step.duration);
-    //     if (step.action) step.action();
-    //   }, step.delay);
-    // });
-  }
+                              }
 
-  // Handle knock confirmation
-  // В game.js изменить метод handleKnockConfirm
-  handleKnockConfirm(confirmed) {
+      handleKnockConfirm(confirmed) {
     if (confirmed) {
-      // Всегда делаем это правильным выбором
-      const isCorrectChoice = true;
+            const isCorrectChoice = true;
       
       if (isCorrectChoice) {
-        // Генерируем очень высокое значение для deadwood оппонента
-        const opponentDeadwood = Math.floor(Math.random() * 20) + 40; // От 40 до 59
+                const opponentDeadwood = Math.floor(Math.random() * 20) + 40;         
+                const deadwoodDifference = Math.max(30, opponentDeadwood - this.deadwood);
         
-        // Разница в deadwood (минимум 30 очков для ускоренной игры)
-        const deadwoodDifference = Math.max(30, opponentDeadwood - this.deadwood);
+                this.playerScore += deadwoodDifference;
         
-        // Бонус за выигрыш (разница в deadwood)
-        this.playerScore += deadwoodDifference;
+                this.showTooltip(`Great! Your deadwood: ${this.deadwood}, opponent's: ${opponentDeadwood}. +${deadwoodDifference} points!`, null);
         
-        // Показываем сообщение с подсчетом очков
-        this.showTooltip(`Great! Your deadwood: ${this.deadwood}, opponent's: ${opponentDeadwood}. +${deadwoodDifference} points!`, null);
-        
-        // Сразу показываем оверлей с логотипом после небольшой задержки
-        setTimeout(() => {
+                setTimeout(() => {
           if (this.uiRenderer) {
             this.uiRenderer.showPlayNowOverlay();
           }
         }, 1500);
       }
       
-      // Ограничиваем до 2 раздач для playable ad
-      if (this.dealCount < 1) {
-        // Следующая раздача
-        setTimeout(() => {
+            if (this.dealCount < 1) {
+                setTimeout(() => {
           this.initializeGame();
           this.startGame();
           this.dealCount++;
         }, 2500);
       } else {
-        // Полное завершение после первой раздачи
-        if (this.stateManager) {
+                if (this.stateManager) {
           setTimeout(() => {
             this.stateManager.changeState('end');
             this.updateEndScreen(this.playerScore);
@@ -4267,34 +3430,28 @@ handleKnock() {
     }
   }
 
-  // Handle meld confirmation
-  handleMeldConfirm(confirmed) {
+    handleMeldConfirm(confirmed) {
     if (confirmed) {
       this.deadwood = Math.max(this.deadwood - 10, 0);
       this.updatePlayScreen();
     }
   }
 
-  // Handle install action
-  handleInstall() {
+    handleInstall() {
     window.open('https://apps.apple.com/app/gin-rummy-stars-card-game/id1467143758', '_blank');
   }
 
-  // Update end screen
-  // В game.js обновить метод updateEndScreen
-updateEndScreen(playerScore) {
+    updateEndScreen(playerScore) {
   if (this.endContainer) {
     this.endContainer.removeChildren();
     
-    // Тёмный фон
-    const overlay = new PIXI.Graphics();
+        const overlay = new PIXI.Graphics();
     overlay.beginFill(0x000000, 0.8);
     overlay.drawRect(0, 0, this.app.screen.width, this.app.screen.height);
     overlay.endFill();
     this.endContainer.addChild(overlay);
     
-    // Заголовок
-    const endTitle = new PIXI.Text("Game Over", {
+        const endTitle = new PIXI.Text("Game Over", {
       fontFamily: "Arial",
       fontSize: 36,
       fill: 0xFFFFFF,
@@ -4304,8 +3461,7 @@ updateEndScreen(playerScore) {
     endTitle.position.set(this.app.screen.width / 2, this.app.screen.height / 2 - 100);
     this.endContainer.addChild(endTitle);
     
-    // Информация о счёте
-    const scoreText = new PIXI.Text(`Your score: ${playerScore}`, {
+        const scoreText = new PIXI.Text(`Your score: ${playerScore}`, {
       fontFamily: "Arial",
       fontSize: 30,
       fill: 0xFFFF00,
@@ -4315,8 +3471,7 @@ updateEndScreen(playerScore) {
     scoreText.position.set(this.app.screen.width / 2, this.app.screen.height / 2 - 40);
     this.endContainer.addChild(scoreText);
     
-    // Призыв к действию
-    const ctaText = new PIXI.Text("Install full game to play more!", {
+        const ctaText = new PIXI.Text("Install full game to play more!", {
       fontFamily: "Arial",
       fontSize: 24,
       fill: 0xFFFFFF
@@ -4325,8 +3480,7 @@ updateEndScreen(playerScore) {
     ctaText.position.set(this.app.screen.width / 2, this.app.screen.height / 2 + 20);
     this.endContainer.addChild(ctaText);
     
-    // Кнопка установки
-    this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/newGameButton.webp')
+        this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/newGameButton.webp')
       .then(texture => {
         const installButton = new PIXI.Sprite(texture);
         installButton.anchor.set(0.5);
@@ -4339,8 +3493,7 @@ updateEndScreen(playerScore) {
         });
         this.endContainer.addChild(installButton);
         
-        // Пульсация кнопки для привлечения внимания
-        gsap.to(installButton.scale, {
+                gsap.to(installButton.scale, {
           x: 1.1, y: 1.1,
           duration: 0.8,
           repeat: -1,
@@ -4348,8 +3501,7 @@ updateEndScreen(playerScore) {
         });
       })
       .catch(err => {
-        // Запасной вариант кнопки
-        const fallbackButton = new PIXI.Graphics();
+                const fallbackButton = new PIXI.Graphics();
         fallbackButton.beginFill(0x4CAF50);
         fallbackButton.drawRoundedRect(0, 0, 180, 60, 10);
         fallbackButton.endFill();
@@ -4373,8 +3525,7 @@ updateEndScreen(playerScore) {
         
         this.endContainer.addChild(fallbackButton);
         
-        // Пульсация для запасной кнопки
-        gsap.to(fallbackButton.scale, {
+                gsap.to(fallbackButton.scale, {
           x: 1.1, y: 1.1,
           duration: 0.8,
           repeat: -1,
@@ -4388,42 +3539,33 @@ updateEndScreen(playerScore) {
 
   
 
-  // Show hint for drawing from deck
-  showdeckHint() {
+    showdeckHint() {
     if (!this.handCursor || !this.playerTurn || !this.cardRenderer) return;
     
-    // Позиция колоды
-    const deckPosition = {
+        const deckPosition = {
       x: this.cardRenderer.deckContainer.x + this.config.cardWidth / 2,
       y: this.cardRenderer.deckContainer.y + this.config.cardHeight / 2
     };
     
-    // Демонстрируем нажатие на колоду
-    this.handCursor.tap(deckPosition.x, deckPosition.y, {
+        this.handCursor.tap(deckPosition.x, deckPosition.y, {
       onComplete: () => {
-        // Никакой анимации масштаба — сразу подсказка
-        this.showDiscardHint();
+                this.showDiscardHint();
       }
     });
   }
   
 
-  // Show hint for discarding a card
-  showDiscardHint() {
-    // 1) Если игрок ещё не взял карту, выходим
-    if (!this.hasDrawnCard) return;
+    showDiscardHint() {
+        if (!this.hasDrawnCard) return;
     if (!this.uiRenderer) return;
   
-    // 2) Скрываем все кнопки и диалоги перед решением
-    this.uiRenderer.showGinButton(false);
+        this.uiRenderer.showGinButton(false);
     this.uiRenderer.showKnockButton(false);
     this.uiRenderer.hideDialog();
   
-    // 3) Идеальная рука → GIN
-    if (this.deadwood === 0) {
+        if (this.deadwood === 0) {
       this.uiRenderer.showGinButton(true);
-      // Пульсация GIN‑кнопки
-      if (this.uiRenderer.ginButton) {
+            if (this.uiRenderer.ginButton) {
         gsap.to(this.uiRenderer.ginButton.scale, {
           x: 1.2, y: 1.2,
           duration: 0.5,
@@ -4435,11 +3577,9 @@ updateEndScreen(playerScore) {
       return;
     }
   
-    // 4) Deadwood 1–10 → KNOCK
-    if (this.deadwood > 0 && this.deadwood <= 10) {
+        if (this.deadwood > 0 && this.deadwood <= 10) {
       this.uiRenderer.showKnockButton(true);
-      // Пульсация KNOCK‑кнопки
-      if (this.uiRenderer.knockButton) {
+            if (this.uiRenderer.knockButton) {
         gsap.to(this.uiRenderer.knockButton.scale, {
           x: 1.5, y: 1.5,
           duration: 0.5,
@@ -4451,11 +3591,9 @@ updateEndScreen(playerScore) {
       return;
     }
   
-    // 5) Во всех других случаях → обычный диалог “таскай карту”
-    this.uiRenderer.showDialog("Drag a card to discard!");
+        this.uiRenderer.showDialog("Drag a card to discard!");
   
-    // Дополнительно подсветим самую правую карту и покажем курсор
-    const sprites = this.cardRenderer.playerHandContainer.children;
+        const sprites = this.cardRenderer.playerHandContainer.children;
     let rightmost = null, maxX = -Infinity;
     for (const s of sprites) {
       if (s.x > maxX) {
@@ -4464,8 +3602,7 @@ updateEndScreen(playerScore) {
       }
     }
     if (rightmost) {
-      // подсветка и лёгкий "прыжок" правой карты
-      this.cardRenderer.applySpecialHighlight(rightmost, 0xFF00FF, 0.4);
+            this.cardRenderer.applySpecialHighlight(rightmost, 0xFF00FF, 0.4);
       gsap.to(rightmost.scale, {
         x: 0.6, y: 0.6,
         duration: 0.2,
@@ -4473,16 +3610,14 @@ updateEndScreen(playerScore) {
         yoyo: true
       });
   
-      // курсор под правой картой
-      const worldPos = this.cardRenderer.playerHandContainer.toGlobal(new PIXI.Point(rightmost.x, rightmost.y));
+            const worldPos = this.cardRenderer.playerHandContainer.toGlobal(new PIXI.Point(rightmost.x, rightmost.y));
       this.handCursor.showAt(worldPos.x, worldPos.y - 40);
     }
   }
 
   
 
-  // Update loading progress
-  updateLoadingProgress(progress) {
+    updateLoadingProgress(progress) {
     if (!this.progressBarFill) return;
     
     const progressBarWidth = 300;
@@ -4492,26 +3627,22 @@ updateEndScreen(playerScore) {
     this.progressBarFill.endFill();
   }
 
-  // Hide loading screen
-  hideLoadingScreen() {
+    hideLoadingScreen() {
     if (this.loadingContainer) {
       this.app.stage.removeChild(this.loadingContainer);
       this.loadingContainer = null;
     }
   }
 
-  // Show error message
-  showErrorMessage(message) {
+    showErrorMessage(message) {
     const errorContainer = new PIXI.Container();
     
-    // Background
-    const graphics = new PIXI.Graphics();
+        const graphics = new PIXI.Graphics();
     graphics.beginFill(0x000000, 0.8);
     graphics.drawRect(0, 0, this.app.screen.width, this.app.screen.height);
     graphics.endFill();
     
-    // Error text
-    const errorText = new PIXI.Text(message, {
+        const errorText = new PIXI.Text(message, {
       fontFamily: "Arial",
       fontSize: 24,
       fill: 0xFF0000,
@@ -4523,8 +3654,7 @@ updateEndScreen(playerScore) {
     errorText.anchor.set(0.5);
     errorText.position.set(this.app.screen.width / 2, this.app.screen.height / 2);
     
-    // Retry button
-    const retryButton = new PIXI.Graphics();
+        const retryButton = new PIXI.Graphics();
     retryButton.beginFill(0x4CAF50);
     retryButton.drawRoundedRect(0, 0, 150, 50, 10);
     retryButton.endFill();
@@ -4553,59 +3683,42 @@ updateEndScreen(playerScore) {
     this.errorContainer = errorContainer;
   }
 
-  // Resize the game
-  // Updated resize method to maintain center-cropped background
-// Updated resize method to maintain center-cropped background
-resize() {
-  // Update renderer size to match window dimensions
-  const width = window.innerWidth;
+    resize() {
+    const width = window.innerWidth;
   const height = window.innerHeight;
   
   this.app.renderer.resize(width, height);
   
-  // Resize background with center-crop approach
-  if (this.containers.background.children[0]) {
+    if (this.containers.background.children[0]) {
     const bg = this.containers.background.children[0];
     
-    // If it's a sprite (image background), maintain aspect ratio with center-crop
-    if (bg instanceof PIXI.Sprite && bg.texture) {
-      // Calculate the scaling to cover the entire screen while maintaining aspect ratio
-      const scaleX = width / bg.texture.width;
+        if (bg instanceof PIXI.Sprite && bg.texture) {
+            const scaleX = width / bg.texture.width;
       const scaleY = height / bg.texture.height;
-      const scale = Math.max(scaleX, scaleY); // Use the larger scale to ensure covering
+      const scale = Math.max(scaleX, scaleY);       
+            bg.scale.set(scale, scale);
       
-      // Apply the calculated scale
-      bg.scale.set(scale, scale);
+            bg.x = (width - bg.width) / 2;
       
-      // Center the sprite horizontally
-      bg.x = (width - bg.width) / 2;
-      
-      // Special positioning for height on small screens like iPhone SE
-      const isSmallScreen = height < 570; // Approximate iPhone SE height threshold
-      
+            const isSmallScreen = height < 570;       
       if (isSmallScreen) {
-        // Shift down by the height of a card to show better portion of background
-        const cardHeight = this.config.cardHeight || 120;
+                const cardHeight = this.config.cardHeight || 120;
         bg.y = (height - bg.height) / 2 + cardHeight;
       } else {
-        // Regular vertical centering for normal screens
-        bg.y = (height - bg.height) / 2;
+                bg.y = (height - bg.height) / 2;
       }
     } 
-    // If it's a Graphics object (fallback background), just resize to fill
-    else if (bg instanceof PIXI.Graphics) {
+        else if (bg instanceof PIXI.Graphics) {
       bg.width = width;
       bg.height = height;
     }
   }
   
-  // Resize UI elements
-  if (this.uiRenderer) {
+    if (this.uiRenderer) {
     this.uiRenderer.resize(width, height);
   }
   
-  // Reposition cards
-  if (this.cardRenderer) {
+    if (this.cardRenderer) {
     this.cardRenderer.updatePositions(
       this.uiRenderer?.adHeight || 0,
       this.uiRenderer?.navHeight || 0,
@@ -4614,8 +3727,7 @@ resize() {
     );
   }
   
-  // Update intro screen elements
-  if (this.introContainer) {
+    if (this.introContainer) {
     this.introContainer.children.forEach(child => {
       if (child instanceof PIXI.Text && child.text.includes("SET or RUN")) {
         child.position.set(width / 2, height * 0.2);
@@ -4627,10 +3739,8 @@ resize() {
     });
   }
   
-  // Rest of the resize method remains the same...
-  
-  // Update end screen elements
-  if (this.endContainer) {
+    
+    if (this.endContainer) {
     this.endContainer.children.forEach(child => {
       if (child instanceof PIXI.Graphics && !child.children.length) {
         child.clear();
@@ -4646,8 +3756,7 @@ resize() {
     });
   }
   
-  // Update error message if shown
-  if (this.errorContainer) {
+    if (this.errorContainer) {
     this.errorContainer.children.forEach(child => {
       if (child instanceof PIXI.Graphics && !child.children.length) {
         child.clear();
@@ -4662,22 +3771,18 @@ resize() {
     });
   }
   
-  // Update loading screen if shown
-  if (this.loadingContainer) {
+    if (this.loadingContainer) {
     this.loadingContainer.children.forEach(child => {
       if (child instanceof PIXI.Graphics && !child.children.length) {
         if (child === this.progressBarFill) {
-          // Don't resize the progress fill, just reposition it
-          child.position.set((width - 300) / 2, height / 2);
+                    child.position.set((width - 300) / 2, height / 2);
         } else if (child.width > 100) {
-          // This is the background
-          child.clear();
+                    child.clear();
           child.beginFill(0x000000, 0.7);
           child.drawRect(0, 0, width, height);
           child.endFill();
         } else {
-          // This is the progress background
-          child.position.set((width - 300) / 2, height / 2);
+                    child.position.set((width - 300) / 2, height / 2);
         }
       } else if (child instanceof PIXI.Text) {
         child.position.set(width / 2, height / 2 - 30);

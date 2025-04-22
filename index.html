@@ -85,16 +85,13 @@
   
   <!-- Ad Network Interfaces -->
   <script>
-    // Unified mraid/mobile ad bridge interface
-    window.adBridge = {
+        window.adBridge = {
       initialized: false,
       
-      // Initialize the bridge for the current environment
-      init: function() {
+            init: function() {
         if (this.initialized) return;
         
-        // Handle mraid (IAB standard used by many networks)
-        if (typeof mraid !== 'undefined') {
+                if (typeof mraid !== 'undefined') {
           this.platform = 'mraid';
           if (mraid.getState() === 'loading') {
             mraid.addEventListener('ready', this.onReady.bind(this));
@@ -102,29 +99,24 @@
             this.onReady();
           }
         } 
-        // Handle FbPlayableAd (Facebook)
-        else if (typeof FbPlayableAd !== 'undefined') {
+                else if (typeof FbPlayableAd !== 'undefined') {
           this.platform = 'facebook';
           this.initialized = true;
         }
-        // Handle Unity Ads
-        else if (typeof unity !== 'undefined') {
+                else if (typeof unity !== 'undefined') {
           this.platform = 'unity';
           this.initialized = true;
         } 
-        // AppLovin
-        else if (typeof mraid === 'undefined' && typeof AppLovinAd !== 'undefined') {
+                else if (typeof mraid === 'undefined' && typeof AppLovinAd !== 'undefined') {
           this.platform = 'applovin';
           this.initialized = true;
         }
-        // Fallback to standard browser environment
-        else {
+                else {
           this.platform = 'browser';
           this.initialized = true;
         }
         
-        // Setup CTA button
-        document.getElementById('cta-button').addEventListener('click', this.onClick.bind(this));
+                document.getElementById('cta-button').addEventListener('click', this.onClick.bind(this));
       },
       
       onReady: function() {
@@ -132,19 +124,16 @@
         if (this.platform === 'mraid') {
           mraid.addEventListener('viewableChange', function(viewable) {
             if (viewable) {
-              // Ad is visible
-            }
+                          }
           });
         }
       },
       
-      // Show the CTA button
-      showCTA: function() {
+            showCTA: function() {
         document.getElementById('cta-button').classList.add('visible');
       },
       
-      // Handle CTA click based on platform
-      onClick: function() {
+            onClick: function() {
         switch (this.platform) {
           case 'mraid':
             mraid.open(this.getStoreURL());
@@ -161,38 +150,30 @@
             }
             break;
           default:
-            // For browser testing, open in a new tab
-            window.open('https://apps.apple.com/app/gin-rummy-stars-card-game/id1467143758', '_blank');
+                        window.open('https://apps.apple.com/app/gin-rummy-stars-card-game/id1467143758', '_blank');
         }
       },
       
-      // Get appropriate store URL based on platform detection
-      getStoreURL: function() {
-        // Check if we're on iOS
-        if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+            getStoreURL: function() {
+                if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
           return 'https://apps.apple.com/app/gin-rummy-stars-card-game/id1467143758';
         } else {
-          // Android or other platform
-          return 'https://play.google.com/store/apps/details?id=com.yourgame.ginrummy';
+                    return 'https://play.google.com/store/apps/details?id=com.yourgame.ginrummy';
         }
       }
     };
     
-    // Initialize after DOM is ready
-    document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function() {
       window.adBridge.init();
       
-      // You can expose functions to your game script
-      window.showPlayButton = function() {
+            window.showPlayButton = function() {
         window.adBridge.showCTA();
       };
     });
 
-    // Support for PIXI Projection (if needed)
-    window.pixiProjection = {};
+        window.pixiProjection = {};
     
-    // Add support for importing modules that are typically on GitHub
-    window.moduleImports = {
+        window.moduleImports = {
       HandCursor: null,
       UIRenderer: null,
       CardRenderer: null,

@@ -26,8 +26,7 @@ module.exports = {
       },
       {
         test: /\.(png|jpe?g|gif|webp|svg)$/i,
-        type: 'asset/inline' // Inline all images
-      },
+        type: 'asset/inline'       },
       {
         test: /\.css$/,
         use: ['style-loader', 'css-loader']
@@ -50,8 +49,7 @@ module.exports = {
     }),
     new HtmlInlineScriptPlugin({
       compilationOptions: {
-        async: false // Change to synchronous to ensure proper loading
-      }
+        async: false       }
     })
   ],
   optimization: {
@@ -63,21 +61,16 @@ module.exports = {
             comments: false,
           },
           compress: {
-            drop_console: true, // Remove console.logs
-            drop_debugger: true, // Remove debugger statements
-            pure_funcs: ['console.info', 'console.debug', 'console.warn'] // Remove more console functions
-          }
+            drop_console: true,             drop_debugger: true,             pure_funcs: ['console.info', 'console.debug', 'console.warn']           }
         },
         extractComments: false
       }),
     ],
-    // Disable splitChunks to ensure all code is in one bundle
-    splitChunks: {
+        splitChunks: {
       chunks: 'all',
       cacheGroups: {
         defaultVendors: {
-          name: 'vendors', // Set a single vendor chunk name
-          test: /[\\/]node_modules[\\/]/,
+          name: 'vendors',           test: /[\\/]node_modules[\\/]/,
           priority: -10,
           reuseExistingChunk: true,
         },

@@ -1,26 +1,20 @@
-/**
- * Asset loader for the Gin Rummy game
- * Optimized for Playable Ads with CORS fixes
- */
+
 
 import { assets } from './assets.js';
 
 export class AssetLoader {
   constructor() {
     this.textureCache = {};
-    this.preloadedAssets = assets || {}; // Use pre-defined assets
-  }
+    this.preloadedAssets = assets || {};   }
 
   async loadGameAssets(progressCallback) {
-    // Critical assets that must load first
-    const criticalAssets = [
+        const criticalAssets = [
       { name: 'background', path: 'Backgr.webp' },
       { name: 'cardBack', path: 'CardBack_Blue.webp' },
       { name: 'hand', path: 'hand.webp' }
     ];
 
-    // Initial card assets needed for first display
-    const initialCards = [
+        const initialCards = [
       { name: 'A_Hearts', path: 'cards/hearts/A_Hearts.webp' },
       { name: 'K_Hearts', path: 'cards/hearts/K_Hearts.webp' },
       { name: 'A_Spades', path: 'cards/spades/A_Spades.webp' },
@@ -31,8 +25,7 @@ export class AssetLoader {
       { name: 'J_Diamonds', path: 'cards/diamonds/J_Diamonds.webp' }
     ];
 
-    // Secondary assets that can load after critical ones
-    const secondaryAssets = [
+        const secondaryAssets = [
       { name: 'blueAvatar', path: 'blue_avatar.webp' },
       { name: 'redAvatar', path: 'red_avatar.webp' },
       { name: 'settingsButton', path: 'settingsButton.webp' },
@@ -43,22 +36,19 @@ export class AssetLoader {
     let loadedCount = 0;
     const totalAssets = criticalAssets.length + initialCards.length + secondaryAssets.length;
 
-    // Load critical assets sequentially to ensure they're available first
-    for (const asset of criticalAssets) {
+        for (const asset of criticalAssets) {
       await this.loadTexture(asset.path);
       loadedCount++;
       progressCallback?.(loadedCount / totalAssets);
     }
 
-    // Load initial cards in parallel for better performance
-    await Promise.all(initialCards.map(async asset => {
+        await Promise.all(initialCards.map(async asset => {
       await this.loadTexture(asset.path);
       loadedCount++;
       progressCallback?.(loadedCount / totalAssets);
     }));
 
-    // Load secondary assets in parallel
-    await Promise.all(secondaryAssets.map(async asset => {
+        await Promise.all(secondaryAssets.map(async asset => {
       await this.loadTexture(asset.path);
       loadedCount++;
       progressCallback?.(loadedCount / totalAssets);
@@ -68,8 +58,7 @@ export class AssetLoader {
   }
 
   async loadTexture(path) {
-    // Return cached texture if available
-    if (this.textureCache[path]) {
+        if (this.textureCache[path]) {
       return this.textureCache[path];
     }
 
@@ -77,34 +66,28 @@ export class AssetLoader {
       let texture;
       let url;
 
-      // Convert GitHub repository URLs to GitHub Pages URLs to avoid CORS issues
-      if (path.startsWith('https://koshmosh43.github.io/playable/assets/')) {
+            if (path.startsWith('https://koshmosh43.github.io/playable/assets/')) {
         url = path.replace(
           'https://koshmosh43.github.io/playable/assets/',
           'https://koshmosh43.github.io/playable/assets/'
         );
       } 
-      // Use preloaded assets if available
-      else if (this.preloadedAssets[path]) {
+            else if (this.preloadedAssets[path]) {
         url = this.preloadedAssets[path];
       }
-      // For relative paths, use GitHub Pages URL
-      else if (!path.startsWith('http')) {
+            else if (!path.startsWith('http')) {
         url = `https://koshmosh43.github.io/playable/assets/${path}`;
       }
-      // Keep as is if it's already a full URL
-      else {
+            else {
         url = path;
       }
 
-      // Load the texture
-      texture = await PIXI.Assets.load(url);
+            texture = await PIXI.Assets.load(url);
       this.textureCache[path] = texture;
       return texture;
     } catch (error) {
       console.warn(`Failed to load texture at path: ${path}`, error);
-      // Create fallback texture if loading fails
-      const fallbackTexture = this.createFallbackTexture(path);
+            const fallbackTexture = this.createFallbackTexture(path);
       this.textureCache[path] = fallbackTexture;
       return fallbackTexture;
     }
@@ -118,8 +101,7 @@ export class AssetLoader {
     if (path.includes('red_avatar')) return this.createAvatarFallback(0xFF3366);
     if (path.includes('hand')) return this.createHandCursorFallback();
     if (path.includes('cards/')) {
-      // Extract suit and value from path
-      let suit = 'spades';
+            let suit = 'spades';
       let value = 'A';
       
       const suitMatch = path.match(/hearts|diamonds|clubs|spades/);
@@ -136,17 +118,13 @@ export class AssetLoader {
     return PIXI.Texture.WHITE;
   }
 
-  // [The rest of the fallback creation methods remain unchanged]
-  
+    
   createBackgroundFallback() {
-    // Create simple green background for card table
-    const graphics = new PIXI.Graphics();
-    graphics.beginFill(0x0B5D2E); // Green card table color
-    graphics.drawRect(0, 0, 400, 600);
+        const graphics = new PIXI.Graphics();
+    graphics.beginFill(0x0B5D2E);     graphics.drawRect(0, 0, 400, 600);
     graphics.endFill();
     
-    // Add pattern for more realism
-    graphics.lineStyle(1, 0x094823, 0.5);
+        graphics.lineStyle(1, 0x094823, 0.5);
     for (let i = 0; i < 20; i++) {
       graphics.moveTo(0, i * 30);
       graphics.lineTo(400, i * 30);
@@ -162,16 +140,13 @@ export class AssetLoader {
   }
 
   createAdBannerFallback() {
-    // Simple banner for playable ad
-    const graphics = new PIXI.Graphics();
+        const graphics = new PIXI.Graphics();
     
-    // Banner background
-    graphics.beginFill(0x666666);
+        graphics.beginFill(0x666666);
     graphics.drawRect(0, 0, 320, 80);
     graphics.endFill();
     
-    // "Gin Rummy" text
-    const bannerText = new PIXI.Text("Gin Rummy", {
+        const bannerText = new PIXI.Text("Gin Rummy", {
       fontFamily: "Arial",
       fontSize: 24,
       fill: 0xFFFFFF,
@@ -191,16 +166,14 @@ export class AssetLoader {
   createCardBackFallback() {
     const graphics = new PIXI.Graphics();
     
-    // Blue background with white border
-    graphics.beginFill(0x0000AA);
+        graphics.beginFill(0x0000AA);
     graphics.drawRoundedRect(0, 0, 60, 80, 5);
     graphics.endFill();
     
     graphics.lineStyle(2, 0xFFFFFF);
     graphics.drawRoundedRect(5, 5, 50, 70, 3);
     
-    // Add pattern for nicer card back
-    graphics.lineStyle(1, 0xFFFFFF, 0.5);
+        graphics.lineStyle(1, 0xFFFFFF, 0.5);
     for (let i = 0; i < 5; i++) {
       graphics.drawRoundedRect(10 + i * 5, 10 + i * 5, 40 - i * 10, 60 - i * 10, 3);
     }
@@ -215,17 +188,12 @@ export class AssetLoader {
   createAvatarFallback(color) {
     const graphics = new PIXI.Graphics();
     
-    // Colored circle
-    graphics.beginFill(color);
+        graphics.beginFill(color);
     graphics.drawRoundedRect(0, 0, 60, 60, 10);
     graphics.endFill();
     
-    // Add simple face features
-    graphics.lineStyle(2, 0xFFFFFF);
-    graphics.drawCircle(20, 25, 5);  // Left eye
-    graphics.drawCircle(40, 25, 5);  // Right eye
-    graphics.arc(30, 40, 10, 0, Math.PI);  // Smile
-    
+        graphics.lineStyle(2, 0xFFFFFF);
+    graphics.drawCircle(20, 25, 5);      graphics.drawCircle(40, 25, 5);      graphics.arc(30, 40, 10, 0, Math.PI);      
     const renderTexture = PIXI.RenderTexture.create({ width: 60, height: 60 });
     const renderer = PIXI.autoDetectRenderer();
     renderer.render(graphics, { renderTexture });
@@ -236,14 +204,10 @@ export class AssetLoader {
   createHandCursorFallback() {
     const graphics = new PIXI.Graphics();
     
-    // Skin color hand
-    graphics.beginFill(0xFFCCBB);
-    graphics.drawEllipse(20, 30, 15, 25);  // Palm
-    graphics.drawEllipse(20, 0, 8, 20);    // Finger
-    graphics.endFill();
+        graphics.beginFill(0xFFCCBB);
+    graphics.drawEllipse(20, 30, 15, 25);      graphics.drawEllipse(20, 0, 8, 20);        graphics.endFill();
     
-    // Blue sleeve
-    graphics.beginFill(0x3366CC);
+        graphics.beginFill(0x3366CC);
     graphics.drawRoundedRect(0, 50, 40, 20, 5);
     graphics.endFill();
     
@@ -257,17 +221,14 @@ export class AssetLoader {
   createCardFallback(value, suit) {
     const graphics = new PIXI.Graphics();
     
-    // White card background
-    graphics.beginFill(0xFFFFFF);
+        graphics.beginFill(0xFFFFFF);
     graphics.drawRoundedRect(0, 0, 60, 80, 5);
     graphics.endFill();
     
-    // Determine color based on suit
-    const isRed = suit === 'hearts' || suit === 'diamonds';
+        const isRed = suit === 'hearts' || suit === 'diamonds';
     const color = isRed ? 0xFF0000 : 0x000000;
     
-    // Add card value
-    const valueText = new PIXI.Text(value, {
+        const valueText = new PIXI.Text(value, {
       fontFamily: 'Arial',
       fontSize: 16,
       fill: color,
@@ -276,8 +237,7 @@ export class AssetLoader {
     valueText.position.set(5, 5);
     graphics.addChild(valueText);
     
-    // Add suit symbol
-    let suitSymbol = '♠';
+        let suitSymbol = '♠';
     if (suit === 'hearts') suitSymbol = '♥';
     else if (suit === 'diamonds') suitSymbol = '♦';
     else if (suit === 'clubs') suitSymbol = '♣';
@@ -292,8 +252,7 @@ export class AssetLoader {
     suitText.position.set(30, 40);
     graphics.addChild(suitText);
     
-    // Add reversed value at bottom right
-    const valueText2 = new PIXI.Text(value, {
+        const valueText2 = new PIXI.Text(value, {
       fontFamily: 'Arial',
       fontSize: 16,
       fill: color,

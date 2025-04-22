@@ -4,10 +4,8 @@ export class UIRenderer {
       this.assetLoader = assetLoader;
       this.config      = config;
     
-      // базовая ширина, при которой кнопки были созданы
       this.designWidth = 390;
     
-    // UI containers
     this.container = new PIXI.Container();
     this.container.sortableChildren = true;
     
@@ -19,16 +17,13 @@ export class UIRenderer {
     this.dialogContainer = new PIXI.Container();
     this.scoreDisplayContainer = new PIXI.Container();
 
-    // Инициализируем avatarsContainer явно
   this.avatarsContainer = new PIXI.Container();
   this.avatarsContainer.zIndex = 5;
     
-    // UI dimensions
     this.adHeight = 0;
     this.navHeight = 0;
     this.bannerHeight = 0;
     
-    // UI components
     this.knockButton = null;
     this.meldButton = null;
     this.ginButton = null;
@@ -38,16 +33,13 @@ export class UIRenderer {
     this.redScoreText = null;
     
     
-    // Event callbacks
     this.onKnockClick = null;
     this.onMeldClick = null;
     
-    // Initialize
     this.init();
   }
   
   init() {
-    // Set z-index for proper layering inside UI renderer
     this.adContainer.zIndex = 101;
     this.topNavContainer.zIndex = 101;
     this.bannerContainer.zIndex = 99;
@@ -56,10 +48,6 @@ export class UIRenderer {
     this.dialogContainer.zIndex = 200;
     this.scoreDisplayContainer.zIndex = 101;
 
-    // Важное изменение: НЕ добавляем avatarsContainer в this.container
-    // this.container.addChild(this.avatarsContainer);
-    
-    // Add all UI-related containers to the main container of UI renderer.
     this.container.addChild(this.adContainer);
     this.container.addChild(this.topNavContainer);
     this.container.addChild(this.bannerContainer);
@@ -67,17 +55,14 @@ export class UIRenderer {
     this.container.addChild(this.dialogContainer);
     this.container.addChild(this.scoreDisplayContainer);
 
-    // Hide dialog by default
-    this.dialogContainer.visible = false;
+        this.dialogContainer.visible = false;
 }
   
-  // Setup all UI components
-  async setupUI() {
+    async setupUI() {
     await this.setupGameActions();
     await this.setupAvatars();
     
-    // Добавляем отображение deadwood
-    this.setupDeadwoodDisplay();
+        this.setupDeadwoodDisplay();
   }
 
   async setupTopBanner() {
@@ -85,8 +70,7 @@ export class UIRenderer {
         const texture = await this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/TopBanner.webp');
         const banner  = new PIXI.Sprite(texture);
     
-        // Во всю ширину, высоту считаем по пропорции
-        banner.originalAspect = texture.height / texture.width;
+                banner.originalAspect = texture.height / texture.width;
         banner.width  = this.app.screen.width;
         banner.height = this.app.screen.width * banner.originalAspect;
         banner.x = 0;
@@ -110,42 +94,30 @@ export class UIRenderer {
 
     async setupAvatars() {
       try {
-        // Load textures for avatars
-        const [blueTex, redTex] = await Promise.all([
+                const [blueTex, redTex] = await Promise.all([
           this.assetLoader.loadTexture("https://koshmosh43.github.io/playable/assets/blue_avatar.webp"),
           this.assetLoader.loadTexture("https://koshmosh43.github.io/playable/assets/red_avatar.webp"),
         ]);
       
-        // Create avatar sprites
-        this.blueAvatar = new PIXI.Sprite(blueTex);
+                this.blueAvatar = new PIXI.Sprite(blueTex);
         this.redAvatar = new PIXI.Sprite(redTex);
       
-        // Set anchor to the center for proper positioning
-        this.blueAvatar.anchor.set(0.5);
+                this.blueAvatar.anchor.set(0.5);
         this.redAvatar.anchor.set(0.5);
       
-        // Set initial scale
-        this.blueAvatar.scale.set(0.2);
+                this.blueAvatar.scale.set(0.2);
         this.redAvatar.scale.set(0.2);
       
-        // Position avatars based on screen height
-        // For iPhone SE (height < 667px), position avatars closer to the table
-        if (this.app.screen.height < 667) {
-          // Closer to the table positions for smaller screens
-          this.redAvatar.y = this.app.screen.height * 0.30;  // Move red avatar down closer to table
-          this.blueAvatar.y = this.app.screen.height * 0.65; // Move blue avatar up closer to table
-        } else {
-          // Default positions for regular screens
-          this.redAvatar.y = this.app.screen.height * 0.23;
+                        if (this.app.screen.height < 667) {
+                    this.redAvatar.y = this.app.screen.height * 0.30;            this.blueAvatar.y = this.app.screen.height * 0.65;         } else {
+                    this.redAvatar.y = this.app.screen.height * 0.23;
           this.blueAvatar.y = this.app.screen.height * 0.7;
         }
         
-        // Center horizontally
-        this.redAvatar.x = this.app.screen.width / 2;
+                this.redAvatar.x = this.app.screen.width / 2;
         this.blueAvatar.x = this.app.screen.width / 2;
       
-        // Add avatars to the avatars container inside UI renderer
-        this.avatarsContainer.addChild(this.blueAvatar);
+                this.avatarsContainer.addChild(this.blueAvatar);
         this.avatarsContainer.addChild(this.redAvatar);
       } catch (err) {
         console.warn("Could not load avatars", err);
@@ -153,32 +125,27 @@ export class UIRenderer {
       }
 
   
-  // Setup score display
-  async setupScoreDisplay() {
+    async setupScoreDisplay() {
     const scoreContainer = new PIXI.Container();
     
-    // Background
-    const bgGraphics = new PIXI.Graphics();
+        const bgGraphics = new PIXI.Graphics();
     bgGraphics.lineStyle(2, 0x000000, 0.5);
     bgGraphics.beginFill(0x0B5D2E);
     bgGraphics.drawRoundedRect(0, 0, 250, 60, 20);
     bgGraphics.endFill();
     
     try {
-      // Target icon
-      const targetIcon = new PIXI.Graphics();
+            const targetIcon = new PIXI.Graphics();
       targetIcon.beginFill(0xFFFDE7);
       targetIcon.drawCircle(0, 0, 15);
       targetIcon.endFill();
       
-      // Target details
-      targetIcon.lineStyle(2, 0x0B5D2E);
+            targetIcon.lineStyle(2, 0x0B5D2E);
       targetIcon.drawCircle(0, 0, 12);
       targetIcon.drawCircle(0, 0, 8);
       targetIcon.drawCircle(0, 0, 4);
       
-      // Arrow
-      targetIcon.lineStyle(2, 0xFFFDE7);
+            targetIcon.lineStyle(2, 0xFFFDE7);
       targetIcon.moveTo(0, -18);
       targetIcon.lineTo(0, -25);
       targetIcon.moveTo(-3, -22);
@@ -188,8 +155,7 @@ export class UIRenderer {
       targetIcon.x = 35;
       targetIcon.y = 30;
       
-      // Target score text
-      const targetText = new PIXI.Text("100", {
+            const targetText = new PIXI.Text("100", {
         fontFamily: "Arial",
         fontSize: 28,
         fontWeight: "bold",
@@ -199,8 +165,7 @@ export class UIRenderer {
       targetText.x = 85;
       targetText.y = 30;
       
-      // Score boxes
-      const blueBox = new PIXI.Graphics();
+            const blueBox = new PIXI.Graphics();
       blueBox.beginFill(0x3366FF);
       blueBox.drawRect(120, 10, 60, 40);
       blueBox.endFill();
@@ -210,8 +175,7 @@ export class UIRenderer {
       redBox.drawRect(180, 10, 60, 40);
       redBox.endFill();
       
-      // Score texts
-      this.blueScoreText = new PIXI.Text("0", {
+            this.blueScoreText = new PIXI.Text("0", {
         fontFamily: "Arial",
         fontSize: 28,
         fontWeight: "bold",
@@ -231,8 +195,7 @@ export class UIRenderer {
       this.redScoreText.x = 210;
       this.redScoreText.y = 30;
       
-      // Add all elements to container
-      scoreContainer.addChild(bgGraphics);
+            scoreContainer.addChild(bgGraphics);
       scoreContainer.addChild(targetIcon);
       scoreContainer.addChild(targetText);
       scoreContainer.addChild(blueBox);
@@ -241,8 +204,7 @@ export class UIRenderer {
       scoreContainer.addChild(this.redScoreText);
     } catch (err) {
       console.warn("Using fallback score display");
-      // Fallback score display
-      const scoreText = new PIXI.Text("Target: 100   Score: 0 - 0", {
+            const scoreText = new PIXI.Text("Target: 100   Score: 0 - 0", {
         fontFamily: "Arial",
         fontSize: 20,
         fontWeight: "bold",
@@ -254,8 +216,7 @@ export class UIRenderer {
       scoreContainer.addChild(scoreText);
     }
     
-    // Position score container
-    scoreContainer.x = (this.app.screen.width - 250) / 2;
+        scoreContainer.x = (this.app.screen.width - 250) / 2;
     scoreContainer.y = this.adHeight + 10;
     
     this.scoreDisplayContainer.removeChildren();
@@ -264,16 +225,13 @@ export class UIRenderer {
     return scoreContainer;
   }
   
-  // Setup game buttons (settings and new game)
-  async setupGameButtons() {
+    async setupGameButtons() {
     try {
-      // Settings button
-      const settingsButton = await this.createButton('https://koshmosh43.github.io/playable/assets/settingsButton.webp', 'settings');
+            const settingsButton = await this.createButton('https://koshmosh43.github.io/playable/assets/settingsButton.webp', 'settings');
       settingsButton.x = this.app.screen.width - 90;
       settingsButton.y = 60;
       
-      // New game button
-      const addButton = await this.createButton('https://koshmosh43.github.io/playable/assets/newGameButton.webp', 'addNew');
+            const addButton = await this.createButton('https://koshmosh43.github.io/playable/assets/newGameButton.webp', 'addNew');
       addButton.x = this.app.screen.width - 30;
       addButton.y = 90;
       
@@ -287,16 +245,12 @@ export class UIRenderer {
     }
   }
   
-  // Create button helper
-  // Create button helper (полностью заменить старую функцию)
-async createButton(texturePath, type) {
+    async createButton(texturePath, type) {
   try {
-    // основная попытка загрузить PNG‑иконку
-    const texture = await this.assetLoader.loadTexture(texturePath);
+        const texture = await this.assetLoader.loadTexture(texturePath);
     const button  = new PIXI.Sprite(texture);
 
-    // базовый размер, нужен для масштабирования в resize()
-    button.baseSize = 55;
+        button.baseSize = 55;
     button.width    = button.height = button.baseSize;
 
     button.anchor.set(0.5);
@@ -304,8 +258,7 @@ async createButton(texturePath, type) {
     button.buttonMode  = true;
     button.buttonType  = type;
 
-    // обработчики кликов
-    if (type === 'settings') {
+        if (type === 'settings') {
       button.on('pointerdown', () => console.log('Settings button clicked'));
     } else if (type === 'addNew') {
       button.on('pointerdown', () => console.log('Add new button clicked'));
@@ -315,12 +268,10 @@ async createButton(texturePath, type) {
 
     return button;
   } catch (err) {
-    // fallback‑кнопка, если PNG не загрузился
-    console.warn(`Creating fallback button for ${type}`, err);
+        console.warn(`Creating fallback button for ${type}`, err);
 
     const fallback = new PIXI.Graphics();
-    fallback.baseSize   = 55;              // чтобы тоже масштабировалась
-    fallback.buttonType = type;
+    fallback.baseSize   = 55;                  fallback.buttonType = type;
     fallback.interactive = true;
     fallback.buttonMode  = true;
 
@@ -352,14 +303,12 @@ async createButton(texturePath, type) {
 }
 
 async setupGinButton() {
-  // Create the Gin button using the provided asset
-  this.ginButton = new PIXI.Container();
+    this.ginButton = new PIXI.Container();
   this.ginButton.interactive = true;
   this.ginButton.buttonMode = true;
   
   
-  // Load the Gin button texture
-  this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/Gin_button.webp')
+    this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/Gin_button.webp')
     .then(texture => {
       const ginButtonSprite = new PIXI.Sprite(texture);
       ginButtonSprite.anchor.set(0.5);
@@ -367,10 +316,8 @@ async setupGinButton() {
     })
     .catch(err => {
       console.warn("Could not load Gin button asset, using fallback", err);
-      // Fallback if asset loading fails
-      const ginBg = new PIXI.Graphics();
-      ginBg.beginFill(0x2196F3); // Blue color
-      ginBg.drawRoundedRect(-60, -20, 120, 40, 10);
+            const ginBg = new PIXI.Graphics();
+      ginBg.beginFill(0x2196F3);       ginBg.drawRoundedRect(-60, -20, 120, 40, 10);
       ginBg.endFill();
       
       const ginText = new PIXI.Text("GIN", {
@@ -385,43 +332,32 @@ async setupGinButton() {
       this.ginButton.addChild(ginText);
     });
   
-  // Position button in the center of the screen at card level, like in the reference screenshot
-  this.ginButton.x = this.app.screen.width / 2; // Slight offset to the left for the Gin button
-  this.ginButton.y = this.app.screen.height * 0.6; // Position at the level of player's cards
+    this.ginButton.x = this.app.screen.width / 2;   this.ginButton.y = this.app.screen.height * 0.6;   
+    this.ginButton.visible = false;
   
-  // Initially hide the button
-  this.ginButton.visible = false;
-  
-  // Add click handler
-  this.ginButton.on('pointerdown', () => {
+    this.ginButton.on('pointerdown', () => {
     this.showPlayNowOverlay();
   });
   
-  // Add button to UI container
-  this.uiButtonsContainer.addChild(this.ginButton);
+    this.uiButtonsContainer.addChild(this.ginButton);
 }
 
 async setupKnockButton() {
-  // Создаем контейнер для кнопки Knock
-  this.knockButton = new PIXI.Container();
+    this.knockButton = new PIXI.Container();
   this.knockButton.interactive = true;
   this.knockButton.buttonMode = true;
   
-  // Пытаемся загрузить внешний ресурс для кнопки Knock (если есть ассет, например, 'assets/Knock_button.webp')
-  this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/Knock_button.webp')
+    this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/Knock_button.webp')
     .then(texture => {
-      // Если ассет успешно загружен – создаем спрайт с нужным якорем
-      const knockButtonSprite = new PIXI.Sprite(texture);
+            const knockButtonSprite = new PIXI.Sprite(texture);
       knockButtonSprite.anchor.set(0.5);
       knockButtonSprite.scale.set(0.5, 0.5);
       this.knockButton.addChild(knockButtonSprite);
     })
     .catch(err => {
       console.warn("Не удалось загрузить ассет Knock, используется fallback", err);
-      // Если ассет не загружен – создаем альтернативную графику
-      const knockBg = new PIXI.Graphics();
-      // Выбираем, например, насыщенный оранжевый цвет (можно поменять под стиль игры)
-      knockBg.beginFill(0xFF5722);
+            const knockBg = new PIXI.Graphics();
+            knockBg.beginFill(0xFF5722);
       knockBg.drawRoundedRect(-60, -20, 120, 40, 10);
       knockBg.endFill();
 
@@ -437,29 +373,21 @@ async setupKnockButton() {
       this.knockButton.addChild(knockText);
     });
   
-  // Позиционирование кнопки – подберите координаты согласно правилам игры (пример: справа от центра, на уровне карт)
-  this.knockButton.x = this.app.screen.width / 2; // смещение вправо, можно корректировать
-  this.knockButton.y = this.app.screen.height * 0.6;    // по уровню игрока (как у Gin кнопки)
-  this.knockButton.visible = false;  // изначально скрыта
-  
-  // Добавляем тот же обработчик клика – по клику запускается PlayNowOverlay
-  this.knockButton.on('pointerdown', () => {
+    this.knockButton.x = this.app.screen.width / 2;   this.knockButton.y = this.app.screen.height * 0.6;      this.knockButton.visible = false;    
+    this.knockButton.on('pointerdown', () => {
     this.showPlayNowOverlay();
   });
   
-  // Добавляем кнопку в контейнер UI кнопок (на уровне других кнопок)
-  this.uiButtonsContainer.addChild(this.knockButton);
+    this.uiButtonsContainer.addChild(this.knockButton);
 }
   
-  // Add this method to UIRenderer.js class
-showGinButton(visible) {
+  showGinButton(visible) {
   if (!this.ginButton) {
     this.ginButton = new PIXI.Container();
     this.ginButton.interactive = true;
     this.ginButton.buttonMode  = true;
 
-    // Загружаем текстуру или создаём fallback
-    this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/Gin_button.webp')
+        this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/Gin_button.webp')
       .then(texture => {
         const spr = new PIXI.Sprite(texture);
         spr.anchor.set(0.5);
@@ -479,19 +407,15 @@ showGinButton(visible) {
         this.ginButton.addChild(bg, txt);
       });
 
-    // Remove old listener and add new one
-    this.ginButton.removeAllListeners('pointerdown');
+        this.ginButton.removeAllListeners('pointerdown');
     this.ginButton.on('pointerdown', () => {
-      // **1) Останавливаем игру**
-      if (window.game) {
+            if (window.game) {
         window.game.pauseGame = true;
         console.log("Game paused on GIN click");
       }
-      // 2) Останавливаем анимации кнопки
-      gsap.killTweensOf(this.ginButton);
+            gsap.killTweensOf(this.ginButton);
       gsap.killTweensOf(this.ginButton.scale);
-      // 3) Быстро скрываем кнопку и показываем оверлей
-      gsap.to(this.ginButton, {
+            gsap.to(this.ginButton, {
         alpha: 0, scale: 0.4, duration: 0.2, ease: "power2.in",
         onComplete: () => {
           this.ginButton.visible = false;
@@ -500,19 +424,16 @@ showGinButton(visible) {
       });
     });
 
-    // Добавляем в UI‑контейнер
-    this.uiButtonsContainer.addChild(this.ginButton);
+        this.uiButtonsContainer.addChild(this.ginButton);
   }
 
-  // Позиционируем и управляем паузой при появлении
-  this.ginButton.x       = this.app.screen.width / 2;
+    this.ginButton.x       = this.app.screen.width / 2;
   this.ginButton.y       = this.app.screen.height * 0.6;
   this.ginButton.visible = visible;
 
   if (visible) {
     if (window.game) window.game.pauseGame = true;
-    // Анимация появления
-    this.ginButton.alpha = 0;
+        this.ginButton.alpha = 0;
     gsap.to(this.ginButton, { alpha: 1, duration: 0.3, ease: "back.out" });
     gsap.to(this.ginButton.scale, {
       x: 1.05, y: 1.05, duration: 1.2, repeat: -1, yoyo: true, ease: "sine.inOut"
@@ -534,14 +455,10 @@ showGinButton(visible) {
     if (this.ginButton && this.ginButton.parent) {
       this.ginButton.parent.removeChild(this.ginButton);
     }
-    // Hide tutorial elements directly instead of calling hideTutorialElements
-    // Find and remove any tutorial text containers from stage
-    if (this.app && this.app.stage) {
-      // Look through all stage children
-      for (let i = this.app.stage.children.length - 1; i >= 0; i--) {
+            if (this.app && this.app.stage) {
+            for (let i = this.app.stage.children.length - 1; i >= 0; i--) {
         const child = this.app.stage.children[i];
-        // Check if this is a container with tutorial text
-        if (child && child.children) {
+                if (child && child.children) {
           const hasTutorialText = child.children.some(grandchild => 
             grandchild instanceof PIXI.Text && 
             grandchild.text && 
@@ -550,19 +467,16 @@ showGinButton(visible) {
              grandchild.text.includes("shown card"))
           );
           
-          // If it has tutorial text, remove it
-          if (hasTutorialText) {
+                    if (hasTutorialText) {
             this.app.stage.removeChild(child);
           }
         }
       }
     }
     
-    // Also reset tutorial flags
-    this.takeCardTutorialShown = false;
+        this.takeCardTutorialShown = false;
     
-    // Make sure buttons are hidden
-    if (this.knockButton && this.knockButton.visible) {
+        if (this.knockButton && this.knockButton.visible) {
       this.showKnockButton(false);
     }
     
@@ -570,49 +484,40 @@ showGinButton(visible) {
       this.showGinButton(false);
     }
     
-    // Create overlay container with high z-index
-    const overlayContainer = new PIXI.Container();
+        const overlayContainer = new PIXI.Container();
     overlayContainer.zIndex = 1000;
     
-    // Semi-transparent background
-    const background = new PIXI.Graphics();
+        const background = new PIXI.Graphics();
     background.beginFill(0x000000, 0.2);
     background.drawRect(0, 0, this.app.screen.width, this.app.screen.height);
     background.endFill();
     overlayContainer.addChild(background);
     
-    // Try to load the logo
-    this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/playNow.webp')
+        this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/playNow.webp')
       .then(texture => {
         const logo = new PIXI.Sprite(texture);
         logo.anchor.set(0.5);
         logo.x = this.app.screen.width / 2;
         logo.y = this.app.screen.height / 2;
-        logo.alpha = 0; // Start with alpha 0 for fade-in
-        overlayContainer.addChild(logo);
+        logo.alpha = 0;         overlayContainer.addChild(logo);
         
-        // Make interactive for click to open URL
-        overlayContainer.interactive = true;
+                overlayContainer.interactive = true;
         overlayContainer.buttonMode = true;
         overlayContainer.on('pointerdown', () => {
           window.open('https://apps.apple.com/app/gin-rummy-stars-card-game/id1467143758', '_blank');
           this.app.stage.removeChild(overlayContainer);
         });
         
-        // Add the overlay to stage first
-        this.app.stage.addChild(overlayContainer);
+                this.app.stage.addChild(overlayContainer);
         
-        // НОВАЯ АНИМАЦИЯ: аналогичная кнопкам knock/gin
-        
-        // Fade in animation
-        gsap.to(logo, {
+                
+                gsap.to(logo, {
           alpha: 1,
           duration: 0.3,
           ease: "back.out"
         });
         
-        // Subtle float animation
-        gsap.to(logo, {
+                gsap.to(logo, {
           y: logo.y - 5,
           duration: 0.8,
           repeat: -1,
@@ -620,8 +525,7 @@ showGinButton(visible) {
           ease: "sine.inOut"
         });
         
-        // Subtle pulse animation
-        gsap.to(logo.scale, {
+                gsap.to(logo.scale, {
           x: 1.05, y: 1.05,
           duration: 1.2,
           repeat: -1,
@@ -632,8 +536,7 @@ showGinButton(visible) {
       .catch(error => {
         console.warn("Error loading playNow logo:", error);
         
-        // Fallback text
-        const fallbackText = new PIXI.Text("PLAY NOW!", {
+                const fallbackText = new PIXI.Text("PLAY NOW!", {
           fontFamily: "Arial",
           fontSize: 48,
           fontWeight: "bold",
@@ -646,31 +549,25 @@ showGinButton(visible) {
         fallbackText.anchor.set(0.5);
         fallbackText.x = this.app.screen.width / 2;
         fallbackText.y = this.app.screen.height / 2;
-        fallbackText.alpha = 0; // Start with alpha 0 for fade-in
-        overlayContainer.addChild(fallbackText);
+        fallbackText.alpha = 0;         overlayContainer.addChild(fallbackText);
         
-        // Make interactive
-        overlayContainer.interactive = true;
+                overlayContainer.interactive = true;
         overlayContainer.buttonMode = true;
         overlayContainer.on('pointerdown', () => {
           window.open('https://apps.apple.com/app/gin-rummy-stars-card-game/id1467143758', '_blank');
           this.app.stage.removeChild(overlayContainer);
         });
         
-        // Add the overlay to stage
-        this.app.stage.addChild(overlayContainer);
+                this.app.stage.addChild(overlayContainer);
         
-        // НОВАЯ АНИМАЦИЯ для fallback текста
-        
-        // Fade in animation
-        gsap.to(fallbackText, {
+                
+                gsap.to(fallbackText, {
           alpha: 1,
           duration: 0.3,
           ease: "back.out"
         });
         
-        // Subtle float animation
-        gsap.to(fallbackText, {
+                gsap.to(fallbackText, {
           y: fallbackText.y - 5,
           duration: 0.8,
           repeat: -1,
@@ -678,8 +575,7 @@ showGinButton(visible) {
           ease: "sine.inOut"
         });
         
-        // Subtle pulse animation
-        gsap.to(fallbackText.scale, {
+                gsap.to(fallbackText.scale, {
           x: 1.05, y: 1.05,
           duration: 1.2,
           repeat: -1,
@@ -691,15 +587,12 @@ showGinButton(visible) {
     return overlayContainer;
   }
   
-  // Setup game actions (knock and meld buttons)
-  async setupGameActions() {
-    // Создаем кнопки, но не добавляем их в контейнер
-    this.knockButton = new PIXI.Container();
+    async setupGameActions() {
+        this.knockButton = new PIXI.Container();
     this.onGinClick = null;
     this.meldButton = new PIXI.Container();
     
-    // Установим visible = false для обеих кнопок
-    this.knockButton.visible = false;
+        this.knockButton.visible = false;
     this.meldButton.visible = false;
     
     
@@ -707,31 +600,23 @@ showGinButton(visible) {
       if (this.onMeldClick) this.onMeldClick();
     });
     
-    // Кнопки не добавляются в this.uiButtonsContainer
-    // this.uiButtonsContainer.addChild(this.knockButton);
-    // this.uiButtonsContainer.addChild(this.meldButton);
-    
-    // Если необходимо вызвать setupGinButton, оставьте эту строку
-    await this.setupGinButton();
+                
+        await this.setupGinButton();
     await this.setupKnockButton();
   }
   
   createMeldDisplay() {
-    // Create container for meld displays
-    const meldContainer = new PIXI.Container();
+        const meldContainer = new PIXI.Container();
     meldContainer.zIndex = 100;
     
-    // Container for RUN! display
-    const runDisplay = new PIXI.Container();
+        const runDisplay = new PIXI.Container();
     runDisplay.visible = false;
     
-    // RUN! text
-    const runText = new PIXI.Text("RUN!", {
+        const runText = new PIXI.Text("RUN!", {
       fontFamily: "Arial",
       fontSize: 64,
       fontWeight: "bold",
-      fill: ["#ffffff", "#a0ffa0"], // Gradient fill for Run (green tint)
-      stroke: "#000000",
+      fill: ["#ffffff", "#a0ffa0"],       stroke: "#000000",
       strokeThickness: 6,
       dropShadow: true,
       dropShadowColor: "#000000",
@@ -743,17 +628,14 @@ showGinButton(visible) {
     runText.y = 0;
     runDisplay.addChild(runText);
     
-    // Container for SET! display
-    const setDisplay = new PIXI.Container();
+        const setDisplay = new PIXI.Container();
     setDisplay.visible = false;
     
-    // SET! text
-    const setText = new PIXI.Text("SET!", {
+        const setText = new PIXI.Text("SET!", {
       fontFamily: "Arial",
       fontSize: 64,
       fontWeight: "bold",
-      fill: ["#ffffff", "#ffff80"], // Gradient fill for Set (yellow tint)
-      stroke: "#000000",
+      fill: ["#ffffff", "#ffff80"],       stroke: "#000000",
       strokeThickness: 6,
       dropShadow: true,
       dropShadowColor: "#000000",
@@ -765,45 +647,34 @@ showGinButton(visible) {
     setText.y = 0;
     setDisplay.addChild(setText);
     
-    // Add displays to container
-    meldContainer.addChild(runDisplay);
+        meldContainer.addChild(runDisplay);
     meldContainer.addChild(setDisplay);
     
-    // Position at the bottom center
-    meldContainer.x = this.app.screen.width / 2;
+        meldContainer.x = this.app.screen.width / 2;
     meldContainer.y = this.app.screen.height * 0.65;
     
-    // Add to main container
-    this.container.addChild(meldContainer);
+        this.container.addChild(meldContainer);
     
-    // Store references
-    this.meldContainer = meldContainer;
+        this.meldContainer = meldContainer;
     this.runDisplay = runDisplay;
     this.setDisplay = setDisplay;
     
     return meldContainer;
   }
 
-  // Show dialog
-  showDialog(message) {
+    showDialog(message) {
     this.dialogContainer.removeChildren();
     
-    // Dialog background
-    const dialogBg = new PIXI.Graphics();
+        const dialogBg = new PIXI.Graphics();
     dialogBg.beginFill(0xFFF8E1, 0.9);
     dialogBg.drawRoundedRect(0, 0, 350, 100, 20);
     dialogBg.endFill();
     
-    // Arrow pointer
-    dialogBg.beginFill(0xFFFBF0, 0.9);
-dialogBg.moveTo(175, 120); // Вершина треугольника внизу по центру
-dialogBg.lineTo(155, 100); // Левый верхний угол
-dialogBg.lineTo(195, 100); // Правый верхний угол
-dialogBg.closePath();
+        dialogBg.beginFill(0xFFFBF0, 0.9);
+dialogBg.moveTo(175, 120); dialogBg.lineTo(155, 100); dialogBg.lineTo(195, 100); dialogBg.closePath();
 dialogBg.endFill();
     
-    // Dialog text
-    const dialogText = new PIXI.Text(message, {
+        const dialogText = new PIXI.Text(message, {
       fontFamily: "Arial",
       fontSize: 20,
       fontWeight: "bold",
@@ -818,8 +689,7 @@ dialogBg.endFill();
     
     dialogBg.addChild(dialogText);
     
-    // Position dialog
-    dialogBg.x = (this.app.screen.width - 350) / 2;
+        dialogBg.x = (this.app.screen.width - 350) / 2;
     dialogBg.y = (this.app.screen.height / 2) + 75;
     
     this.dialogContainer.addChild(dialogBg);
@@ -828,13 +698,11 @@ dialogBg.endFill();
     return dialogBg;
   }
   
-  // Hide dialog
-  hideDialog() {
+    hideDialog() {
     this.dialogContainer.visible = false;
   }
   
-  // Update scores
-  updateScores(playerScore, opponentScore) {
+    updateScores(playerScore, opponentScore) {
     if (this.blueScoreText) {
       this.blueScoreText.text = playerScore.toString();
     }
@@ -843,24 +711,18 @@ dialogBg.endFill();
     }
   }
   
-  // Update deadwood
-  updateDeadwood(value) {
+    updateDeadwood(value) {
     if (!this.deadwoodText) return;
     
-    // Обновляем текст со значением deadwood
-    this.deadwoodText.text = value.toString();
+        this.deadwoodText.text = value.toString();
     
-    // Добавляем цветовую индикацию
-    if (value < 10) {
-      // Зеленый - можно делать knock
-      this.deadwoodText.style.fill = 0x4CAF50;
+        if (value < 10) {
+            this.deadwoodText.style.fill = 0x4CAF50;
     } else {
-      // Белый - обычное состояние
-      this.deadwoodText.style.fill = 0xFFFFFF;
+            this.deadwoodText.style.fill = 0xFFFFFF;
     }
     
-    // Анимация пульсации при низком значении deadwood
-    if (value < 10) {
+        if (value < 10) {
       gsap.to(this.deadwoodText.scale, {
         x: 1.2, y: 1.2,
         duration: 0.5,
@@ -872,15 +734,13 @@ dialogBg.endFill();
   }
 
   showKnockButton(visible) {
-    // Don't log state changes to avoid console spam
-    
+        
     if (!this.knockButton) {
       this.knockButton = new PIXI.Container();
       this.knockButton.interactive = true;
       this.knockButton.buttonMode = true;
   
-      // Load texture or create fallback
-      this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/Knock_button.webp')
+            this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/Knock_button.webp')
         .then(texture => {
           const spr = new PIXI.Sprite(texture);
           spr.anchor.set(0.5);
@@ -900,24 +760,19 @@ dialogBg.endFill();
           this.knockButton.addChild(bg, txt);
         });
   
-      // Clean handler to avoid multiple listeners
-      this.knockButton.removeAllListeners('pointerdown');
+            this.knockButton.removeAllListeners('pointerdown');
       this.knockButton.on('pointerdown', () => {
-        // Ensure event only fires once
-        if (this.knockButton.clickProcessing) return;
+                if (this.knockButton.clickProcessing) return;
         this.knockButton.clickProcessing = true;
         
-        // Stop game
-        if (window.game) {
+                if (window.game) {
           window.game.pauseGame = true;
         }
         
-        // Stop animations
-        gsap.killTweensOf(this.knockButton);
+                gsap.killTweensOf(this.knockButton);
         gsap.killTweensOf(this.knockButton.scale);
         
-        // Hide button
-        gsap.to(this.knockButton, {
+                gsap.to(this.knockButton, {
           alpha: 0, scale: 0.5, duration: 0.2, ease: "power2.in",
           onComplete: () => {
             this.knockButton.visible = false;
@@ -926,30 +781,24 @@ dialogBg.endFill();
         });
       });
   
-      // Add to UI container
-      this.uiButtonsContainer.addChild(this.knockButton);
+            this.uiButtonsContainer.addChild(this.knockButton);
     }
   
-    // Position
-    this.knockButton.x = this.app.screen.width / 2;
+        this.knockButton.x = this.app.screen.width / 2;
     this.knockButton.y = this.app.screen.height * 0.6;
     
-    // Set visibility without re-triggering animation if already in correct state
-    if (this.knockButton.visible !== visible) {
+        if (this.knockButton.visible !== visible) {
       this.knockButton.visible = visible;
       
       if (visible) {
-        // Ensure we only update game state once
-        if (window.game && !window.game.pauseGame) {
+                if (window.game && !window.game.pauseGame) {
           window.game.pauseGame = true;
         }
         
-        // Animation
-        this.knockButton.alpha = 0;
+                this.knockButton.alpha = 0;
         gsap.to(this.knockButton, { alpha: 1, duration: 0.3, ease: "back.out" });
         
-        // Only start pulsing animation if not already running
-        if (!this.knockButton.pulsing) {
+                if (!this.knockButton.pulsing) {
           this.knockButton.pulsing = true;
           gsap.to(this.knockButton.scale, {
             x: 1.5, y: 1.5, 
@@ -963,18 +812,15 @@ dialogBg.endFill();
           });
         }
       } else {
-        // Resume game only if we're actually hiding the button
-        if (window.game && window.game.pauseGame) {
+                if (window.game && window.game.pauseGame) {
           window.game.pauseGame = false;
         }
         
-        // Kill animations
-        gsap.killTweensOf(this.knockButton);
+                gsap.killTweensOf(this.knockButton);
         gsap.killTweensOf(this.knockButton.scale);
         this.knockButton.pulsing = false;
         
-        // Fade out
-        gsap.to(this.knockButton, { 
+                gsap.to(this.knockButton, { 
           alpha: 0, 
           duration: 0.3, 
           ease: "power2.in" 
@@ -987,14 +833,12 @@ dialogBg.endFill();
   setupDeadwoodDisplay() {
     const deadwoodContainer = new PIXI.Container();
     
-    // Фон для отображения deadwood
-    const bg = new PIXI.Graphics();
+        const bg = new PIXI.Graphics();
     bg.beginFill(0x333333, 0.7);
     bg.drawRoundedRect(0, 0, 150, 50, 15);
     bg.endFill();
     
-    // Текст заголовка
-    const titleText = new PIXI.Text("Deadwood:", {
+        const titleText = new PIXI.Text("Deadwood:", {
       fontFamily: "Arial",
       fontSize: 16,
       fill: 0xFFFFFF,
@@ -1002,8 +846,7 @@ dialogBg.endFill();
     });
     titleText.position.set(10, 8);
     
-    // Значение deadwood
-    this.deadwoodText = new PIXI.Text("0", {
+        this.deadwoodText = new PIXI.Text("0", {
       fontFamily: "Arial",
       fontSize: 24,
       fill: 0xFFFFFF,
@@ -1012,13 +855,11 @@ dialogBg.endFill();
     this.deadwoodText.position.set(75, 28);
     this.deadwoodText.anchor.set(0.5, 0.5);
     
-    // Добавляем все элементы в контейнер
-    deadwoodContainer.addChild(bg);
+        deadwoodContainer.addChild(bg);
     deadwoodContainer.addChild(titleText);
     deadwoodContainer.addChild(this.deadwoodText);
     
-    // Позиционируем контейнер
-    deadwoodContainer.x = this.app.screen.width - 170;
+        deadwoodContainer.x = this.app.screen.width - 170;
     deadwoodContainer.y = 100;
     
     this.deadwoodContainer.addChild(deadwoodContainer);
@@ -1026,16 +867,12 @@ dialogBg.endFill();
   }
   
   
-  // Empty implementation of updateGameLog that does nothing
-  updateGameLog(entries) {
-    // Intentionally left empty - game log has been removed
-  }
+    updateGameLog(entries) {
+      }
   
-  // Resize UI elements
-  resize(width, height) {
+    resize(width, height) {
       const scale = width / this.designWidth;
-      // --- TopBanner во всю ширину ---
-      if (this.bannerContainer.children[0]) {
+            if (this.bannerContainer.children[0]) {
         const topBanner = this.bannerContainer.children[0];
         if (topBanner.originalAspect) {
           topBanner.width  = width;
@@ -1046,25 +883,21 @@ dialogBg.endFill();
         }
       }
     
-      // --- Ad banner ---
-if (this.adContainer.children[0]) {
+      if (this.adContainer.children[0]) {
   const adBanner = this.adContainer.children[0];
   if (adBanner.originalAspect) {
     adBanner.width  = width * 0.8;
     adBanner.height = adBanner.width * adBanner.originalAspect;
 
-    // Центрируем по горизонтали
-    adBanner.x = (width - adBanner.width) / 2;
-    // У верхнего края экрана
-    adBanner.y = 0;
+        adBanner.x = (width - adBanner.width) / 2;
+        adBanner.y = 0;
 
     this.adHeight = adBanner.height;
   }
 }
 
     
-      // Top navigation (не трогаем, если не нужно)
-      if (this.topNavContainer.children[0]) {
+            if (this.topNavContainer.children[0]) {
         const navBar = this.topNavContainer.children[0];
         if (navBar.originalAspect) {
           navBar.width  = width;
@@ -1075,57 +908,41 @@ if (this.adContainer.children[0]) {
         }
       }
     
-      // --- Score display (занимаем треть ширины) ---
-      if (this.scoreDisplayContainer.children[0]) {
+            if (this.scoreDisplayContainer.children[0]) {
         const scoreContainer = this.scoreDisplayContainer.children[0];
-        const baseWidth  = 250;   // исходная ширина scoreContainer
-        const scaleScore = (width / 3) / baseWidth;
+        const baseWidth  = 250;           const scaleScore = (width / 3) / baseWidth;
         scoreContainer.scale.set(scaleScore);
         
-        // центруем по горизонтали
-        scoreContainer.x = width / 2 - (baseWidth * scaleScore) / 2;
-        // отступ вниз на высоту баннера
-        scoreContainer.y = this.bannerHeight - 60;
+                scoreContainer.x = width / 2 - (baseWidth * scaleScore) / 2;
+                scoreContainer.y = this.bannerHeight - 60;
       }
     
-      // --- Кнопки: уменьшаем общий масштаб ещё на 0.8 ---
-      const baseScale = (width / this.baseWidth);
+            const baseScale = (width / this.baseWidth);
       const buttonScale = baseScale * 0.8;
     
       this.uiButtonsContainer.children.forEach(btn => {
-          // Шаг 1: Масштаб кнопки
-          // Если была baseSize (55 px), просто умножаем
-          if (btn.baseSize) {
+                              if (btn.baseSize) {
             btn.width  = btn.baseSize * scale;
             btn.height = btn.baseSize * scale;
           } else {
             btn.scale.set(scale);
           }
         
-          // Шаг 2: Зависит от типа
-          if (btn.buttonType === 'settings') {
-            // ставим её справа, чуть ниже баннера
-            // как было раньше: x = width - 90; y=90;
-            // теперь умножаем на scale, чтобы сохранять пропорции
-            btn.x = width - (90 * scale);
+                    if (btn.buttonType === 'settings') {
+                                                btn.x = width - (90 * scale);
             btn.y = 75 * scale;
           }
           else if (btn.buttonType === 'addNew') {
-            // рядом (чуть правее) с settings
-            // в старой логике x= width - 30; y= 90;
-            btn.x = width - (30 * scale);
+                                    btn.x = width - (30 * scale);
             btn.y = 75 * scale;
           }
           else if (btn.buttonType === 'lightbulb') {
             btn.x = 40 * scale;
-            // Было: btn.y = this.app.screen.height - 235;
-            // Исправляем на:
-            btn.y = this.app.screen.height - 210;
+                                    btn.y = this.app.screen.height - 210;
           }
         });
     
-      // Game action buttons (knock/meld)
-      if (this.knockButton) {
+            if (this.knockButton) {
         this.knockButton.x = this.app.screen.width / 2;
         this.knockButton.y = this.app.screen.height * 0.6;
       }
@@ -1134,8 +951,7 @@ if (this.adContainer.children[0]) {
         this.meldButton.y = height - 110;
       }
     
-      // Deadwood indicator
-      if (this.deadwoodText) {
+            if (this.deadwoodText) {
         this.deadwoodText.x = width - 60;
         this.deadwoodText.y = this.app.screen.height - 210;
       }
@@ -1145,8 +961,7 @@ if (this.adContainer.children[0]) {
         this.ginButton.y = this.app.screen.height * 0.6;
       }
     
-      // Dialog
-      if (this.dialogContainer.visible && this.dialogContainer.children[0]) {
+            if (this.dialogContainer.visible && this.dialogContainer.children[0]) {
         const dialog = this.dialogContainer.children[0];
         dialog.x = (width - 350) / 2;
         dialog.y = (height / 2) - 50;

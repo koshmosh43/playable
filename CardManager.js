@@ -1,4 +1,3 @@
-// CardManager.js – Handles card operations and data
 export class CardManager {
   constructor(config) {
     this.config = config;
@@ -30,23 +29,20 @@ export class CardManager {
     };
   }
   
-  // Improved card take method with animation
-  takeCardFromdeck(isPlayer = true) {
+    takeCardFromdeck(isPlayer = true) {
     const newCard = this.drawCardFromdeck();
     
     if (isPlayer) {
       this.playerCards.push(newCard);
       return { card: newCard, index: this.playerCards.length - 1 };
     } else {
-      // For opponent, mark the card as face down
-      const opponentCard = { ...newCard, faceDown: true };
+            const opponentCard = { ...newCard, faceDown: true };
       this.opponentCards.push(opponentCard);
       return { card: opponentCard, index: this.opponentCards.length - 1 };
     }
   }
   
-  // Take a card from the discard pile
-  takeCardFromDiscard(isPlayer = true) {
+    takeCardFromDiscard(isPlayer = true) {
     if (this.discardPile.length === 0) return null;
     
     const topCard = this.discardPile.pop();
@@ -55,15 +51,13 @@ export class CardManager {
       this.playerCards.push(topCard);
       return { card: topCard, index: this.playerCards.length - 1 };
     } else {
-      // For opponent, keep the card properties but mark as face down
-      const opponentCard = { ...topCard, faceDown: true };
+            const opponentCard = { ...topCard, faceDown: true };
       this.opponentCards.push(opponentCard);
       return { card: opponentCard, index: this.opponentCards.length - 1 };
     }
   }
   
-  // Discard a card from player's hand
-  discardCardFromHand(cardId, isPlayer = true) {
+    discardCardFromHand(cardId, isPlayer = true) {
     let cardIndex = -1;
     let cardToDiscard = null;
     
@@ -74,29 +68,23 @@ export class CardManager {
       cardToDiscard = this.playerCards[cardIndex];
       this.playerCards.splice(cardIndex, 1);
     } else {
-      // For opponent, just take a random card from their hand
-      if (this.opponentCards.length === 0) return null;
+            if (this.opponentCards.length === 0) return null;
       
       cardIndex = Math.floor(Math.random() * this.opponentCards.length);
       cardToDiscard = this.opponentCards[cardIndex];
       
-      // Important: For opponent's discard, keep the card visible (not face down)
-      // When it goes to discard pile, it should be face up
-      cardToDiscard.faceDown = false;
+                  cardToDiscard.faceDown = false;
       
       this.opponentCards.splice(cardIndex, 1);
     }
     
-    // Add to discard pile
-    this.discardPile.push(cardToDiscard);
+        this.discardPile.push(cardToDiscard);
     
     return { card: cardToDiscard, index: cardIndex };
   }
   
-  // New method: Play an opponent turn with proper card reveal animation
-  playOpponentTurn(fromdeck = true) {
-    // First take a card
-    let takenCard;
+    playOpponentTurn(fromdeck = true) {
+        let takenCard;
     
     if (fromdeck) {
       takenCard = this.takeCardFromdeck(false);
@@ -106,8 +94,7 @@ export class CardManager {
     
     if (!takenCard) return null;
     
-    // Then discard a card (this should now return the actual card)
-    const randomCardId = this.opponentCards[Math.floor(Math.random() * this.opponentCards.length)].id;
+        const randomCardId = this.opponentCards[Math.floor(Math.random() * this.opponentCards.length)].id;
     const discardedCard = this.discardCardFromHand(randomCardId, false);
     
     return {
@@ -117,21 +104,17 @@ export class CardManager {
   }
 
   async createCardSprite(cardData, faceDown = false) {
-    // Validate card data to prevent errors
-    if (!cardData) {
+        if (!cardData) {
       console.warn("Invalid cardData: null or undefined");
       return this.createCardBackSprite();
     }
   
-    // If explicitly asking for face down or cardData has faceDown flag
-    if (faceDown || cardData.faceDown) {
+        if (faceDown || cardData.faceDown) {
       const backSprite = this.createCardBackSprite();
-      backSprite.cardData = cardData; // Still store the card data reference
-      return backSprite;
+      backSprite.cardData = cardData;       return backSprite;
     }
   
-    // Check if we have a valid suit and value
-    if (!cardData.suit || !cardData.value) {
+        if (!cardData.suit || !cardData.value) {
       console.warn("Invalid cardData:", cardData);
       const fallbackSprite = this.createCardBackSprite();
       fallbackSprite.cardData = cardData;
@@ -139,8 +122,7 @@ export class CardManager {
     }
   
     try {
-      // Try to load the card texture
-      const texture = await this.assetLoader.loadTexture(
+            const texture = await this.assetLoader.loadTexture(
         `https://koshmosh43.github.io/playable/assets/cards/${cardData.suit}/${cardData.value}_${cardData.suit.charAt(0).toUpperCase()}${cardData.suit.slice(1)}.webp`
       );
       
@@ -155,8 +137,7 @@ export class CardManager {
     } catch (error) {
       console.warn(`Error loading card texture for ${cardData.value} of ${cardData.suit}:`, error);
       
-      // Create fallback card using graphics
-      const fallbackSprite = new PIXI.projection.Sprite3d(PIXI.Texture.WHITE);
+            const fallbackSprite = new PIXI.projection.Sprite3d(PIXI.Texture.WHITE);
       fallbackSprite.anchor.set(0.5);
       fallbackSprite.width = this.config.cardWidth;
       fallbackSprite.height = this.config.cardHeight;
@@ -164,8 +145,7 @@ export class CardManager {
       fallbackSprite.buttonMode = true;
       fallbackSprite.cardData = cardData;
       
-      // Apply fallback styling
-      this.createFallbackCardTexture(fallbackSprite, cardData);
+            this.createFallbackCardTexture(fallbackSprite, cardData);
       
       return fallbackSprite;
     }
@@ -221,51 +201,39 @@ export class CardManager {
     return graphics;
   }
   
-  // Create a card flip animation
-  createCardFlipAnimation(card, container, from, to, isRevealing = true) {
-    // Create front and back sprites
-    return Promise.all([
-      this.createCardSprite(card, false, this.assetLoader),  // Front (face)
-      this.createCardSprite({...card, faceDown: true}, true, this.assetLoader)  // Back
-    ]).then(([frontSprite, backSprite]) => {
-      // Center sprites
-      frontSprite.anchor.set(0.5);
+    createCardFlipAnimation(card, container, from, to, isRevealing = true) {
+        return Promise.all([
+      this.createCardSprite(card, false, this.assetLoader),        this.createCardSprite({...card, faceDown: true}, true, this.assetLoader)      ]).then(([frontSprite, backSprite]) => {
+            frontSprite.anchor.set(0.5);
       backSprite.anchor.set(0.5);
       
-      // Position at center of container
-      frontSprite.x = this.config.cardWidth / 2;
+            frontSprite.x = this.config.cardWidth / 2;
       frontSprite.y = this.config.cardHeight / 2;
       backSprite.x = this.config.cardWidth / 2;
       backSprite.y = this.config.cardHeight / 2;
       
-      // Set initial state
-      if (isRevealing) {
-        // Start with back visible, flip to front
-        frontSprite.visible = false;
+            if (isRevealing) {
+                frontSprite.visible = false;
         backSprite.visible = true;
         frontSprite.scale.x = 0;
         backSprite.scale.x = 1;
       } else {
-        // Start with front visible, flip to back
-        frontSprite.visible = true;
+                frontSprite.visible = true;
         backSprite.visible = false;
         frontSprite.scale.x = 1;
         backSprite.scale.x = 0;
       }
       
-      // Create animation container
-      const animContainer = new PIXI.Container();
+            const animContainer = new PIXI.Container();
       animContainer.x = from.x;
       animContainer.y = from.y;
       animContainer.addChild(frontSprite);
       animContainer.addChild(backSprite);
       container.addChild(animContainer);
       
-      // Animation timeline
-      const timeline = gsap.timeline();
+            const timeline = gsap.timeline();
       
-      // Move to position (first part)
-      timeline.to(animContainer, {
+            timeline.to(animContainer, {
         x: (from.x + to.x) / 2,
         y: (from.y + to.y) / 2,
         duration: 0.3,
@@ -273,8 +241,7 @@ export class CardManager {
       });
       
       if (isRevealing) {
-        // Flip from back to front
-        timeline.to(backSprite.scale, {
+                timeline.to(backSprite.scale, {
           x: 0,
           duration: 0.2,
           ease: "power1.in",
@@ -290,8 +257,7 @@ export class CardManager {
           ease: "power1.out"
         });
       } else {
-        // Flip from front to back
-        timeline.to(frontSprite.scale, {
+                timeline.to(frontSprite.scale, {
           x: 0,
           duration: 0.2,
           ease: "power1.in",
@@ -308,8 +274,7 @@ export class CardManager {
         });
       }
       
-      // Complete movement to final position
-      timeline.to(animContainer, {
+            timeline.to(animContainer, {
         x: to.x,
         y: to.y,
         duration: 0.3,

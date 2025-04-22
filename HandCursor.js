@@ -1,74 +1,52 @@
-// HandCursor.js - Cursor for tutorials and animations
 export class HandCursor {
   constructor(app, assetLoader) {
     this.app = app;
     this.assetLoader = assetLoader;
     
-    // Hand cursor container
-    this.container = new PIXI.Container();
-    this.container.interactive = false; // Отключаем интерактивность
-  this.container.interactiveChildren = false; // Отключаем интерактивность для дочерних элементов
-  this.container.visible = false;
+        this.container = new PIXI.Container();
+    this.container.interactive = false;   this.container.interactiveChildren = false;   this.container.visible = false;
   this.container.zIndex = 1000;
     
-    // Initialize
-    this.init();
+        this.init();
     
-    // Add to stage
-    this.app.stage.addChild(this.container);
+        this.app.stage.addChild(this.container);
   }
   
-  // Initialize hand cursor
-  init() {
-    // Try to load hand image from assets
-    this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/hand.webp')
+    init() {
+        this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/hand.webp')
       .then(texture => {
-        // Create hand sprite
-        const handSprite = new PIXI.Sprite(texture);
-        handSprite.anchor.set(0.2, 0.2); // Position finger tip as pointer
-        handSprite.scale.set(0.7);
+                const handSprite = new PIXI.Sprite(texture);
+        handSprite.anchor.set(0.2, 0.2);         handSprite.scale.set(0.7);
         
-        // Add to container
-        this.container.addChild(handSprite);
+                this.container.addChild(handSprite);
       })
       .catch(err => {
         console.warn("Could not load hand cursor image, using fallback", err);
         
-        // Create a fallback hand graphic
-        const handGraphic = new PIXI.Graphics();
+                const handGraphic = new PIXI.Graphics();
         
-        // Draw a simple hand shape
-        handGraphic.beginFill(0xFFDDCC); // Skin tone
-        handGraphic.drawCircle(0, 0, 15); // Palm circle
-        handGraphic.drawRoundedRect(-5, -40, 10, 40, 5); // Finger
-        handGraphic.endFill();
+                handGraphic.beginFill(0xFFDDCC);         handGraphic.drawCircle(0, 0, 15);         handGraphic.drawRoundedRect(-5, -40, 10, 40, 5);         handGraphic.endFill();
         
-        // Add black outline
-        handGraphic.lineStyle(1, 0x000000, 0.5);
+                handGraphic.lineStyle(1, 0x000000, 0.5);
         handGraphic.drawCircle(0, 0, 15);
         handGraphic.drawRoundedRect(-5, -40, 10, 40, 5);
         
-        // Rotate to point with the finger
-        handGraphic.rotation = -Math.PI / 2;
+                handGraphic.rotation = -Math.PI / 2;
         
-        // Add to container
-        this.container.addChild(handGraphic);
+                this.container.addChild(handGraphic);
       });
   }
   
-  // Show the hand cursor
-  show() {
+    show() {
     this.container.visible = true;
     this.container.alpha = 1;
   }
   
-  // Hide the hand cursor
-  hide() {
+    hide() {
     this.container.visible = false;
   }
   
-  // Метод для перемещения между двумя точками
-  moveBetween(x1, y1, x2, y2, options = {}) {
+    moveBetween(x1, y1, x2, y2, options = {}) {
     const defaults = {
       cycles: 1,
       pauseDuration: 0.5,
@@ -78,11 +56,9 @@ export class HandCursor {
     
     const settings = { ...defaults, ...options };
     
-    // Показываем курсор в первой точке
-    this.showAt(x1, y1);
+        this.showAt(x1, y1);
     
-    // Создаем временную шкалу для движения
-    const timeline = gsap.timeline({
+        const timeline = gsap.timeline({
       repeat: settings.cycles - 1,
       onComplete: () => {
         if (typeof settings.onComplete === 'function') {
@@ -91,8 +67,7 @@ export class HandCursor {
       }
     });
     
-    // Добавляем движение к первой точке и паузу
-    timeline.to(this.container, {
+        timeline.to(this.container, {
       x: x1,
       y: y1,
       duration: settings.moveDuration / 2,
@@ -110,8 +85,7 @@ export class HandCursor {
       duration: settings.pauseDuration
     });
     
-    // Добавляем движение ко второй точке и паузу
-    timeline.to(this.container, {
+        timeline.to(this.container, {
       x: x2,
       y: y2,
       duration: settings.moveDuration,
@@ -129,8 +103,7 @@ export class HandCursor {
       duration: settings.pauseDuration
     });
     
-    // Добавляем движение обратно к первой точке
-    timeline.to(this.container, {
+        timeline.to(this.container, {
       x: x1,
       y: y1,
       duration: settings.moveDuration,
@@ -140,8 +113,7 @@ export class HandCursor {
     return timeline;
   }
   
-  // Метод для "тапа" (нажатия) на элемент
-  tap(x, y, options = {}) {
+    tap(x, y, options = {}) {
     const defaults = {
       scale: 0.9,
       duration: 0.2,
@@ -152,11 +124,9 @@ export class HandCursor {
     
     const settings = { ...defaults, ...options };
     
-    // Показываем курсор в указанной точке
-    this.showAt(x, y);
+        this.showAt(x, y);
     
-    // Создаем анимацию нажатия
-    const timeline = gsap.timeline({
+        const timeline = gsap.timeline({
       repeat: settings.repeat,
       repeatDelay: settings.repeatDelay,
       onComplete: () => {
@@ -166,16 +136,14 @@ export class HandCursor {
       }
     });
     
-    // Анимация нажатия вниз (сжатие)
-    timeline.to(this.container.scale, {
+        timeline.to(this.container.scale, {
       x: settings.scale,
       y: settings.scale,
       duration: settings.duration,
       ease: "power2.in"
     });
     
-    // Анимация нажатия вверх (возврат к исходному размеру)
-    timeline.to(this.container.scale, {
+        timeline.to(this.container.scale, {
       x: 1,
       y: 1,
       duration: settings.duration,
@@ -185,29 +153,25 @@ export class HandCursor {
     return timeline;
   }
   
-  // Метод для плавного исчезновения курсора
-  fade(duration = 0.5) {
+    fade(duration = 0.5) {
     gsap.to(this.container, {
       alpha: 0,
       duration: duration,
       ease: "power2.out",
       onComplete: () => {
         this.hide();
-        this.container.alpha = 1; // Сбрасываем альфу для следующего использования
-      }
+        this.container.alpha = 1;       }
     });
   }
   
-  // Метод для показа курсора в определенной точке
-  showAt(x, y) {
+    showAt(x, y) {
     this.container.x = x;
     this.container.y = y;
     this.container.visible = true;
     this.container.alpha = 1;
   }
 
-  // Demonstrate moving a card
-  demonstrateCardMove(start, end, options = {}) {
+    demonstrateCardMove(start, end, options = {}) {
     const {
       travelTime = 1.2,
       startDelay = 0.2,
@@ -215,55 +179,46 @@ export class HandCursor {
       onComplete = null
     } = options;
     
-    // Make sure container is visible
-    this.container.visible = true;
+        this.container.visible = true;
     
-    // First, show the hand at the starting position
-    this.container.x = start.x;
+        this.container.x = start.x;
     this.container.y = start.y;
     this.container.alpha = 0;
     
-    // Timeline for the complete animation
-    const timeline = gsap.timeline({
+        const timeline = gsap.timeline({
       onComplete: () => {
         this.fade();
         if (onComplete) onComplete();
       }
     });
     
-    // Fade in hand
-    timeline.to(this.container, {
+        timeline.to(this.container, {
       alpha: 1,
       duration: 0.3,
       ease: "power1.out"
     });
     
-    // Make "grab" gesture (scale down a bit)
-    timeline.to(this.container.scale, {
+        timeline.to(this.container.scale, {
       x: 0.9,
       y: 0.9,
       duration: 0.2,
       ease: "power2.in"
     }, "+=0.2");
     
-    // Move from the start to the drop position
-    timeline.to(this.container, {
+        timeline.to(this.container, {
       x: end.x,
       y: end.y,
-      duration: dragDuration, // Use specified duration
-      ease: "power1.inOut"
+      duration: dragDuration,       ease: "power1.inOut"
     }, "+=0.1");
     
-    // Make "release" gesture (scale back up)
-    timeline.to(this.container.scale, {
+        timeline.to(this.container.scale, {
       x: 1.0,
       y: 1.0,
       duration: 0.15,
       ease: "power2.out"
     }, ">");
     
-    // Fade out at the end location
-    timeline.to(this.container, {
+        timeline.to(this.container, {
       alpha: 0,
       duration: 0.3,
       delay: 0.2,
@@ -271,30 +226,25 @@ export class HandCursor {
     });
   }
   
-  // Helper method for tutorial animations
-  animateCardSelection(cardPosition, duration = 1.0) {
-    // Position cursor above the card
-    const startX = cardPosition.x;
+    animateCardSelection(cardPosition, duration = 1.0) {
+        const startX = cardPosition.x;
     const startY = cardPosition.y - 50;
     
     this.showAt(startX, startY);
     
-    // Create animation timeline
-    const timeline = gsap.timeline({
+        const timeline = gsap.timeline({
       onComplete: () => {
         this.fade();
       }
     });
     
-    // Move down to card
-    timeline.to(this.container, {
+        timeline.to(this.container, {
       y: cardPosition.y,
       duration: duration / 2,
       ease: "power2.inOut"
     });
     
-    // Tap animation
-    timeline.to(this.container.scale, {
+        timeline.to(this.container.scale, {
       x: 0.9,
       y: 0.9,
       duration: 0.2,
@@ -308,13 +258,11 @@ export class HandCursor {
       ease: "power2.out"
     });
     
-    // Small pause
-    timeline.to({}, {
+        timeline.to({}, {
       duration: 0.2
     });
     
-    // Move back up
-    timeline.to(this.container, {
+        timeline.to(this.container, {
       y: startY,
       duration: duration / 2,
       ease: "power2.inOut"

@@ -1,4 +1,3 @@
-// service-worker.js
 const CACHE_NAME = 'gin-rummy-cache-v1';
 const ASSETS_TO_CACHE = [
   'https://github.com/koshmosh43/playable/tree/main/',

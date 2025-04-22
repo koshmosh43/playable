@@ -1,12 +1,10 @@
-// GameStateManager.js - Manages game state transitions
 export class GameStateManager {
   constructor(game, renderers) {
     this.game = game;
     this.renderers = renderers;
     this.currentState = '';
     
-    // Define state transitions
-    this.states = {
+        this.states = {
       'intro': {
         enter: () => this.showIntroScreen(),
         exit: () => this.hideIntroScreen()
@@ -21,8 +19,7 @@ export class GameStateManager {
           if (this.game.initializeGame) {
             this.game.initializeGame();
           }
-          // вызов туториала после перехода в play
-          setTimeout(() => {
+                    setTimeout(() => {
             if (!this.game.tutorialShown) {
               this.game.showTutorial();
               this.game.tutorialShown = true;
@@ -38,32 +35,25 @@ export class GameStateManager {
     };
   }
   
-  // Change to a new state
-  changeState(newState) {
-    // Don't change if already in this state
-    if (this.currentState === newState) return;
+    changeState(newState) {
+        if (this.currentState === newState) return;
     
     console.log("Game state changed to:", newState);
     
-    // Exit current state
-    if (this.currentState && this.states[this.currentState].exit) {
+        if (this.currentState && this.states[this.currentState].exit) {
       this.states[this.currentState].exit();
     }
     
-    // Update current state
-    this.currentState = newState;
+        this.currentState = newState;
     
-    // Enter new state
-    if (this.states[newState].enter) {
+        if (this.states[newState].enter) {
       this.states[newState].enter();
     }
   }
   
-  // Show intro screen
-  showIntroScreen() {
+    showIntroScreen() {
     if (this.game.introContainer) {
-      // Плавно показываем интро-контейнер
-      this.game.introContainer.alpha = 0;
+            this.game.introContainer.alpha = 0;
       this.game.introContainer.visible = true;
       
       gsap.to(this.game.introContainer, {
@@ -74,35 +64,29 @@ export class GameStateManager {
     }
   }
   
-  // Hide intro screen
-  hideIntroScreen() {
+    hideIntroScreen() {
     if (this.game.introContainer) {
       this.game.introContainer.visible = false;
     }
   }
   
-  // Show dealing screen
-  showDealingScreen() {
+    showDealingScreen() {
     if (this.game.dealingContainer) {
       this.game.dealingContainer.visible = true;
     }
   }
   
-  // Hide dealing screen
-  hideDealingScreen() {
+    hideDealingScreen() {
     if (this.game.dealingContainer) {
       this.game.dealingContainer.visible = false;
     }
   }
   
-  // Show play screen
-  showPlayScreen() {
-    // Show main game containers
-    this.game.containers.main.visible = true;
+    showPlayScreen() {
+        this.game.containers.main.visible = true;
     this.game.containers.background.visible = true;
     
-    // Show renderer containers
-    if (this.renderers.uiRenderer) {
+        if (this.renderers.uiRenderer) {
       this.renderers.uiRenderer.container.visible = true;
     }
     if (this.renderers.cardRenderer) {
@@ -110,24 +94,20 @@ export class GameStateManager {
     }
   }
   
-  // Hide play screen
-  hidePlayScreen() {
-    // Hide card container (keep UI visible)
-    if (this.renderers.cardRenderer) {
+    hidePlayScreen() {
+        if (this.renderers.cardRenderer) {
       this.renderers.cardRenderer.container.visible = false;
     }
   }
   
-  // Show end screen
-  showEndScreen() {
+    showEndScreen() {
     if (this.game.endContainer) {
       this.game.updateEndScreen(this.game.playerScore);
       this.game.endContainer.visible = true;
     }
   }
   
-  // Hide end screen
-  hideEndScreen() {
+    hideEndScreen() {
     if (this.game.endContainer) {
       this.game.endContainer.visible = false;
     }
