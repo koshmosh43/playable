@@ -6,7 +6,7 @@
     "main": "index.html",
     "scripts": {
         "start": "http-server -c-1 -p 8080",
-        "build": "mkdir -p dist && cp -r index.html game.js assets dist/",
+        "build": "webpack --config webpack.config.js",
         "lint": "eslint game.js",
         "serve": "http-server ./dist -p 8080"
     },

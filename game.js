@@ -62,6 +62,7 @@ class GinRummyGame {
       antialias: true,
       autoDensity: true
     });
+    window.game = this;
 
     // Core components
     this.assetLoader = new AssetLoader();
@@ -336,6 +337,17 @@ sortCardsWithMelds() {
       
       // Initialize core components
       this.initializeComponents();
+
+       // Скрываем курсор‑руку сразу при любом клике по канвасу
+    this.app.view.addEventListener('pointerdown', () => {
+        this.handCursor.hide();
+        this.uiRenderer.hideDialog();
+      });
+      // И скрываем, когда начинается drag‑n‑drop карты
+      document.addEventListener('cardDragStart', () => {
+        this.handCursor.hide();
+        this.uiRenderer.hideDialog();
+      });
       
       // Set up game
       await this.setupGame();
