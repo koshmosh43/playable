@@ -1,6 +1,7 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -18,7 +19,6 @@
       height: 100%;
       margin: 0;
       padding: 0;
-      background-color: #0B5D2E;
       overflow: hidden;
       touch-action: none;
       position: fixed;
@@ -41,47 +41,10 @@
       border: none;
       touch-action: none;
     }
-    
-    /* Loading screen */
-    #loading {
-      position: absolute;
-      top: 0; 
-      left: 0;
-      width: 100%; 
-      height: 100%;
-      background-color: #052e15;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      color: white;
-      font-size: 24px;
-      z-index: 1000;
-    }
-    
-    .progress-bar {
-      width: 300px;
-      height: 20px;
-      background-color: #333;
-      border-radius: 10px;
-      margin-top: 20px;
-      overflow: hidden;
-    }
-    
-    .progress {
-      height: 100%;
-      background-color: #4CAF50;
-      width: 0%;
-      transition: width 0.3s;
-    }
   </style>
 </head>
 <body>
-  <div id="game-container">
-  </div>
-  
-  <!-- Подключение библиотек через CDN можно оставить,
-       но если требуется полный inline, следует их тоже инлайнить -->
+  <div id="game-container"></div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.2.4/pixi.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/PixiPlugin.min.js"></script>
@@ -89,18 +52,14 @@
     import * as pixiProjection from 'https://cdn.jsdelivr.net/npm/pixi-projection@1.0.0/+esm';
     window.pixiProjection = pixiProjection;
     
-    // Регистрируем с PIXI после загрузки
     document.addEventListener('DOMContentLoaded', () => {
       if (window.PIXI && window.pixiProjection) {
-        console.log("PIXI Projection успешно загружен");
-        // Делаем классы проекции доступными через объект PIXI
+        console.log("PIXI Projection loaded successfully");
         PIXI.projection = window.pixiProjection;
       }
     });
 </script>
   
-  
-  <!-- Модули игры подключаются здесь, их сборка заменит их содержимое -->
   <script type="module" src="HandCursor.js"></script>
   <script type="module" src="UIRenderer.js"></script>
   <script type="module" src="CardRenderer.js"></script>
