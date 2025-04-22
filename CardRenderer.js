@@ -10,6 +10,7 @@ export class CardRenderer {
 this.draggingCardSource = null; // Источник карты (deck/discard)
 this.draggingCardData = null;  // Данные карты
 this.playerHandZone = null;    // Зона веера карт игрока
+this.highlightedSource = null;
     
     // Card containers
     this.container = new PIXI.Container();
@@ -121,103 +122,137 @@ this.playerHandZone = null;    // Зона веера карт игрока
   }
   
   // Render player's hand of cards with fan effect
-async renderPlayerHand(playerCards, selectedCard, possibleMelds) {
-  // 1) Очистка контейнера
-  this.playerHandContainer.removeChildren();
-
-  // 2) Если нет карт — выходим
-  if (!playerCards || playerCards.length === 0) return;
-
-  // 3) Стартовый массив всех карт
-  let cards = [...playerCards];
-
-  // 4) Построение meldCards в правильном порядке
-  if (possibleMelds) {
-    // 4.1) Сначала все run-карты в порядке run
-    const runCards = possibleMelds.runs
-      ? possibleMelds.runs.flatMap(run => run.cards)
-      : [];
-
-    // 4.2) Затем все set-карты
-    const setCards = possibleMelds.sets
-      ? possibleMelds.sets.flatMap(set => set.cards)
-      : [];
-
-    // 4.3) Убираем дубли и сохраняем порядок: run → set
-    const meldCards = [];
-    const seenMeld = new Set();
-    runCards.concat(setCards).forEach(card => {
-      if (!seenMeld.has(card.id)) {
-        seenMeld.add(card.id);
-        meldCards.push(card);
-      }
-    });
-
-    // 4.4) Остальные карты — те, что не в seenMeld
-    const otherCards = cards.filter(c => !seenMeld.has(c.id));
-
-    // 4.5) Сортируем остальные только по рангу (2→A), масть вторично
-    const valueOrder = { '2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,'10':10,'J':11,'Q':12,'K':13,'A':14 };
-    const suitOrder  = { clubs:0, diamonds:1, hearts:2, spades:3 };
-    otherCards.sort((a, b) => {
-      const dv = valueOrder[a.value] - valueOrder[b.value];
-      if (dv !== 0) return dv;
-      return suitOrder[a.suit] - suitOrder[b.suit];
-    });
-
-    // 4.6) Финальный порядок: run-карты, затем set-карты, затем остальные
-    cards = [...meldCards, ...otherCards];
-  }
-
-  // 5) Всё как было дальше: расчёт spacing/fanAngle и отрисовка
-  const total = cards.length;
-  let spacing = this.config.fanDistance;
-  if (total > 10) {
-    spacing = Math.max(20, this.config.fanDistance - (total - 10) * 2);
-  }
-  const fanAngle  = this.config.fanAngle;
-
-  for (let i = 0; i < total; i++) {
-    const cardData = cards[i];
-    const sprite   = await this.createCardSprite(cardData);
-
-    sprite.width  = this.config.cardWidth;
-    sprite.height = this.config.cardHeight;
-    sprite.anchor.set(0.5, 0.9);
-    sprite.zIndex = i;
-    sprite.cardData = cardData;
-
-    const x        = -((total - 1) * spacing / 2) + i * spacing;
-    const angleRad = ((-(-fanAngle/2 + (fanAngle/(total-1))*i)) * Math.PI) / 180;
-    sprite.x       = x;
-    sprite.y       = 0;
-    sprite.rotation = angleRad;
-
-    if (i === total - 1) {
-      sprite.rightmost = true;
-    }
-
-    // Подсветки и drag’n’drop остаются без изменений…
+  async renderPlayerHand(playerCards, selectedCard, possibleMelds) {
+    // 1) Clear container
+    this.playerHandContainer.removeChildren();
+  
+    // 2) Exit if no cards
+    if (!playerCards || playerCards.length === 0) return;
+  
+    // 3) Start with all cards
+    let cards = [...playerCards];
+  
+    // 4) Build meldCards in the right order
     if (possibleMelds) {
-      const inRun = possibleMelds.runs?.some(run => run.cards.some(c => c.id === cardData.id));
-      const inSet = possibleMelds.sets?.some(set => set.cards.some(c => c.id === cardData.id));
-      if (inRun) this.applySpecialHighlight(sprite, 0x98FB98, 0.5);
-      else if (inSet) this.applySpecialHighlight(sprite, 0xFFFE7A, 0.5);
+      // 4.1) First all run cards in run order
+      const runCards = possibleMelds.runs
+        ? possibleMelds.runs.flatMap(run => run.cards)
+        : [];
+      const runIds = new Set(runCards.map(c => c.id));
+  
+      // 4.2) Then all set cards, but EXCLUDING those already in runs
+      const setCards = possibleMelds.sets
+        ? possibleMelds.sets.flatMap(set => set.cards)
+        : [];
+      const setIds = new Set(setCards.map(c => c.id));
+  
+      // 4.3) Remove duplicates and maintain order: runs → sets
+      const meldCards = [];
+      const seenMeld = new Set();
+      
+      // Add run cards first
+      runCards.forEach(card => {
+        if (!seenMeld.has(card.id)) {
+          seenMeld.add(card.id);
+          meldCards.push(card);
+        }
+      });
+      
+      // Then add set cards that aren't already in runs
+      setCards.forEach(card => {
+        if (!seenMeld.has(card.id)) {
+          seenMeld.add(card.id);
+          meldCards.push(card);
+        }
+      });
+  
+      // 4.4) Other cards - those not in any meld
+      const otherCards = cards.filter(c => !seenMeld.has(c.id));
+  
+      // 4.5) Sort other cards by rank (2→A), suit secondary
+      const valueOrder = { '2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,'10':10,'J':11,'Q':12,'K':13,'A':14 };
+      const suitOrder  = { clubs:0, diamonds:1, hearts:2, spades:3 };
+      otherCards.sort((a, b) => {
+        const dv = valueOrder[a.value] - valueOrder[b.value];
+        if (dv !== 0) return dv;
+        return suitOrder[a.suit] - suitOrder[b.suit];
+      });
+  
+      // 4.6) Final order: run cards, then set cards, then other cards
+      cards = [...meldCards, ...otherCards];
     }
-    if (selectedCard?.id === cardData.id) {
-      this.applySimpleSelectedHighlight(sprite);
+  
+    // 5) Calculate spacing/fanAngle and render
+    const total = cards.length;
+    let spacing = this.config.fanDistance;
+    if (total > 10) {
+      spacing = Math.max(20, this.config.fanDistance - (total - 10) * 2);
     }
-    if (this.isDragEnabled) {
-      this.setupDragAndDrop(sprite, cardData);
+    const fanAngle = this.config.fanAngle;
+  
+    for (let i = 0; i < total; i++) {
+      const cardData = cards[i];
+      const sprite = await this.createCardSprite(cardData);
+  
+      sprite.width = this.config.cardWidth;
+      sprite.height = this.config.cardHeight;
+      sprite.anchor.set(0.5, 0.9);
+      sprite.zIndex = i;
+      sprite.cardData = cardData;
+  
+      const x = -((total - 1) * spacing / 2) + i * spacing;
+      const angleRad = ((-(-fanAngle/2 + (fanAngle/(total-1))*i)) * Math.PI) / 180;
+      sprite.x = x;
+      sprite.y = 0;
+      sprite.rotation = angleRad;
+  
+      if (i === total - 1) {
+        sprite.rightmost = true;
+      }
+  
+      // Highlighting logic - clearly separated for runs and sets
+      if (possibleMelds) {
+        // Check if card is in a run (green highlight)
+        const inRun = possibleMelds.runs?.some(run => 
+          run.cards.some(c => c.id === cardData.id)
+        );
+        
+        if (inRun) {
+          // Card is in a run - apply green highlight
+          this.applySpecialHighlight(sprite, 0x98FB98, 0.5);
+        } 
+        else {
+          // Card is NOT in a run - check if it's in a set
+          const inSet = possibleMelds.sets?.some(set => 
+            set.cards.some(c => c.id === cardData.id)
+          );
+          
+          if (inSet) {
+            // Card is in a set - apply yellow highlight
+            this.applySpecialHighlight(sprite, 0xFFFE7A, 0.5);
+          }
+        }
+      }
+  
+      // Selected card highlighting
+      if (selectedCard?.id === cardData.id) {
+        this.applySimpleSelectedHighlight(sprite);
+      }
+      
+      // Set up drag and drop
+      if (this.isDragEnabled) {
+        this.setupDragAndDrop(sprite, cardData);
+      }
+      
+      // Add click handler
+      sprite.on('pointerdown', () => this.onCardClick?.(cardData, 'player'));
+  
+      this.playerHandContainer.addChild(sprite);
     }
-    sprite.on('pointerdown', () => this.onCardClick?.(cardData, 'player'));
-
-    this.playerHandContainer.addChild(sprite);
+  
+    // 6) Sort by z-index
+    this.playerHandContainer.sortChildren();
   }
-
-  // 6) Сортировка по z-index
-  this.playerHandContainer.sortChildren();
-}
 
   isOverPlayerHand(position) {
     if (!this.playerHandContainer) return false;
@@ -300,68 +335,60 @@ async renderPlayerHand(playerCards, selectedCard, possibleMelds) {
     };
     
     
-    const onDragMove = (event) => {
-      if (!isDragging) return;
-      
-      // Calculate the new position based on the mouse/touch movement
-      const newPosition = event.data.global;
-      
-      // Convert global coordinates to local container coordinates
-      const newLocalPos = this.playerHandContainer.toLocal(newPosition);
-      
-      // Update sprite position
-      sprite.x = newLocalPos.x;
-      sprite.y = newLocalPos.y;
-      
-      // Keep the card upright while dragging
-      sprite.rotation = 0;
-      
-      // Check if over discard pile for visual feedback
-      const globalPos = sprite.toGlobal(new PIXI.Point(0, 0));
-      const isOverDiscard = this.isOverDiscardPile(globalPos);
-      
-      // Check if we're in draw phase and this is a player card
-      const isPlayerCardInDrawPhase = 
-        sprite.dragPhaseInfo && 
-        sprite.dragPhaseInfo.isDrawPhase && 
-        cardData.source !== 'deck' && 
-        cardData.source !== 'discard';
-      
-      // Visual feedback when over discard pile - with special case for draw phase
-      if (isOverDiscard && !sprite.isOverDiscard) {
-        sprite.isOverDiscard = true;
-        
-        if (isPlayerCardInDrawPhase) {
-          // Special case - show "invalid" visual feedback
-          gsap.to(sprite.scale, {
-            x: 0.65, y: 0.65,
-            duration: 0.2
-          });
-          
-          // Apply a red highlight to indicate invalid move
-          this.applySpecialHighlight(sprite, 0xFF0000, 0.3); // Red when trying to discard during draw phase
-        } else {
-          // Normal case - show "valid drop" visual feedback
-          gsap.to(sprite.scale, {
-            x: 0.65, y: 0.65,
-            duration: 0.2
-          });
-          
-          // Apply a special "valid drop" highlight
-          this.applySpecialHighlight(sprite, 0x00FF00, 0.3); // Green when valid drop
-        }
-      } else if (!isOverDiscard && sprite.isOverDiscard) {
-        sprite.isOverDiscard = false;
-        // Restore normal drag appearance
-        gsap.to(sprite.scale, {
-          x: 0.7, y: 0.7,
-          duration: 0.2
-        });
-        
-        // Apply normal drag highlight
-        this.applySimpleSelectedHighlight(sprite);
-      }
-    };
+    // Внутри метода setupDragAndDrop(...)
+const onDragMove = (event) => {
+  if (!isDragging) return;
+
+  // Глобальные координаты курсора/тача
+  const newGlobalPos = event.data.global;
+  // Переводим в локальные координаты контейнера руки
+  const newLocalPos = this.playerHandContainer.toLocal(newGlobalPos);
+
+  // Определяем: пытается ли игрок взять карту из руки в фазе взятия
+  const isPlayerCardInDrawPhase =
+    sprite.dragPhaseInfo?.isDrawPhase &&
+    cardData.source !== 'deck' &&
+    cardData.source !== 'discard';
+
+  if (isPlayerCardInDrawPhase) {
+    // Максимум на 30px выше исходной Y‑координаты
+    const maxUpY = sprite.originalPosition.y - 30;
+    // Не позволяем поднять выше maxUpY
+    sprite.y = Math.max(newLocalPos.y, maxUpY);
+  } else {
+    // В остальных случаях — двигаем по свободным координатам
+    sprite.y = newLocalPos.y;
+  }
+
+  // X двигаем всегда свободно
+  sprite.x = newLocalPos.x;
+  // Карта всегда должна быть ровной при перетаскивании
+  sprite.rotation = 0;
+
+  // Проверяем, надходимся ли мы над областью отбоя
+  const globalPos = sprite.toGlobal(new PIXI.Point(0, 0));
+  const isOverDiscard = this.isOverDiscardPile(globalPos);
+
+  // Если впервые вошли/вышли из отбоя — меняем визуальный фидбэк
+  if (isOverDiscard && !sprite.isOverDiscard) {
+    sprite.isOverDiscard = true;
+    if (isPlayerCardInDrawPhase) {
+      // в фазе взятия — запрещённый сброс → красный
+      gsap.to(sprite.scale, { x: 0.65, y: 0.65, duration: 0.2 });
+      this.applySpecialHighlight(sprite, 0xFF0000, 0.3);
+    } else {
+      // обычный сброс → зелёный
+      gsap.to(sprite.scale, { x: 0.65, y: 0.65, duration: 0.2 });
+      this.applySpecialHighlight(sprite, 0x00FF00, 0.3);
+    }
+  } else if (!isOverDiscard && sprite.isOverDiscard) {
+    // вышли из отбоя — возвращаем нормальный вид
+    sprite.isOverDiscard = false;
+    gsap.to(sprite.scale, { x: 0.7, y: 0.7, duration: 0.2 });
+    this.applySimpleSelectedHighlight(sprite);
+  }
+};
+
     
     const onDragEnd = (event) => {
       if (!isDragging) return;
@@ -2125,79 +2152,61 @@ calculateCardPositions(cards, target) {
   }
   
   // Render the deck
-  async renderDeck(deckCount) {
-    if (!deckCount) deckCount = 0;
-    
-    const maxVisible = 5;
-    const visibleCount = Math.min(deckCount, maxVisible);
-    
-    // Create sprites for visible deck cards
-    for (let i = 0; i < visibleCount; i++) {
-      const sprite = await this.createCardSprite({ faceDown: true }, true);
-      sprite.cardData = { source: 'deck' };
+async renderDeck(deckCount) {
+  if (!deckCount) deckCount = 0;
 
-      
-      // Set anchor to center for proper scaling animations
-      sprite.anchor.set(0.5, 0.5);
-      
-      // Position card at center of deck, with slight offset for stacking
-      sprite.x = this.config.cardWidth / 2;
-      sprite.y = this.config.cardHeight / 2 - 3 * i;
-      sprite.zIndex = i;
-      
-      // If this is the top card and deck is not empty, make it interactive
-      // Make top card interactive
-      if (i === visibleCount - 1 && deckCount > 0) {
-        // Add card counter
-        this.addDeckCounter(sprite, deckCount);
-        
-        // Make top card interactive
-        sprite.interactive = true;
-        sprite.buttonMode = true;
-        sprite.zIndex = 5000;
-        
-        // Очищаем все предыдущие обработчики
-        sprite.removeAllListeners();
-        
-        // Replace this entire handler:
-        sprite.on('pointerdown', (event) => {
-          // Предотвращаем всплытие события
-          event.stopPropagation();
-          
-          // ВАЖНО: Принудительно останавливаем все анимации и сбрасываем масштаб
-          gsap.killTweensOf(this.deckContainer);
-          gsap.killTweensOf(this.deckContainer.scale);
-          this.deckContainer.scale.set(1, 1);
-          
-          // Также нужно остановить анимации для всех карт в колоде
-          this.deckContainer.children.forEach(card => {
-  gsap.killTweensOf(card);
-  gsap.killTweensOf(card.scale);
-  
-  // Убираем любые фильтры
-  if (card.filters) {
-    card.filters = null;
-  }
-});
-          
-         
-          
-          // Get a real card from the game if callback is available
-          const cardToDrag = this.deckDragCallback ? this.deckDragCallback() : null;
-          
-          if (cardToDrag) {
-            // Start dragging with the real card data
-            this.startCardDragging(cardToDrag, 'deck');
-          } else {
-            // Fallback to placeholder if no callback or it returns null
-            this.startCardDragging({ faceDown: false, value: '?', suit: '?', filename: '' }, 'deck');
-          }
+  const maxVisible = 5;
+  const visibleCount = Math.min(deckCount, maxVisible);
+
+  // Создаём видимые карты колоды
+  for (let i = 0; i < visibleCount; i++) {
+    const sprite = await this.createCardSprite({ faceDown: true }, true);
+    sprite.cardData = { source: 'deck' };
+
+    sprite.anchor.set(0.5, 0.5);
+    sprite.x = this.config.cardWidth / 2;
+    sprite.y = this.config.cardHeight / 2 - 3 * i;
+    sprite.zIndex = i;
+
+    // Верхняя карта – интерактивна
+    if (i === visibleCount - 1 && deckCount > 0) {
+      this.addDeckCounter(sprite, deckCount);
+
+      sprite.interactive = true;
+      sprite.buttonMode = true;
+      sprite.zIndex = 5000;
+      sprite.removeAllListeners();
+
+      sprite.on('pointerdown', (event) => {
+        event.stopPropagation();
+
+        // Останавливаем анимации и сбрасываем масштаб на 60%
+        gsap.killTweensOf(this.deckContainer);
+        gsap.killTweensOf(this.deckContainer.scale);
+        this.deckContainer.scale.set(0.6, 0.6);
+
+        this.deckContainer.children.forEach(card => {
+          gsap.killTweensOf(card);
+          gsap.killTweensOf(card.scale);
+          if (card.filters) card.filters = null;
         });
-      }
-      
-      this.deckContainer.addChild(sprite);
+
+        const cardToDrag = this.deckDragCallback ? this.deckDragCallback() : null;
+        if (cardToDrag) {
+          this.startCardDragging(cardToDrag, 'deck');
+        } else {
+          this.startCardDragging(
+            { faceDown: false, value: '?', suit: '?', filename: '' },
+            'deck'
+          );
+        }
+      });
     }
+
+    this.deckContainer.addChild(sprite);
   }
+}
+
   
   // Add counter to deck
   addDeckCounter(sprite, deckCount) {
@@ -2274,102 +2283,16 @@ calculateCardPositions(cards, target) {
   }
 
   returnCardToHand(cardData) {
-    if (!cardData) return;
-    
-    console.log("Returning card to hand:", cardData);
-    
-    // Find if this card is already in the player's hand
-    const cardIndex = this.playerHandContainer.children.findIndex(sprite => 
-      sprite.cardData && sprite.cardData.id === cardData.id
-    );
-    
-    // If card is already in hand, just update the display
-    if (cardIndex !== -1) {
-      console.log("Card already in hand at index:", cardIndex);
-      this.updateDisplay({
-        playerCards: window.game.cardManager.playerCards || [],
-        opponentCards: window.game.cardManager.opponentCards || [],
-        discardPile: window.game.cardManager.discardPile || [],
-        deckCount: window.game.deckCount,
-        selectedCard: window.game.selectedCard,
-        possibleMelds: window.game.possibleMelds,
-        playerTurn: window.game.playerTurn
-      });
-      return;
+    // Если есть текуще перетаскиваемая карта — возвращаем её в руку
+    if (this.draggingCard) {
+      this.snapCardBack(this.draggingCard);
+      // Очищаем состояние перетаскивания
+      this.draggingCard = null;
+      this.draggingCardData = null;
+      this.draggingCardSource = null;
     }
-    
-    // Create animation to show card returning to hand
-    this.createCardSprite(cardData, false).then(sprite => {
-      // Set up sprite
-      sprite.anchor.set(0.5);
-      sprite.width = this.config.cardWidth;
-      sprite.height = this.config.cardHeight;
-      sprite.zIndex = 1000;
-      
-      // Position initially where the discard pile is
-      sprite.x = this.discardContainer.x + this.config.cardWidth / 2;
-      sprite.y = this.discardContainer.y + this.config.cardHeight / 2;
-      
-      // Add to animation container
-      this.animationContainer.addChild(sprite);
-      
-      // Calculate destination in player's hand
-      const fanSpacing = this.config.fanDistance || 30;
-      const totalCards = window.game.cardManager.playerCards.length;
-      
-      // Find this card's position in playerCards array
-      const cardPos = window.game.cardManager.playerCards.findIndex(c => 
-        c.id === cardData.id
-      );
-      
-      // If card isn't in playerCards, add it back
-      if (cardPos === -1) {
-        console.warn("Card not found in player cards array, adding it back");
-        window.game.cardManager.playerCards.push(cardData);
-        // Re-sort cards
-        window.game.cardManager.playerCards = window.game.sortCardsWithMelds();
-      }
-      
-      // Calculate fan position
-      const destIndex = window.game.cardManager.playerCards.findIndex(c => 
-        c.id === cardData.id
-      );
-      
-      // Default position if not found
-      let destX = this.playerHandContainer.x;
-      let destY = this.playerHandContainer.y;
-      
-      if (destIndex !== -1) {
-        // Calculate position in fan
-        const fanAngle = this.config.fanAngle || 10;
-        const anglePerCard = totalCards > 1 ? fanAngle / (totalCards - 1) : 0;
-        const rotation = -fanAngle/2 + destIndex * anglePerCard;
-        const rotationRad = -(rotation * Math.PI / 180);
-        
-        destX = this.playerHandContainer.x - ((totalCards - 1) * fanSpacing / 2) + destIndex * fanSpacing;
-        destY = this.playerHandContainer.y;
-      }
-      
-      // Animate card back to hand
-      gsap.to(sprite, {
-        x: destX,
-        y: destY,
-        duration: 0.4,
-        ease: "back.out(1.2)",
-        onComplete: () => {
-          // Remove animation sprite
-          this.animationContainer.removeChild(sprite);
-          
-          // Update the display to show card correctly in hand
-          window.game.updatePlayScreen();
-        }
-      });
-    }).catch(err => {
-      console.error("Error creating sprite for return animation:", err);
-      // Still update the display even if animation fails
-      window.game.updatePlayScreen();
-    });
   }
+  
   
   // Render the discard pile
   async renderDiscardPile(discardPile) {

@@ -1633,17 +1633,7 @@ setupTutorialElements(introContainer) {
       dropShadowBlur: 2,
       dropShadowDistance: 2
     };
-    
-    // Более четкие и мотивирующие подсказки для игрока
-    let tutorialText;
-    
-    if (this.drawCount === 0) {
-      tutorialText = "Take card from Deck\nto extend your Run!";
-    } else if (this.drawCount === 1) {
-      tutorialText = "Almost there!\nTake another card!";
-    } else {
-      tutorialText = "Last card to win!\nThen KNOCK!";
-    }
+    const tutorialText = "Take a card: Deck\nor shown card!";
     
     const titleText = new PIXI.Text(tutorialText, style);
     titleText.anchor.set(0.5);
@@ -1674,59 +1664,47 @@ setupTutorialElements(introContainer) {
   
   highlightCardSource(source) {
     if (!this.cardRenderer) return;
-  
+
     // Снимаем старую подсветку, если была
     this.removeCardHighlighting();
-  
-    // Улучшенные параметры анимации - более заметные
+
     const PULSE_DECK    = { x: 1.25, y: 1.25, duration: 0.4, repeat: -1, yoyo: true };
     const PULSE_DISCARD = { x: 1.25, y: 1.25, duration: 0.4, repeat: -1, yoyo: true };
-  
-    // Вспомогательная функция — готовит контейнер:
-    // 1) ставит pivot в центр,
-    // 2) компенсирует позицию,
-    // 3) убивает прежний tween, если был
+
     const prepareContainerForPulse = (cont) => {
-      // Уже настроен? — пропускаем
       if (!cont.__pivotCentered) {
-        const prevX = cont.x;
-        const prevY = cont.y;
-  
-        // центр относительно собственных размеров
-        cont.pivot.set(cont.width / 2, cont.height / 2);
-  
-        // возвращаем визуально на то же место
+        const prevX = cont.x, prevY = cont.y;
+        cont.pivot.set(cont.width/2, cont.height/2);
         cont.x = prevX + cont.pivot.x;
         cont.y = prevY + cont.pivot.y;
-  
-        cont.__pivotCentered = true;            // помечаем
+        cont.__pivotCentered = true;
       }
-      gsap.killTweensOf(cont.scale);            // стоп старый tween
+      gsap.killTweensOf(cont.scale);
       return cont;
     };
-  
+
     if (source === 'deck') {
       const cont = prepareContainerForPulse(this.cardRenderer.deckContainer);
-  
-     
-  
-      // Доп‑подсветка верхней карты
+      // Подсветка топ‑карты
       const top = cont.children.at(-1);
       if (top) this.cardRenderer.applySpecialHighlight(top, 0x00FF00, 0.5);
-  
+      // <--- здесь, если хотите, можно запустить пульсацию колоды: 
+      // gsap.to(cont.scale, PULSE_DECK);
     }
-  
+
     if (source === 'discard') {
+      // <<< ВСТАВИТЬ НИЖЕ: остановить пульсацию колоды и сбросить её масштаб >>>
+      const deckCont = prepareContainerForPulse(this.cardRenderer.deckContainer);
+      deckCont.scale.set(1, 1);
+
       const cont = prepareContainerForPulse(this.cardRenderer.discardContainer);
-  
-      
-  
       const top = cont.children.at(-1);
       if (top) this.cardRenderer.applySpecialHighlight(top, 0x00FF00, 0.5);
-  
+
       gsap.to(cont.scale, PULSE_DISCARD);
     }
   }
+
 
   // Initialize game data
   initializeGameData() {
@@ -1989,63 +1967,25 @@ if (this.deadwood <= 10 && !this.playerTurn) {
   }
 
 
-removeCardHighlighting() {
-  // Remove any source highlighting
-  if (this.highlightedSource) {
-    if (this.highlightedSource.sprite) {
-      // Stop any animations on the sprite
-      gsap.killTweensOf(this.highlightedSource.sprite);
-      gsap.killTweensOf(this.highlightedSource.sprite.scale);
-      
-      // Remove highlight
-      if (this.highlightedSource.sprite.filters) {
-        this.highlightedSource.sprite.filters = null;
+  removeCardHighlighting() {
+    if (this.highlightedSource) {
+      // 1) Останавливаем tween на контейнере
+     if (this.highlightedSource.container) {
+       gsap.killTweensOf(this.highlightedSource.container.scale);
+       this.highlightedSource.container.scale.set(1, 1);
+     }
+      // 2) Останавливаем tween на спрайте (если выделяли саму карту)
+      if (this.highlightedSource.sprite) {
+        gsap.killTweensOf(this.highlightedSource.sprite);
+        gsap.killTweensOf(this.highlightedSource.sprite.scale);
+        if (this.highlightedSource.sprite.filters) {
+          this.highlightedSource.sprite.filters = null;
+        }
+        this.highlightedSource.sprite.scale.set(1, 1);
       }
-      
-      // Reset scale
-      this.highlightedSource.sprite.scale.set(1, 1);
+      this.highlightedSource = null;
     }
-    
-    
-    // Сбрасываем масштаб контейнера
-    if (this.highlightedSource.source === 'deck' && this.cardRenderer.deckContainer) {
-      gsap.killTweensOf(this.cardRenderer.deckContainer.scale);
-      this.cardRenderer.deckContainer.scale.set(1, 1);
-    }
-    
-    if (this.highlightedSource.source === 'discard' && this.cardRenderer.discardContainer) {
-      gsap.killTweensOf(this.cardRenderer.discardContainer.scale);
-      this.cardRenderer.discardContainer.scale.set(1, 1);
-    }
-    
-    // Clear reference
-    this.highlightedSource = null;
   }
-  
-  // Also check deck container for any highlighted cards
-  if (this.cardRenderer && this.cardRenderer.deckContainer) {
-    this.cardRenderer.deckContainer.children.forEach(sprite => {
-      if (sprite.filters) {
-        gsap.killTweensOf(sprite);
-        gsap.killTweensOf(sprite.scale);
-        sprite.filters = null;
-        sprite.scale.set(1, 1);
-      }
-    });
-  }
-  
-  // And check discard container for any highlighted cards
-  if (this.cardRenderer && this.cardRenderer.discardContainer) {
-    this.cardRenderer.discardContainer.children.forEach(sprite => {
-      if (sprite.filters) {
-        gsap.killTweensOf(sprite);
-        gsap.killTweensOf(sprite.scale);
-        sprite.filters = null;
-        sprite.scale.set(1, 1);
-      }
-    });
-  }
-}
 
   // Start the game
   startGame() {
@@ -2492,12 +2432,12 @@ updateGamePositions() {
     
     const possibleRuns = [];
     for (const [suit, cards] of Object.entries(suitGroups)) {
-      if (cards.length < 2) continue; // Changed from 3 to 2 to also identify potential runs
+      if (cards.length < 3) continue; // Need at least 3 cards for a run
       
       // Sort cards by value
       const sortedCards = [...cards].sort((a, b) => valueOrder[a.value] - valueOrder[b.value]);
       
-      // Find all sequences, including potential ones (length 2)
+      // Find sequences
       let run = [sortedCards[0]];
       for (let i = 1; i < sortedCards.length; i++) {
         const prevValue = valueOrder[sortedCards[i-1].value];
@@ -2506,7 +2446,7 @@ updateGamePositions() {
         if (currValue === prevValue + 1) {
           run.push(sortedCards[i]);
         } else {
-          // Only add as a run if it has 3+ cards (valid meld)
+          // Only add as a run if it has 3+ cards
           if (run.length >= 3) {
             possibleRuns.push({ type: 'run', cards: [...run] });
           }
@@ -2520,9 +2460,32 @@ updateGamePositions() {
       }
     }
     
-    // Store identified melds
+    // IMPORTANT: Now we need to make sure cards aren't used in both runs and sets
+    // We prioritize runs over sets
+    
+    // First, collect all cards used in runs
+    const cardsInRuns = new Set();
+    possibleRuns.forEach(run => {
+      run.cards.forEach(card => {
+        cardsInRuns.add(card.id);
+      });
+    });
+    
+    // Then filter sets to exclude cards already used in runs
+    const filteredSets = possibleSets.map(set => {
+      // Filter out cards that are already in runs
+      const filteredCards = set.cards.filter(card => !cardsInRuns.has(card.id));
+      
+      // Return a new set object with filtered cards
+      return {
+        type: 'set',
+        cards: filteredCards
+      };
+    }).filter(set => set.cards.length >= 3); // Keep only sets that still have 3+ cards
+    
+    // Store identified melds with runs prioritized
     this.possibleMelds = {
-      sets: possibleSets,
+      sets: filteredSets,
       runs: possibleRuns
     };
     
@@ -2537,6 +2500,35 @@ updateGamePositions() {
     // Update possible melds and deadwood
     this.updatePossibleMelds();
     this.deadwood = this.calculateDeadwood();
+    
+    // IMPROVED PAUSE LOGIC: Проверяем переход через порог 10 для дедвуда
+    const previousDeadwood = this._previousDeadwood || 999;
+    this._previousDeadwood = this.deadwood;
+    
+    // Срабатывает только при переходе с >10 на ≤10
+    if (previousDeadwood > 10 && this.deadwood <= 10 && this.playerTurn) {
+      console.log("DEADWOOD REACHED ≤10: PAUSING GAME");
+      
+      // Устанавливаем флаг паузы
+      this.pauseGame = true;
+      
+      // Показываем кнопку KNOCK с небольшой задержкой
+      if (this.uiRenderer) {
+        setTimeout(() => {
+          this.uiRenderer.showKnockButton(true);
+        }, 100);
+      }
+      
+      // Автоматически симулируем нажатие KNOCK после показа кнопки
+      setTimeout(() => {
+        // Вызываем обработчик нажатия KNOCK
+        if (this.onKnockClick) {
+          this.onKnockClick();
+        } else if (this.uiRenderer && this.uiRenderer.onKnockClick) {
+          this.uiRenderer.onKnockClick();
+        }
+      }, 1500); // Задержка перед автоматическим "нажатием" KNOCK
+    }
     
     // Update UI (score, deadwood, etc.)
     if (this.uiRenderer) {
@@ -2574,13 +2566,13 @@ updateGamePositions() {
         playerTurn: this.playerTurn
       });
       
-      // Enable drag-and-drop only when it's player's turn
-      const enableDrag = this.playerTurn;
+      // Enable drag-and-drop only when it's player's turn AND game is not paused
+      const enableDrag = this.playerTurn && !this.pauseGame;
       this.cardRenderer.enableDragging(enableDrag);
     }
     
     // Force update discard hint if it's discard phase and player's turn
-    if (this.playerTurn && this.gameStep % 2 === 1 && this.hasDrawnCard) {
+    if (this.playerTurn && this.gameStep % 2 === 1 && this.hasDrawnCard && !this.pauseGame) {
       // Clear any existing hints
       if (this.handCursor) {
         this.handCursor.fade();
@@ -2659,9 +2651,7 @@ calculateDeadwood() {
     
     // Иначе считаем очки по правилам:
     // Туз (A) = 1, картинки (J,Q,K) = 10, остальные = номинал
-    if (card.value === 'A') {
-      cardValue = 1;
-    } else if (['J', 'Q', 'K'].includes(card.value)) {
+    if (['J', 'Q', 'K', 'A'].includes(card.value)) {
       cardValue = 10;
     } else {
       cardValue = parseInt(card.value) || 0;
@@ -2670,13 +2660,6 @@ calculateDeadwood() {
     console.log(`Card ${card.value} ${card.suit} = ${cardValue} points`);
     return sum + cardValue;
   }, 0);
-  
-  // Для ускоренной игры: если deadwood между 10 и 15, искусственно снижаем до 10
-  // чтобы игрок мог сделать KNOCK быстрее
-  if (deadwoodValue > 10 && deadwoodValue <= 15 && this.drawCount >= 2) {
-    console.log(`Artificially reducing deadwood from ${deadwoodValue} to 10 for quicker win`);
-    deadwoodValue = 10;
-  }
   
   console.log(`Total deadwood value: ${deadwoodValue}`);
   return deadwoodValue;
@@ -3522,7 +3505,13 @@ ensureUniqueCards() {
 
   // Handle card discard
   handleDiscard() {
-    if (!this.selectedCard) return;
+    // Выходим, если игра на паузе
+  if (this.pauseGame) {
+    console.log("Game is paused - discard blocked");
+    return;
+  }
+
+  if (!this.selectedCard) return;
     
     // Скрываем подсказку сброса карты
     if (this.uiRenderer) {
@@ -3702,6 +3691,12 @@ ensureUniqueCards() {
   
   // Play opponent's turn
   playOpponentTurn() {
+    // Выходим, если игра на паузе
+  if (this.pauseGame) {
+    console.log("Game is paused - opponent turn blocked");
+    return;
+  }
+  
     if (this.cardRenderer) {
       this.cardRenderer.enableDragging(false);
     }
@@ -3969,7 +3964,7 @@ ensureUniqueCards() {
             ];
             
             gsap.to(topCard.scale, {
-              x: 1.1, y: 1.1,
+              x: 0.6, y: 0.6,
               duration: 0.3,
               repeat: 1,
               yoyo: true
@@ -4290,7 +4285,6 @@ updateEndScreen(playerScore) {
     // 3) Идеальная рука → GIN
     if (this.deadwood === 0) {
       this.uiRenderer.showGinButton(true);
-      this.uiRenderer.showDialog("Perfect hand! Call GIN!");
       // Пульсация GIN‑кнопки
       if (this.uiRenderer.ginButton) {
         gsap.to(this.uiRenderer.ginButton.scale, {
@@ -4307,13 +4301,12 @@ updateEndScreen(playerScore) {
     // 4) Deadwood 1–10 → KNOCK
     if (this.deadwood > 0 && this.deadwood <= 10) {
       this.uiRenderer.showKnockButton(true);
-      this.uiRenderer.showDialog("KNOCK to win the game now!");
       // Пульсация KNOCK‑кнопки
       if (this.uiRenderer.knockButton) {
         gsap.to(this.uiRenderer.knockButton.scale, {
-          x: 1.2, y: 1.2,
+          x: 1.5, y: 1.5,
           duration: 0.5,
-          repeat: -1,
+          repeat: 1,
           yoyo: true,
           ease: "power1.inOut"
         });
