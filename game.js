@@ -57,7 +57,7 @@ class GinRummyGame {
     this.app = new PIXI.Application({
       width: viewportWidth,
       height: viewportHeight,
-      backgroundColor: 0x0B5D2E,
+      transparent: true,
       resolution: window.devicePixelRatio || 1,
       antialias: true,
       autoDensity: true
@@ -401,8 +401,6 @@ sortCardsWithMelds() {
 
   // Load game assets
   async loadAssets() {
-    // Show loading screen
-    this.showLoadingScreen();
     
     try {
       // Load assets with progress tracking
@@ -4480,48 +4478,7 @@ updateEndScreen(playerScore) {
     }
   }
 
-  // Show loading screen
-  showLoadingScreen() {
-    const loadingContainer = new PIXI.Container();
-    
-    // Background
-    const graphics = new PIXI.Graphics();
-    graphics.beginFill(0x000000, 0.7);
-    graphics.drawRect(0, 0, this.app.screen.width, this.app.screen.height);
-    graphics.endFill();
-    loadingContainer.addChild(graphics);
-    
-    // Loading text
-    const loadingText = new PIXI.Text("Loading Game Assets...", {
-      fontFamily: "Arial",
-      fontSize: 24,
-      fill: 0xFFFFFF
-    });
-    loadingText.anchor.set(0.5);
-    loadingText.position.set(this.app.screen.width / 2, this.app.screen.height / 2 - 30);
-    loadingContainer.addChild(loadingText);
-    
-    // Progress bar background
-    const progressBarWidth = 300;
-    const progressBarHeight = 20;
-    const progressBarBg = new PIXI.Graphics();
-    progressBarBg.beginFill(0x333333);
-    progressBarBg.drawRoundedRect(0, 0, progressBarWidth, progressBarHeight, 10);
-    progressBarBg.endFill();
-    progressBarBg.position.set((this.app.screen.width - progressBarWidth) / 2, this.app.screen.height / 2);
-    loadingContainer.addChild(progressBarBg);
-    
-    // Progress bar fill
-    this.progressBarFill = new PIXI.Graphics();
-    this.progressBarFill.beginFill(0x4CAF50);
-    this.progressBarFill.drawRoundedRect(0, 0, 0, progressBarHeight, 10);
-    this.progressBarFill.endFill();
-    this.progressBarFill.position.set((this.app.screen.width - progressBarWidth) / 2, this.app.screen.height / 2);
-    loadingContainer.addChild(this.progressBarFill);
-    
-    this.app.stage.addChild(loadingContainer);
-    this.loadingContainer = loadingContainer;
-  }
+  
 
   // Update loading progress
   updateLoadingProgress(progress) {
