@@ -468,73 +468,45 @@ this.highlightedSource = null;
                            (window.game && window.game.checkCardInMeld && 
                            sprite.cardData && window.game.checkCardInMeld(sprite.cardData));
       
-      // Определяем тип мелда для сообщения
-      let meldType = isCardInMeld;
-      if (typeof isCardInMeld !== 'string' && isCardInMeld) {
-        meldType = sprite.dragMeldType || 'meld';
-      }
+                                 // Любая попытка сбросить карту игрока в фазе взятия — тряска + возврат
+                                 if (isOverDiscard && isDrawPhase && this.draggingCardSource === 'player') {
+                                   // Показываем сообщение
+                                   if (window.game && window.game.uiRenderer) {
+                                     window.game.uiRenderer.showDialog("Take a card from deck or discard first!");
+                                   }
+                                   // ЕДИНАЯ анимация «тряска → полёт назад»
+                                   this.snapCardBack(sprite, true);
+                                   return;
+                                 }
       
-      // УСЛОВИЕ 1: Если пытаемся сбросить карту в фазе взятия
-      if (isOverDiscard && isDrawPhase) {
-        // Показываем уведомление
-        if (window.game && window.game.uiRenderer) {
-          window.game.uiRenderer.showDialog("Take a card from deck\nor\ndiscard pile first!");
-        }
-        
-        // Генерируем событие
-        const wrongPhaseEvent = new CustomEvent('cardDragEnd', { 
+      // УСЛОВИЕ 3: Для обычных карт, которые можно сбросить
+      // Проверяем, можно ли сбросить карту (фаза сброса)
+      if (isOverDiscard && isDiscardPhase && !isCardInMeld) {
+        // Стандартная обработка сброса карты
+        const dragEndEvent = new CustomEvent('cardDragEnd', { 
           detail: { 
             cardData, 
             sprite, 
-            targetArea: 'wrong-phase-discard',
+            targetArea: 'discard',
             position: globalPos
           }
         });
-        document.dispatchEvent(wrongPhaseEvent);
-        
-        // Возвращаем карту в руку - сохраняем оригинальный бар
-        this.snapCardBack(sprite, isCardInMeld);
-        return;
-      }
-      
-      // УСЛОВИЕ 2: Если пытаемся сбросить карту из мелда
-      if (isOverDiscard && isCardInMeld) {
-        // Показываем уведомление
-        if (window.game && window.game.uiRenderer) {
-          window.game.uiRenderer.showDialog(`Cannot discard a card in a ${meldType}!`);
-        }
-        
-        // Генерируем событие
-        const meldCardEvent = new CustomEvent('cardDragEnd', { 
+        document.dispatchEvent(dragEndEvent);
+        // Здесь не возвращаем карту, а позволяем сбросить
+      } else {
+        // Для всех остальных случаев - карта не над отбоем или не в фазе сброса
+        const dragEndEvent = new CustomEvent('cardDragEnd', { 
           detail: { 
             cardData, 
             sprite, 
-            targetArea: 'protected-meld-card',
-            position: globalPos,
-            meldType: meldType
+            targetArea: 'hand', // Возвращаем в руку
+            position: globalPos
           }
         });
-        document.dispatchEvent(meldCardEvent);
+        document.dispatchEvent(dragEndEvent);
         
-        // Возвращаем карту с сохранением оригинального бара
+        // ВАЖНО: Всегда используем анимацию тряски для возврата
         this.snapCardBack(sprite, true);
-        return;
-      }
-      
-      // Стандартная обработка для обычных карт
-      const dragEndEvent = new CustomEvent('cardDragEnd', { 
-        detail: { 
-          cardData, 
-          sprite, 
-          targetArea: isOverDiscard ? 'discard' : 'hand',
-          position: globalPos
-        }
-      });
-      document.dispatchEvent(dragEndEvent);
-      
-      // Если не сбрасываем на отбой, возвращаем карту в руку
-      if (!isOverDiscard) {
-        this.snapCardBack(sprite, isCardInMeld);
       }
     };
     
@@ -851,7 +823,7 @@ this.highlightedSource = null;
     }
   }
 
-  returnDraggingCard(isProtectedMeld = false) {
+  returnDraggingCard(useShakeAnimation = true) {
     if (!this.draggingCard) return;
     
     // Проверяем наличие оригинальной позиции
@@ -889,8 +861,8 @@ this.highlightedSource = null;
     const draggingCardData = this.draggingCardData;
     const draggingCardSource = this.draggingCardSource;
     
-    // ЕДИНАЯ АНИМАЦИЯ для всех карт из мелдов
-    if (meldType || isProtectedMeld) {
+    // ЕДИНАЯ АНИМАЦИЯ ТРЯСКИ ДЛЯ ВСЕХ КАРТ
+    if (useShakeAnimation) {
       // Анимация "тряски" с последующим возвратом
       gsap.timeline()
         // Тряска влево
@@ -917,8 +889,8 @@ this.highlightedSource = null;
           duration: 0.06,
           ease: "power1.inOut",
           onComplete: () => {
-            // Гарантируем правильную подсветку
-            if (highlightColor) {
+            // Гарантируем правильную подсветку для карт из мелдов
+            if (meldType && highlightColor) {
               this.applySpecialHighlight(draggingCard, highlightColor, 0.5);
             }
           }
@@ -949,7 +921,7 @@ this.highlightedSource = null;
           }
         });
     } else {
-      // Для обычных карт - простая анимация возврата
+      // Запасной вариант (хотя теперь всегда используем тряску)
       this.draggingCard.scale.set(0.53, 0.53);
       
       gsap.to(this.draggingCard, {
@@ -1210,7 +1182,7 @@ isOverDiscardPile(position) {
   );
 }
 
-snapCardBack(sprite, isProtectedMeld = false) {
+snapCardBack(sprite, useShakeAnimation = true) {
   // Проверяем наличие sprite и originalPosition
   if (!sprite || !sprite.originalPosition) {
     if (sprite) {
@@ -1246,8 +1218,8 @@ snapCardBack(sprite, isProtectedMeld = false) {
     highlightColor = 0x98FB98; // Зеленый для RUN
   }
   
-  // ЕДИНАЯ АНИМАЦИЯ для всех карт из мелдов
-  if (meldType || isProtectedMeld) {
+  // ЕДИНАЯ АНИМАЦИЯ ТРЯСКИ ДЛЯ ВСЕХ КАРТ
+  if (useShakeAnimation) {
     // Анимация "тряски" с последующим возвратом
     gsap.timeline()
       // Тряска влево
@@ -1274,8 +1246,8 @@ snapCardBack(sprite, isProtectedMeld = false) {
         duration: 0.06,
         ease: "power1.inOut",
         onComplete: () => {
-          // Гарантируем правильную подсветку
-          if (highlightColor) {
+          // Гарантируем правильную подсветку для карт из мелдов
+          if (meldType && highlightColor) {
             this.applySpecialHighlight(sprite, highlightColor, 0.5);
           }
         }
@@ -1294,7 +1266,7 @@ snapCardBack(sprite, isProtectedMeld = false) {
         ease: "back.out"
       });
   } else {
-    // Для обычных карт - простая анимация возврата
+    // Запасной вариант для случаев, когда тряска не нужна (хотя теперь всегда используем тряску)
     sprite.scale.set(0.53, 0.53);
     
     gsap.to(sprite, {
