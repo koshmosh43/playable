@@ -115,7 +115,7 @@ this.highlightedSource = null;
     }
     
     // Render deck
-    await this.renderDeck(gameState.deckCount);
+    await this.renderdeck(gameState.deckCount);
     
     // Render discard pile
     await this.renderDiscardPile(gameState.discardPile);
@@ -423,7 +423,7 @@ const onDragEnd = (event) => {
   if (isOverDiscard && isDrawPhase) {
     // Показываем уведомление
     if (window.game && window.game.uiRenderer) {
-      window.game.uiRenderer.showDialog("Take a card from deck\nor discard pile\nfirst!");
+      window.game.uiRenderer.showDialog("Take a card from deck\nor\ndiscard pile first!");
     }
     
     // Генерируем специальное событие
@@ -1162,7 +1162,7 @@ applySpecialHighlight(sprite, color, alpha = 0.3) {
     }
   }
 
-  setDeckDragCallback(callback) {
+  setdeckDragCallback(callback) {
     this.deckDragCallback = callback;
   }
 
@@ -2191,7 +2191,7 @@ calculateCardPositions(cards, target) {
   }
   
   // Render the deck
-async renderDeck(deckCount) {
+async renderdeck(deckCount) {
   if (!deckCount) deckCount = 0;
 
   const maxVisible = 5;
@@ -2209,7 +2209,7 @@ async renderDeck(deckCount) {
 
     // Верхняя карта – интерактивна
     if (i === visibleCount - 1 && deckCount > 0) {
-      this.addDeckCounter(sprite, deckCount);
+      this.adddeckCounter(sprite, deckCount);
 
       sprite.interactive = true;
       sprite.buttonMode = true;
@@ -2248,7 +2248,7 @@ async renderDeck(deckCount) {
 
   
   // Add counter to deck
-  addDeckCounter(sprite, deckCount) {
+  adddeckCounter(sprite, deckCount) {
     // Create container for counter
     const countContainer = new PIXI.Container();
     countContainer.zIndex = 999;
@@ -2830,7 +2830,7 @@ async renderDeck(deckCount) {
     this.opponentHandContainer.y = adHeight + navHeight + 100;
     
     // ИЗМЕНЯЕМ КООРДИНАТЫ КОЛОДЫ
-    // Deck - можно изменить на нужную позицию
+    // deck - можно изменить на нужную позицию
     this.deckContainer.x = screenWidth / 2 - this.config.cardWidth - 50; // было -20
     this.deckContainer.y = screenHeight / 2 - this.config.cardHeight / 2 - 20; // было без -20
     

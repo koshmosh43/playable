@@ -249,11 +249,11 @@ sortCardsWithMelds() {
   return allSortedCards;
 }
 
-  preDragCardFromDeck() {
+  preDragCardFromdeck() {
     if (!this.playerTurn || this.gameStep % 2 !== 0) return null;
     
     // Pre-draw a card from the deck to show during dragging
-    const newCard = this.drawCardFromDeck();
+    const newCard = this.drawCardFromdeck();
     this.preDrawnCard = newCard;
     return newCard;
   }
@@ -378,7 +378,7 @@ sortCardsWithMelds() {
     this.cardRenderer = new CardRenderer(this.app, this.assetLoader, this.config);
   
     // Add this line right after creating the cardRenderer
-    this.cardRenderer.setDeckDragCallback(this.preDragCardFromDeck.bind(this));
+    this.cardRenderer.setdeckDragCallback(this.preDragCardFromdeck.bind(this));
   
     /* --- порядок слоёв ---
       uiRenderer  z‑index 100  (TopBanner, реклама, кнопки и т.д.)
@@ -673,7 +673,7 @@ setupTutorialElements(introContainer) {
   introContainer.addChild(deckContainer);
 
   // Create a stack of 4 cards to represent the deck
-  const createDeckStack = () => {
+  const createdeckStack = () => {
     // Try to load the card back texture
     this.assetLoader.loadTexture('assets/CardBack_Blue.webp')
       .then(texture => {
@@ -696,17 +696,17 @@ setupTutorialElements(introContainer) {
         
         // Create multiple cards with slight offsets
         for (let i = 0; i < 4; i++) {
-          const fallbackDeck = new PIXI.Graphics();
-          fallbackDeck.beginFill(0x0000AA);
-          fallbackDeck.drawRoundedRect(0, 0, cardWidth, cardHeight, 5);
-          fallbackDeck.endFill();
-          fallbackDeck.lineStyle(2, 0xFFFFFF);
-          fallbackDeck.drawRoundedRect(5, 5, cardWidth - 10, cardHeight - 10, 3);
+          const fallbackdeck = new PIXI.Graphics();
+          fallbackdeck.beginFill(0x0000AA);
+          fallbackdeck.drawRoundedRect(0, 0, cardWidth, cardHeight, 5);
+          fallbackdeck.endFill();
+          fallbackdeck.lineStyle(2, 0xFFFFFF);
+          fallbackdeck.drawRoundedRect(5, 5, cardWidth - 10, cardHeight - 10, 3);
           
           // Add pattern to card back
-          fallbackDeck.lineStyle(1, 0xFFFFFF, 0.5);
+          fallbackdeck.lineStyle(1, 0xFFFFFF, 0.5);
           for (let j = 0; j < 5; j++) {
-            fallbackDeck.drawRoundedRect(
+            fallbackdeck.drawRoundedRect(
               15 + j * 5, 
               15 + j * 5, 
               cardWidth - 30 - j * 10, 
@@ -716,18 +716,18 @@ setupTutorialElements(introContainer) {
           }
           
           // Small offset for each card to create stack effect
-          fallbackDeck.x = -i * 2;
-          fallbackDeck.y = -i * 2;
+          fallbackdeck.x = -i * 2;
+          fallbackdeck.y = -i * 2;
           // Add slight rotation to each card for a natural look
-          fallbackDeck.rotation = (Math.random() * 0.04) - 0.02;
+          fallbackdeck.rotation = (Math.random() * 0.04) - 0.02;
           
-          deckContainer.addChild(fallbackDeck);
+          deckContainer.addChild(fallbackdeck);
         }
       });
   };
 
   // Create the card stack
-  createDeckStack();
+  createdeckStack();
   
   // Add instructions text
   const instructionText = new PIXI.Text("Tap cards to play!", {
@@ -1633,7 +1633,7 @@ setupTutorialElements(introContainer) {
       dropShadowBlur: 2,
       dropShadowDistance: 2
     };
-    const tutorialText = "Take a card: Deck\nor shown card!";
+    const tutorialText = "Take a card: deck\nor shown card!";
     
     const titleText = new PIXI.Text(tutorialText, style);
     titleText.anchor.set(0.5);
@@ -1668,7 +1668,7 @@ setupTutorialElements(introContainer) {
     // Снимаем старую подсветку, если была
     this.removeCardHighlighting();
 
-    const PULSE_DECK    = { x: 1.25, y: 1.25, duration: 0.4, repeat: -1, yoyo: true };
+    const PULSE_deck    = { x: 1.25, y: 1.25, duration: 0.4, repeat: -1, yoyo: true };
     const PULSE_DISCARD = { x: 1.25, y: 1.25, duration: 0.4, repeat: -1, yoyo: true };
 
     const prepareContainerForPulse = (cont) => {
@@ -1689,7 +1689,7 @@ setupTutorialElements(introContainer) {
       const top = cont.children.at(-1);
       if (top) this.cardRenderer.applySpecialHighlight(top, 0x00FF00, 0.5);
       // <--- здесь, если хотите, можно запустить пульсацию колоды: 
-      // gsap.to(cont.scale, PULSE_DECK);
+      // gsap.to(cont.scale, PULSE_deck);
     }
 
     if (source === 'discard') {
@@ -1821,7 +1821,7 @@ handleGinConfirm(confirmed) {
         
         // Показываем сообщение игроку
         if (this.uiRenderer) {
-          this.uiRenderer.showDialog("Take a card from deck\nor discard pile\nfirst!");
+          this.uiRenderer.showDialog("Take a card from deck\nor discard pile first!");
         }
         
         return; // Прерываем обработку
@@ -1850,8 +1850,8 @@ handleGinConfirm(confirmed) {
     document.addEventListener('deckDrag', (event) => {
       // If this is the draw phase
       if (this.playerTurn && this.gameStep % 2 === 0) {
-        console.log('Deck card dragged and dropped');
-        this.handleDrawFromDeck();
+        console.log('deck card dragged and dropped');
+        this.handleDrawFromdeck();
       }
     });
     
@@ -1894,7 +1894,7 @@ handleGinConfirm(confirmed) {
         
         // Display a tooltip to inform the player they need to draw first
         if (this.uiRenderer) {
-          this.uiRenderer.showDialog("Take a card from deck\nor discard pile\nfirst!");
+          this.uiRenderer.showDialog("Take a card from deck\nor discard pile first!");
         }
         // После того, как ход игрока завершился и дедвуд обновлён
 if (this.deadwood <= 10 && !this.playerTurn) {
@@ -1948,7 +1948,7 @@ if (this.deadwood <= 10 && !this.playerTurn) {
           }, 800);
         } else {
           // Fall back to regular method if no pre-drawn card exists
-          this.handleDrawFromDeck();
+          this.handleDrawFromdeck();
         }
       } else if (source === 'discard') {
         // Add the card to player's hand (if it wasn't already added)
@@ -2102,11 +2102,11 @@ if (this.deadwood <= 10 && !this.playerTurn) {
     }));
     
     // Create a full standard deck of 52 cards for remaining cards
-    const fullDeck = this.createShuffledDeck();
+    const fulldeck = this.createShuffleddeck();
     
     // Remove cards that are already dealt to player
     const usedCardKeys = new Set(this.cardManager.playerCards.map(card => `${card.value}_${card.suit}`));
-    const remainingDeck = fullDeck.filter(card => 
+    const remainingdeck = fulldeck.filter(card => 
       !usedCardKeys.has(`${card.value}_${card.suit}`)
     );
     
@@ -2114,19 +2114,19 @@ if (this.deadwood <= 10 && !this.playerTurn) {
     let initialDiscardCard = null;
     
     // Специально кладем Q червей в отбой
-    const queenOfHeartsIndex = remainingDeck.findIndex(
+    const queenOfHeartsIndex = remainingdeck.findIndex(
       card => card.value === 'Q' && card.suit === 'hearts'
     );
     
     if (queenOfHeartsIndex !== -1) {
-      initialDiscardCard = remainingDeck.splice(queenOfHeartsIndex, 1)[0];
+      initialDiscardCard = remainingdeck.splice(queenOfHeartsIndex, 1)[0];
     } else {
       // Fallback to a random card
-      initialDiscardCard = remainingDeck.splice(0, 1)[0];
+      initialDiscardCard = remainingdeck.splice(0, 1)[0];
     }
     
     // Deal 10 random cards to opponent
-    this.cardManager.opponentCards = remainingDeck.splice(0, 10).map((card, index) => ({
+    this.cardManager.opponentCards = remainingdeck.splice(0, 10).map((card, index) => ({
       ...card,
       id: 100 + index,
       faceDown: true
@@ -2140,8 +2140,8 @@ if (this.deadwood <= 10 && !this.playerTurn) {
     }];
     
     // Save remainder of deck for step-by-step dealing
-    this.preparedDeck = remainingDeck;
-    this.deckCount = remainingDeck.length;
+    this.prepareddeck = remainingdeck;
+    this.deckCount = remainingdeck.length;
     this._idCounter = 300;
     
     // Инициализируем счетчик карт
@@ -2155,7 +2155,7 @@ if (this.deadwood <= 10 && !this.playerTurn) {
     });
   }
 
-  prepareOpponentCards(remainingDeck, configType) {
+  prepareOpponentCards(remainingdeck, configType) {
     const opponentCards = [];
     
     if (configType === 1) {
@@ -2163,13 +2163,13 @@ if (this.deadwood <= 10 && !this.playerTurn) {
       // Find or create a specific set of opponent cards
       // To match the screenshot, we need to make sure 10♥ appears in their hand
       
-      // First, extract and remove the 10♥ from remainingDeck if it exists
-      const tenOfHeartsIndex = remainingDeck.findIndex(
+      // First, extract and remove the 10♥ from remainingdeck if it exists
+      const tenOfHeartsIndex = remainingdeck.findIndex(
         card => card.value === '10' && card.suit === 'hearts'
       );
       
       if (tenOfHeartsIndex !== -1) {
-        const tenOfHearts = remainingDeck.splice(tenOfHeartsIndex, 1)[0];
+        const tenOfHearts = remainingdeck.splice(tenOfHeartsIndex, 1)[0];
         opponentCards.push({
           ...tenOfHearts,
           id: 100,
@@ -2180,13 +2180,13 @@ if (this.deadwood <= 10 && !this.playerTurn) {
       // For screenshot 2, opponent will need to eventually discard 7♣
       // Find or create specific cards for opponent
       
-      // First, extract and remove the 7♣ from remainingDeck if it exists
-      const sevenOfClubsIndex = remainingDeck.findIndex(
+      // First, extract and remove the 7♣ from remainingdeck if it exists
+      const sevenOfClubsIndex = remainingdeck.findIndex(
         card => card.value === '7' && card.suit === 'clubs'
       );
       
       if (sevenOfClubsIndex !== -1) {
-        const sevenOfClubs = remainingDeck.splice(sevenOfClubsIndex, 1)[0];
+        const sevenOfClubs = remainingdeck.splice(sevenOfClubsIndex, 1)[0];
         opponentCards.push({
           ...sevenOfClubs,
           id: 100,
@@ -2196,8 +2196,8 @@ if (this.deadwood <= 10 && !this.playerTurn) {
     }
     
     // Add more random cards to opponent's hand to reach 10 total
-    while (opponentCards.length < 10 && remainingDeck.length > 0) {
-      const card = remainingDeck.splice(0, 1)[0];
+    while (opponentCards.length < 10 && remainingdeck.length > 0) {
+      const card = remainingdeck.splice(0, 1)[0];
       opponentCards.push({
         ...card,
         id: 101 + opponentCards.length,
@@ -2208,7 +2208,7 @@ if (this.deadwood <= 10 && !this.playerTurn) {
     return opponentCards;
   }
 
-  createShuffledDeck() {
+  createShuffleddeck() {
     const suits = ['hearts', 'diamonds', 'clubs', 'spades'];
     const values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
     
@@ -2327,7 +2327,7 @@ updateGamePositions() {
   // Position of deck and discard pile
   const tableCenterY = height * 0.4;
   
-  // Deck on the right side
+  // deck on the right side
   if (this.cardRenderer) {
     this.cardRenderer.deckContainer.x = width * 0.55;
     this.cardRenderer.deckContainer.y = tableCenterY;
@@ -2354,8 +2354,8 @@ updateGamePositions() {
   
   
   // маленький помощник, чтобы брать карту из заранее подготовленной колоды
-  drawFromPreparedDeck(faceDown = false) {
-    const card = this.preparedDeck.shift();  // preparedDeck сформирован в initializeCards
+  drawFromPrepareddeck(faceDown = false) {
+    const card = this.prepareddeck.shift();  // prepareddeck сформирован в initializeCards
     return { ...card, id: ++this._idCounter, faceDown };
   }
 
@@ -3053,7 +3053,7 @@ showMakeMeldText(visible) {
       if (isDrawPhase) {
         console.log("Нельзя использовать карты из руки в фазе взятия");
         if (this.uiRenderer) {
-          this.uiRenderer.showDialog("Take a card from deck\nor discard pile\nfirst!");
+          this.uiRenderer.showDialog("Take a card from deck\nor discard pile first!");
         }
         return; // Выход из метода
       }
@@ -3076,7 +3076,7 @@ showMakeMeldText(visible) {
     
     // Обработка кликов по колоде и отбою как раньше
     if (source === 'deck' && this.playerTurn && this.gameStep % 2 === 0) {
-      this.handleDrawFromDeck();
+      this.handleDrawFromdeck();
       return;
     }
     
@@ -3131,7 +3131,7 @@ hideTutorialElements() {
           grandchild instanceof PIXI.Text && 
           grandchild.text && 
           (grandchild.text.includes("Take a card") || 
-           grandchild.text.includes("Deck or") ||
+           grandchild.text.includes("deck or") ||
            grandchild.text.includes("shown card"))
         );
         
@@ -3171,8 +3171,8 @@ hideTutorialElements() {
   }
 }
 
-// Update to handleDrawFromDeck method to remove tutorial text
-handleDrawFromDeck() {
+// Update to handleDrawFromdeck method to remove tutorial text
+handleDrawFromdeck() {
   console.log('Player draws from deck');
   
   // Hide tutorial and clear any highlighting
@@ -3183,7 +3183,7 @@ handleDrawFromDeck() {
   if (!this.playerTurn || this.gameStep % 2 !== 0) return;
   
   // Check if we already have a pre-drawn card
-  const newCard = this.preDrawnCard || this.drawCardFromDeck();
+  const newCard = this.preDrawnCard || this.drawCardFromdeck();
   
   // Clear pre-drawn card reference if it was used
   if (this.preDrawnCard) {
@@ -3197,7 +3197,7 @@ handleDrawFromDeck() {
   if (cardExists) {
     console.error("ERROR: Attempting to add a duplicate card:", newCard);
     // Draw a different card if this one already exists
-    const replacementCard = this.drawUniqueCardFromDeck();
+    const replacementCard = this.drawUniqueCardFromdeck();
     console.log("Drew replacement card instead:", replacementCard);
     
     // Use the replacement card
@@ -3269,10 +3269,10 @@ isCardInAnyCollection(card) {
   return inPlayerHand || inOpponentHand || inDiscardPile;
 }
 
-drawUniqueCardFromDeck() {
+drawUniqueCardFromdeck() {
   // Try up to 10 times to draw a unique card
   for (let i = 0; i < 10; i++) {
-    const card = this.drawCardFromDeck();
+    const card = this.drawCardFromdeck();
     if (!this.isCardInAnyCollection(card)) {
       return card;
     }
@@ -3794,20 +3794,20 @@ ensureUniqueCards() {
     // Отложенное выполнение
     setTimeout(() => {
       // ИИ решает, брать из колоды или из сброса
-      const takeFromDeck = Math.random() < 0.7 || !this.cardManager.discardPile?.length;
+      const takeFromdeck = Math.random() < 0.7 || !this.cardManager.discardPile?.length;
       
-      if ((takeFromDeck && this.deckCount > 0) || this.cardManager.discardPile?.length) {
-        const source = takeFromDeck ? 'deck' : 'discard';
+      if ((takeFromdeck && this.deckCount > 0) || this.cardManager.discardPile?.length) {
+        const source = takeFromdeck ? 'deck' : 'discard';
         
         // Get or create a card for the opponent
         let newCard;
-        if (takeFromDeck) {
+        if (takeFromdeck) {
           // Take a new card from the deck - ADDED DUPLICATE CHECK
           let attempts = 0;
           let cardFound = false;
           
           while (!cardFound && attempts < 10) {
-            newCard = this.drawCardFromDeck();
+            newCard = this.drawCardFromdeck();
             newCard.faceDown = true; // Make sure it's face down for opponent
             
             // Check if this card would be a duplicate - using local function
@@ -3841,7 +3841,7 @@ ensureUniqueCards() {
             this.cardManager.discardPile.push(newCard);
             
             // Get a fresh card from the deck instead
-            newCard = this.drawCardFromDeck();
+            newCard = this.drawCardFromdeck();
             newCard.faceDown = true;
             this.deckCount--;
           }
@@ -4029,7 +4029,7 @@ ensureUniqueCards() {
     }
   }
 
-  drawCardFromDeck() {
+  drawCardFromdeck() {
     // Предопределённые карты для первых трёх ходов
     const riggedCards = [
       { value: '7', suit: 'clubs' },
@@ -4059,10 +4059,10 @@ ensureUniqueCards() {
     ].map(c => `${c.value}_${c.suit}`);
   
     // Перемешанная полная колода
-    const fullDeck = this.createShuffledDeck();
+    const fulldeck = this.createShuffleddeck();
   
     // Фильтруем карты, которые уже использованы
-    const availableCards = fullDeck.filter(card =>
+    const availableCards = fulldeck.filter(card =>
       !usedKeys.includes(`${card.value}_${card.suit}`)
     );
   
@@ -4390,7 +4390,7 @@ updateEndScreen(playerScore) {
   
 
   // Show hint for drawing from deck
-  showDeckHint() {
+  showdeckHint() {
     if (!this.handCursor || !this.playerTurn || !this.cardRenderer) return;
     
     // Позиция колоды

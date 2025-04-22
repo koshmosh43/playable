@@ -546,7 +546,7 @@ showGinButton(visible) {
             grandchild instanceof PIXI.Text && 
             grandchild.text && 
             (grandchild.text.includes("Take a card") || 
-             grandchild.text.includes("Deck or") ||
+             grandchild.text.includes("deck or") ||
              grandchild.text.includes("shown card"))
           );
           

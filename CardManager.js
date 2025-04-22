@@ -17,7 +17,7 @@ export class CardManager {
 
   
 
-  drawCardFromDeck() {
+  drawCardFromdeck() {
     const suits = ['clubs', 'diamonds', 'hearts', 'spades'];
     const values = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
     const randomSuit = suits[Math.floor(Math.random() * suits.length)];
@@ -31,8 +31,8 @@ export class CardManager {
   }
   
   // Improved card take method with animation
-  takeCardFromDeck(isPlayer = true) {
-    const newCard = this.drawCardFromDeck();
+  takeCardFromdeck(isPlayer = true) {
+    const newCard = this.drawCardFromdeck();
     
     if (isPlayer) {
       this.playerCards.push(newCard);
@@ -94,12 +94,12 @@ export class CardManager {
   }
   
   // New method: Play an opponent turn with proper card reveal animation
-  playOpponentTurn(fromDeck = true) {
+  playOpponentTurn(fromdeck = true) {
     // First take a card
     let takenCard;
     
-    if (fromDeck) {
-      takenCard = this.takeCardFromDeck(false);
+    if (fromdeck) {
+      takenCard = this.takeCardFromdeck(false);
     } else {
       takenCard = this.takeCardFromDiscard(false);
     }
