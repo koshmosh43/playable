@@ -294,7 +294,9 @@ this.highlightedSource = null;
       x: sprite.x,
       y: sprite.y,
       rotation: sprite.rotation,
-      zIndex: sprite.zIndex
+      zIndex: sprite.zIndex,
+      scaleX: sprite.scale.x,  // Add this line to store original scale
+      scaleY: sprite.scale.y   // Add this line to store original scale
     };
     
     // Event handlers
@@ -336,128 +338,171 @@ this.highlightedSource = null;
     
     
     // Внутри метода setupDragAndDrop(...)
-const onDragMove = (event) => {
-  if (!isDragging) return;
-  
-  // Вычисляем новую позицию на основе движения мыши/тача
-  const newPosition = event.data.global;
-  
-  // Преобразуем глобальные координаты в локальные координаты контейнера
-  const newLocalPos = this.playerHandContainer.toLocal(newPosition);
-  
-  // Обновляем позицию спрайта
-  sprite.x = newLocalPos.x;
-  sprite.y = newLocalPos.y;
-  
-  // Держим карту вертикально при перетаскивании
-  sprite.rotation = 0;
-  
-  // Проверяем, находится ли карта над отбоем для визуальной обратной связи
-  const globalPos = sprite.toGlobal(new PIXI.Point(0, 0));
-  const isOverDiscard = this.isOverDiscardPile(globalPos);
-  
-  // Проверяем, находимся ли мы в фазе взятия карты для карт игрока
-  const isPlayerCardInDrawPhase = 
-    sprite.dragPhaseInfo && 
-    sprite.dragPhaseInfo.isDrawPhase && 
-    cardData.source !== 'deck' && 
-    cardData.source !== 'discard';
-  
-  // Визуальная обратная связь при нахождении над отбоем - с особым случаем для фазы взятия
-  if (isOverDiscard && !sprite.isOverDiscard) {
-    sprite.isOverDiscard = true;
-    
-    if (isPlayerCardInDrawPhase) {
-      // Особый случай - показываем визуальную обратную связь "недопустимо"
-      gsap.to(sprite.scale, {
-        x: 0.65, y: 0.65,
-        duration: 0.2
-      });
+    const onDragMove = (event) => {
+      if (!isDragging) return;
       
-      // Применяем красную подсветку, чтобы указать на недопустимый ход
-      this.applySpecialHighlight(sprite, 0xFF0000, 0.3); // Красный цвет при попытке сбросить во время фазы взятия
-    } else {
-      // Нормальный случай - показываем обратную связь "допустимый сброс"
-      gsap.to(sprite.scale, {
-        x: 0.65, y: 0.65,
-        duration: 0.2
-      });
+      // Calculate new position based on mouse/touch movement
+      const newPosition = event.data.global;
       
-      // Применяем особую подсветку "допустимый сброс"
-      this.applySpecialHighlight(sprite, 0x00FF00, 0.3); // Зеленый цвет при допустимом сбросе
-    }
-  } else if (!isOverDiscard && sprite.isOverDiscard) {
-    sprite.isOverDiscard = false;
-    // Восстанавливаем нормальный вид при перетаскивании
-    gsap.to(sprite.scale, {
-      x: 0.7, y: 0.7,
-      duration: 0.2
-    });
+      // Convert global coordinates to local coordinates in container
+      const newLocalPos = this.playerHandContainer.toLocal(newPosition);
+      
+      // Update sprite position
+      sprite.x = newLocalPos.x;
+      sprite.y = newLocalPos.y;
+      
+      // Keep card vertical while dragging
+      sprite.rotation = 0;
+      
+      // Check if card is over discard pile for visual feedback
+      const globalPos = sprite.toGlobal(new PIXI.Point(0, 0));
+      const isOverDiscard = this.isOverDiscardPile(globalPos);
+      
+      // Check if we're in draw phase for player cards
+      const isPlayerCardInDrawPhase = 
+        sprite.dragPhaseInfo && 
+        sprite.dragPhaseInfo.isDrawPhase && 
+        cardData.source !== 'deck' && 
+        cardData.source !== 'discard';
+      
+      // NEW: Check if card is part of a meld
+      const isCardInMeld = window.game && window.game.checkCardInMeld && 
+                          window.game.checkCardInMeld(cardData);
+      
+      // Visual feedback when over discard pile - with special case for draw phase
+      if (isOverDiscard && !sprite.isOverDiscard) {
+        sprite.isOverDiscard = true;
+        
+        if (isPlayerCardInDrawPhase) {
+          // Special case - show "not allowed" visual feedback
+          gsap.to(sprite.scale, {
+            x: 0.65, y: 0.65,
+            duration: 0.2
+          });
+          
+          // Apply red highlight to indicate invalid move
+          this.applySpecialHighlight(sprite, 0xFF0000, 0.3); // Red for trying to discard during draw phase
+        } 
+        // NEW: Add special case for meld cards
+        else if (isCardInMeld) {
+          // Special case - show "protected card" visual feedback
+          gsap.to(sprite.scale, {
+            x: 0.65, y: 0.65,
+            duration: 0.2
+          });
+          
+          // Apply special highlight - orange for meld cards (to distinguish from red)
+          this.applySpecialHighlight(sprite, 0xFF8800, 0.4); // Orange for meld cards
+        }
+        else {
+          // Normal case - show "valid discard" feedback
+          gsap.to(sprite.scale, {
+            x: 0.65, y: 0.65,
+            duration: 0.2
+          });
+          
+          // Apply special "valid discard" highlight
+          this.applySpecialHighlight(sprite, 0x00FF00, 0.3); // Green for valid discard
+        }
+      } else if (!isOverDiscard && sprite.isOverDiscard) {
+        sprite.isOverDiscard = false;
+        // Restore normal dragging appearance
+        gsap.to(sprite.scale, {
+          x: 0.7, y: 0.7,
+          duration: 0.2
+        });
+        
+        // Apply normal highlight during dragging
+        this.applySimpleSelectedHighlight(sprite);
+      }
+    };
     
-    // Применяем нормальную подсветку при перетаскивании
-    this.applySimpleSelectedHighlight(sprite);
-  }
-};
 
     
-const onDragEnd = (event) => {
-  if (!isDragging) return;
-  isDragging = false;
-  
-  // Сбрасываем состояние подсветки
-  sprite.isOverDiscard = false;
-  
-  // Получаем глобальную позицию спрайта
-  const globalPos = sprite.toGlobal(new PIXI.Point(0, 0));
-  
-  // Проверяем, отпущена ли карта над отбоем
-  const isOverDiscard = this.isOverDiscardPile(globalPos);
-  
-  // Проверяем фазу игры
-  const isDrawPhase = sprite.dragPhaseInfo && sprite.dragPhaseInfo.isDrawPhase;
-  const isDiscardPhase = sprite.dragPhaseInfo && sprite.dragPhaseInfo.isDiscardPhase;
-  
-  console.log("Drag ended, over discard:", isOverDiscard, "draw phase:", isDrawPhase);
-  
-  // КРИТИЧЕСКОЕ УСЛОВИЕ: Если пытаемся сбросить карту в фазе взятия, запрещаем
-  if (isOverDiscard && isDrawPhase) {
-    // Показываем уведомление
-    if (window.game && window.game.uiRenderer) {
-      window.game.uiRenderer.showDialog("Take a card from deck\nor\ndiscard pile first!");
-    }
-    
-    // Генерируем специальное событие
-    const wrongPhaseEvent = new CustomEvent('cardDragEnd', { 
-      detail: { 
-        cardData, 
-        sprite, 
-        targetArea: 'wrong-phase-discard',
-        position: globalPos
+    const onDragEnd = (event) => {
+      if (!isDragging) return;
+      isDragging = false;
+      
+      // Сбрасываем состояние подсветки
+      sprite.isOverDiscard = false;
+      
+      // Получаем глобальную позицию спрайта
+      const globalPos = sprite.toGlobal(new PIXI.Point(0, 0));
+      
+      // Проверяем, отпущена ли карта над отбоем
+      const isOverDiscard = this.isOverDiscardPile(globalPos);
+      
+      // Проверяем фазу игры
+      const isDrawPhase = sprite.dragPhaseInfo && sprite.dragPhaseInfo.isDrawPhase;
+      const isDiscardPhase = sprite.dragPhaseInfo && sprite.dragPhaseInfo.isDiscardPhase;
+      
+      // Проверяем, является ли карта частью мелда
+      const isCardInMeld = window.game && window.game.checkCardInMeld && 
+                          window.game.checkCardInMeld(cardData);
+      
+      // КРИТИЧЕСКОЕ УСЛОВИЕ 1: Если пытаемся сбросить карту в фазе взятия, запрещаем
+      if (isOverDiscard && isDrawPhase) {
+        // Показываем уведомление
+        if (window.game && window.game.uiRenderer) {
+          window.game.uiRenderer.showDialog("Take a card from deck\nor\ndiscard pile first!");
+        }
+        
+        // Генерируем специальное событие
+        const wrongPhaseEvent = new CustomEvent('cardDragEnd', { 
+          detail: { 
+            cardData, 
+            sprite, 
+            targetArea: 'wrong-phase-discard',
+            position: globalPos
+          }
+        });
+        document.dispatchEvent(wrongPhaseEvent);
+        
+        // Возвращаем карту в руку с анимацией
+        this.snapCardBack(sprite, false);
+        return;
       }
-    });
-    document.dispatchEvent(wrongPhaseEvent);
-    
-    // Всегда возвращаем карту в руку в этом случае
-    this.snapCardBack(sprite);
-    return;
-  }
-  
-  // Обычная обработка для разрешенных случаев
-  const dragEndEvent = new CustomEvent('cardDragEnd', { 
-    detail: { 
-      cardData, 
-      sprite, 
-      targetArea: isOverDiscard ? 'discard' : 'hand',
-      position: globalPos
-    }
-  });
-  document.dispatchEvent(dragEndEvent);
-  
-  // Если не сбрасываем на отбой, возвращаем карту
-  if (!isOverDiscard) {
-    this.snapCardBack(sprite);
-  }
-};
+      
+      // НОВОЕ УСЛОВИЕ: Проверяем, является ли карта частью мелда
+      if (isOverDiscard && isCardInMeld) {
+        // Показываем уведомление, что карта является частью мелда
+        if (window.game && window.game.uiRenderer) {
+          window.game.uiRenderer.showDialog(`Cannot discard a card in a ${isCardInMeld}!`);
+        }
+        
+        // Генерируем специальное событие
+        const meldCardEvent = new CustomEvent('cardDragEnd', { 
+          detail: { 
+            cardData, 
+            sprite, 
+            targetArea: 'protected-meld-card',
+            position: globalPos,
+            meldType: isCardInMeld
+          }
+        });
+        document.dispatchEvent(meldCardEvent);
+        
+        // Возвращаем карту в руку с анимацией
+        this.snapCardBack(sprite, true);
+        return;
+      }
+      
+      // Обычная обработка разрешенных случаев
+      const dragEndEvent = new CustomEvent('cardDragEnd', { 
+        detail: { 
+          cardData, 
+          sprite, 
+          targetArea: isOverDiscard ? 'discard' : 'hand',
+          position: globalPos
+        }
+      });
+      document.dispatchEvent(dragEndEvent);
+      
+      // Если не сбрасываем на отбой, возвращаем карту в руку
+      if (!isOverDiscard) {
+        this.snapCardBack(sprite, false);
+      }
+    };
 
     
     // Add event listeners
@@ -614,13 +659,13 @@ const onDragEnd = (event) => {
   releaseCardHandler = (event) => {
     if (!this.draggingCard) return;
   
-    // Немедленно останавливаем анимации пульсации
+    // Immediately stop any pulse animations
     gsap.killTweensOf(this.deckContainer.scale);
     gsap.killTweensOf(this.discardContainer.scale);
     this.deckContainer.scale.set(1, 1);
     this.discardContainer.scale.set(1, 1);
   
-    // Получаем координаты отпускания
+    // Get release coordinates
     let clientX, clientY;
     if (event.type === 'touchend') {
       const touch = event.changedTouches[0];
@@ -631,33 +676,38 @@ const onDragEnd = (event) => {
       clientY = event.clientY;
     }
   
-    // Преобразуем координаты экрана в координаты игры
+    // Convert screen coordinates to game coordinates
     const rect = this.app.view.getBoundingClientRect();
     const x = (clientX - rect.left) * (this.app.screen.width / rect.width);
     const y = (clientY - rect.top) * (this.app.screen.height / rect.height);
     const position = { x, y };
   
-    // Проверяем, где карта была отпущена
+    // Check where the card was released
     const isOverHand = this.isOverPlayerHand(position);
     const isOverDiscard = this.isOverDiscardPile(position);
   
-    // Определяем фазу игры
+    // Determine game phase
     const isDrawPhase = window.game && window.game.playerTurn && window.game.gameStep % 2 === 0;
     const isDiscardPhase = window.game && window.game.playerTurn && window.game.gameStep % 2 === 1;
   
-    // КРИТИЧЕСКОЕ УСЛОВИЕ 1: Если это карта игрока и мы в фазе взятия, запрещаем сброс в отбой
+    // NEW CONDITION: Check if the card is part of a meld (set or run)
+    const isCardInMeld = window.game && window.game.checkCardInMeld && 
+                        this.draggingCardSource === 'player' &&
+                        window.game.checkCardInMeld(this.draggingCardData);
+  
+    // CRITICAL CONDITION 1: If player card released on discard during draw phase
     if (isOverDiscard && isDrawPhase && this.draggingCardSource === 'player') {
-      console.log("Запрещено сбрасывать карту в фазе взятия - возвращаем в руку");
+      console.log("Cannot discard a card during draw phase - returning to hand");
       
-      // Уведомляем игрока
+      // Notify player
       if (window.game && window.game.uiRenderer) {
         window.game.uiRenderer.showDialog("Take a card from deck or discard first!");
       }
       
-      // Возвращаем карту в руку
-      this.returnDraggingCard();
+      // Return card to hand
+      this.returnDraggingCard(isCardInMeld);
       
-      // Генерируем событие для обработки этого случая
+      // Generate event to handle this case
       document.dispatchEvent(new CustomEvent('cardDragReleased', {
         detail: {
           cardData: this.draggingCardData,
@@ -670,16 +720,42 @@ const onDragEnd = (event) => {
       return;
     }
   
-    // КРИТИЧЕСКОЕ УСЛОВИЕ 2: Если это карта колоды или отбоя и мы в фазе сброса, запрещаем взятие
-    if ((this.draggingCardSource === 'deck' || this.draggingCardSource === 'discard') && isDiscardPhase) {
-      console.log("Запрещено брать карту в фазе сброса - отменяем действие");
+    // NEW CONDITION: If card is part of a meld and trying to discard it
+    if (isOverDiscard && isCardInMeld) {
+      console.log(`Cannot discard a card that is part of a ${isCardInMeld} - returning to hand`);
       
-      // Уведомляем игрока
+      // Notify player
+      if (window.game && window.game.uiRenderer) {
+        window.game.uiRenderer.showDialog(`Cannot discard a card in a ${isCardInMeld}!`);
+      }
+      
+      // Return card to hand
+      this.returnDraggingCard();
+      
+      // Generate event
+      document.dispatchEvent(new CustomEvent('cardDragReleased', {
+        detail: {
+          cardData: this.draggingCardData,
+          source: this.draggingCardSource,
+          targetArea: 'protected-meld-card',
+          position,
+          meldType: isCardInMeld
+        }
+      }));
+      
+      return;
+    }
+  
+    // CRITICAL CONDITION 2: If deck/discard card during discard phase
+    if ((this.draggingCardSource === 'deck' || this.draggingCardSource === 'discard') && isDiscardPhase) {
+      console.log("Cannot take a card during discard phase - canceling action");
+      
+      // Notify player
       if (window.game && window.game.uiRenderer) {
         window.game.uiRenderer.showDialog("Discard a card to end your turn!");
       }
       
-      // Возвращаем карту на место
+      // Clean up dragging state
       if (this.draggingCard) {
         this.animationContainer.removeChild(this.draggingCard);
         this.draggingCard = null;
@@ -690,7 +766,7 @@ const onDragEnd = (event) => {
       return;
     }
   
-    // Нормальная обработка перетаскивания для разрешенных случаев
+    // Normal handling for allowed cases
     document.dispatchEvent(new CustomEvent('cardDragReleased', {
       detail: {
         cardData: this.draggingCardData,
@@ -700,15 +776,15 @@ const onDragEnd = (event) => {
       }
     }));
   
-    // Удаляем обработчики событий
+    // Remove event handlers
     window.removeEventListener('mousemove', this.moveCardHandler);
     window.removeEventListener('touchmove', this.moveCardHandler);
     window.removeEventListener('mouseup', this.releaseCardHandler);
     window.removeEventListener('touchend', this.releaseCardHandler);
   
-    // Обрабатываем анимацию и очистку в зависимости от цели
+    // Handle animation and cleanup based on target
     if (isOverHand) {
-      // Если отпущено над рукой, анимируем к финальному размеру и добавляем в руку
+      // If released over hand, animate to final size and add to hand
       gsap.to(this.draggingCard.scale, {
         x: 1.0, y: 1.0,
         duration: 0.15,
@@ -716,7 +792,7 @@ const onDragEnd = (event) => {
         onComplete: () => this.addDraggingCardToHand()
       });
     } else if (isOverDiscard) {
-      // Если отпущено на отбой, просто очищаем состояние перетаскивания
+      // If released on discard, just clean up dragging state
       gsap.to(this.draggingCard.scale, {
         x: 1.0, y: 1.0,
         duration: 0.15,
@@ -726,70 +802,136 @@ const onDragEnd = (event) => {
             this.animationContainer.removeChild(this.draggingCard);
             this.draggingCard = null;
           }
-          // Игра обработает обновление своего состояния на основе события cardDragReleased
+          // Game will handle updating its state based on the cardDragReleased event
           this.draggingCardData = null;
           this.draggingCardSource = null;
         }
       });
     } else {
-      // Если отпущено где-то еще, возвращаем карту в исходное положение
+      // If released somewhere else, return card to original position
       this.returnDraggingCard();
     }
   }
 
-  returnDraggingCard() {
+  returnDraggingCard(isProtectedMeld = false) {
     if (!this.draggingCard) return;
     
-    // Special case: if this is a player card being dragged during draw phase
-    const isPlayerCardInDrawPhase = 
-      this.draggingCardSource === 'player' && 
-      window.game && 
-      window.game.playerTurn && 
-      window.game.gameStep % 2 === 0;
+    // Проверяем, есть ли originalPosition
+    if (!this.draggingCard.originalPosition) {
+      // Создаем значения по умолчанию
+      this.draggingCard.originalPosition = {
+        x: this.draggingCard.x,
+        y: this.draggingCard.y,
+        rotation: this.draggingCard.rotation,
+        zIndex: this.draggingCard.zIndex < 100 ? this.draggingCard.zIndex : 0
+      };
+    }
+
+    // Восстанавливаем оригинальный z-index
+    this.draggingCard.zIndex = this.draggingCard.originalPosition.zIndex || 0;
+    this.playerHandContainer.sortChildren();
     
-    if (isPlayerCardInDrawPhase) {
-      console.log("Returning player card during draw phase");
-      
-      // Get the original index of the card in the player's hand
-      const cardIndex = window.game.cardManager.playerCards.findIndex(
-        c => c.id === this.draggingCardData.id
-      );
-      
-      if (cardIndex === -1) {
-        console.warn("Card not found in player hand, adding it back");
-        // Add the card back to player hand if it was somehow removed
-        window.game.cardManager.playerCards.push(this.draggingCardData);
-        // Re-sort
-        window.game.cardManager.playerCards = window.game.sortCardsWithMelds();
+    // Сохраняем информацию о типе мелда
+    const meldType = window.game && 
+                  window.game.checkCardInMeld && 
+                  this.draggingCardData &&
+                  window.game.checkCardInMeld(this.draggingCardData);
+    
+    // Определяем цвет подсветки в зависимости от типа мелда
+    let highlightColor = null;
+    if (meldType === 'set') {
+      highlightColor = 0xFFFE7A; // Желтый цвет для set
+    } else if (meldType === 'run') {
+      highlightColor = 0x98FB98; // Зеленый цвет для run
+    }
+    
+    // Анимация с тряской для карт из мелда
+    if (meldType || isProtectedMeld) {
+      // Создаем последовательность небольших движений
+      gsap.timeline()
+        .to(this.draggingCard, {
+          x: this.draggingCard.originalPosition.x - 15,
+          duration: 0.06,
+          ease: "power1.inOut"
+        })
+        .to(this.draggingCard, {
+          x: this.draggingCard.originalPosition.x + 15,
+          duration: 0.06,
+          ease: "power1.inOut"
+        })
+        .to(this.draggingCard, {
+          x: this.draggingCard.originalPosition.x - 8,
+          duration: 0.06,
+          ease: "power1.inOut"
+        })
+        .to(this.draggingCard, {
+          x: this.draggingCard.originalPosition.x,
+          duration: 0.06,
+          ease: "power1.inOut",
+          onComplete: () => {
+            // Удаляем любые фильтры перед применением новых
+            if (this.draggingCard.filters) {
+              this.draggingCard.filters = null;
+            }
+            
+            // Применяем подсветку мелда, если карта из мелда
+            if (highlightColor) {
+              this.applySpecialHighlight(this.draggingCard, highlightColor, 0.5);
+            }
+          }
+        })
+        // Восстанавливаем масштаб
+        .to(this.draggingCard.scale, {
+          x: 1,
+          y: 1,
+          duration: 0.25,
+          ease: "power2.out"
+        })
+        // Анимируем возврат в оригинальную позицию
+        .to(this.draggingCard, {
+          x: this.draggingCard.originalPosition.x,
+          y: this.draggingCard.originalPosition.y,
+          rotation: this.draggingCard.originalPosition.rotation,
+          duration: 0.3,
+          ease: "back.out",
+          onComplete: () => {
+            // Удаляем временный спрайт после полного завершения анимации
+            if (this.draggingCard) {
+              this.animationContainer.removeChild(this.draggingCard);
+              this.draggingCard = null;
+              this.draggingCardData = null;
+              this.draggingCardSource = null;
+            }
+            
+            // Обновляем отображение всех карт с правильной подсветкой
+            if (window.game) {
+              window.game.updatePlayScreen();
+            }
+          }
+        });
+    } else {
+      // Удаляем любые подсветки для обычных карт
+      if (this.draggingCard.filters) {
+        this.draggingCard.filters = null;
       }
       
-      // Calculate the card's correct position in the fan
-      const fanSpacing = this.config.fanDistance || 30;
-      const totalCards = window.game.cardManager.playerCards.length;
-      const fanAngle = this.config.fanAngle || 10;
-      const anglePerCard = totalCards > 1 ? fanAngle / (totalCards - 1) : 0;
+      // Восстанавливаем масштаб
+      gsap.to(this.draggingCard.scale, {
+        x: 1,
+        y: 1,
+        duration: 0.25,
+        ease: "power2.out"
+      });
       
-      // Find the updated index (may have changed after sorting)
-      const updatedIndex = window.game.cardManager.playerCards.findIndex(
-        c => c.id === this.draggingCardData.id
-      );
-      
-      // Calculate position and rotation
-      const x = this.playerHandContainer.x - ((totalCards - 1) * fanSpacing / 2) + updatedIndex * fanSpacing;
-      const y = this.playerHandContainer.y;
-      const rotation = -fanAngle/2 + updatedIndex * anglePerCard;
-      const rotationRad = -(rotation * Math.PI / 180);
-      
-      // Animate to the correct position in the fan
+      // Анимируем возврат в оригинальную позицию
       gsap.to(this.draggingCard, {
-        x: x,
-        y: y,
-        rotation: rotationRad,
-        scale: 1,
-        duration: 0.4,
-        ease: "back.out(1.2)",
+        x: this.draggingCard.originalPosition.x,
+        y: this.draggingCard.originalPosition.y,
+        rotation: this.draggingCard.originalPosition.rotation,
+        duration: 0.3,
+        ease: "back.out",
         onComplete: () => {
-          // Remove dragging card
+          // Удаляем спрайт после завершения анимации
           if (this.draggingCard) {
             this.animationContainer.removeChild(this.draggingCard);
             this.draggingCard = null;
@@ -797,57 +939,13 @@ const onDragEnd = (event) => {
             this.draggingCardSource = null;
           }
           
-          // Update the display to show all cards correctly
-          window.game.updatePlayScreen();
+          // Обновляем отображение
+          if (window.game) {
+            window.game.updatePlayScreen();
+          }
         }
       });
-      
-      return;
     }
-    
-    // Default behavior for other cases
-    let targetX, targetY;
-    if (this.draggingCardSource === 'deck') {
-      targetX = this.deckContainer.x + this.config.cardWidth / 2;
-      targetY = this.deckContainer.y + this.config.cardHeight / 2;
-    } else if (this.draggingCardSource === 'discard') {
-      targetX = this.discardContainer.x + this.config.cardWidth / 2;
-      targetY = this.discardContainer.y + this.config.cardHeight / 2;
-    } else {
-      // For player cards, calculate the proper fan position
-      const cardIndex = window.game?.cardManager?.playerCards?.findIndex(
-        c => c.id === this.draggingCardData.id
-      ) || 0;
-      
-      const fanSpacing = this.config.fanDistance || 30;
-      const totalCards = window.game?.cardManager?.playerCards?.length || 10;
-      
-      targetX = this.playerHandContainer.x - ((totalCards - 1) * fanSpacing / 2) + cardIndex * fanSpacing;
-      targetY = this.playerHandContainer.y;
-    }
-    
-    // Animate return
-    gsap.to(this.draggingCard, {
-      x: targetX,
-      y: targetY,
-      scale: 1,
-      duration: 0.3,
-      ease: "power2.inOut",
-      onComplete: () => {
-        // Remove card after animation
-        if (this.draggingCard) {
-          this.animationContainer.removeChild(this.draggingCard);
-          this.draggingCard = null;
-          this.draggingCardData = null;
-          this.draggingCardSource = null;
-        }
-        
-        // Update display
-        if (window.game) {
-          window.game.updatePlayScreen();
-        }
-      }
-    });
   }
 
 // Метод для добавления карты в веер
@@ -912,16 +1010,16 @@ async createCardSprite(cardData, isFaceDown = false) {
   try {
     if (isFaceDown || (cardData && cardData.faceDown)) {
       // Карта рубашкой вверх
-      texture = await this.assetLoader.loadTexture('assets/CardBack_Blue.webp');
+      texture = await this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/CardBack_Blue.webp');
     } else if (cardData && cardData.suit && cardData.value) {
       // Загружаем лицевую сторону
       const suit = cardData.suit;
       const value = cardData.value;
-      const frontPath = `assets/cards/${suit}/${value}_${suit.charAt(0).toUpperCase()}${suit.slice(1)}.webp`;
+      const frontPath = `https://koshmosh43.github.io/playable/assets/cards/${suit}/${value}_${suit.charAt(0).toUpperCase()}${suit.slice(1)}.webp`;
       texture = await this.assetLoader.loadTexture(frontPath);
     } else {
       // Если данных нет, загружаем рубашку
-      texture = await this.assetLoader.loadTexture('assets/CardBack_Blue.webp');
+      texture = await this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/CardBack_Blue.webp');
     }
   } catch (err) {
     console.warn("Ошибка загрузки текстуры карты:", err);
@@ -955,7 +1053,7 @@ createCardBackSprite() {
   sprite.anchor.set(0.5);
   
   // Try to load card back texture
-  this.assetLoader.loadTexture('assets/CardBack_Blue.webp')
+  this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/CardBack_Blue.webp')
     .then(texture => {
       sprite.texture = texture;
     })
@@ -1086,10 +1184,10 @@ isOverDiscardPile(position) {
   );
 }
 
-snapCardBack(sprite) {
-  // Check if originalPosition exists
+snapCardBack(sprite, isProtectedMeld = false) {
+  // Проверяем, есть ли originalPosition
   if (!sprite || !sprite.originalPosition) {
-    // Create default originalPosition if it doesn't exist
+    // Создаем значения по умолчанию
     sprite.originalPosition = {
       x: sprite.x,
       y: sprite.y,
@@ -1098,31 +1196,97 @@ snapCardBack(sprite) {
     };
   }
 
-  // Restore original z-index
+  // Восстанавливаем оригинальный z-index
   sprite.zIndex = sprite.originalPosition.zIndex || 0;
   this.playerHandContainer.sortChildren();
   
-  // Smooth animation to restore to original scale
-  gsap.to(sprite.scale, {
-    x: 0.6,
-    y: 0.6,
-    duration: 0.25,
-    ease: "power2.out"
-  });
+  // Сохраняем информацию о типе мелда
+  const meldType = window.game && 
+                  window.game.checkCardInMeld && 
+                  sprite.cardData &&
+                  window.game.checkCardInMeld(sprite.cardData);
   
-  // Clear any highlights
-  if (sprite.filters) {
-    sprite.filters = null;
+  // Определяем цвет подсветки в зависимости от типа мелда
+  let highlightColor = null;
+  if (meldType === 'set') {
+    highlightColor = 0xFFFE7A; // Желтый цвет для set
+  } else if (meldType === 'run') {
+    highlightColor = 0x98FB98; // Зеленый цвет для run
   }
   
-  // Animate back to original position
-  gsap.to(sprite, {
-    x: sprite.originalPosition.x,
-    y: sprite.originalPosition.y,
-    rotation: sprite.originalPosition.rotation,
-    duration: 0.3,
-    ease: "back.out"
-  });
+  // Анимация с тряской для карт из мелда
+  if (meldType || isProtectedMeld) {
+    // Создаем последовательность небольших движений
+    gsap.timeline()
+      .to(sprite, {
+        x: sprite.originalPosition.x - 15,
+        duration: 0.06,
+        ease: "power1.inOut"
+      })
+      .to(sprite, {
+        x: sprite.originalPosition.x + 15,
+        duration: 0.06,
+        ease: "power1.inOut"
+      })
+      .to(sprite, {
+        x: sprite.originalPosition.x - 8,
+        duration: 0.06,
+        ease: "power1.inOut"
+      })
+      .to(sprite, {
+        x: sprite.originalPosition.x,
+        duration: 0.06,
+        ease: "power1.inOut",
+        onComplete: () => {
+          // Удаляем любые фильтры перед применением новых
+          if (sprite.filters) {
+            sprite.filters = null;
+          }
+          
+          // Применяем подсветку мелда, если карта из мелда
+          if (highlightColor) {
+            this.applySpecialHighlight(sprite, highlightColor, 0.5);
+          }
+        }
+      })
+      // Восстанавливаем масштаб
+      .to(sprite.scale, {
+        x: 0.55,
+        y: 0.55,
+        duration: 0.25,
+        ease: "power2.out"
+      })
+      // Анимируем возврат в оригинальную позицию
+      .to(sprite, {
+        x: sprite.originalPosition.x,
+        y: sprite.originalPosition.y,
+        rotation: sprite.originalPosition.rotation,
+        duration: 0.3,
+        ease: "back.out"
+      });
+  } else {
+    // Удаляем любые подсветки для обычных карт
+    if (sprite.filters) {
+      sprite.filters = null;
+    }
+    
+    // Восстанавливаем масштаб
+    gsap.to(sprite.scale, {
+      x: 1,
+      y: 1,
+      duration: 0.25,
+      ease: "power2.out"
+    });
+    
+    // Анимируем возврат в оригинальную позицию
+    gsap.to(sprite, {
+      x: sprite.originalPosition.x,
+      y: sprite.originalPosition.y,
+      rotation: sprite.originalPosition.rotation,
+      duration: 0.3,
+      ease: "back.out"
+    });
+  }
 }
 
 // Apply special highlight with more subtle effect
@@ -1334,7 +1498,7 @@ applySpecialHighlight(sprite, color, alpha = 0.3) {
         // Change texture when card is "on edge"
         if (sprite.cardData && sprite.cardData.suit && sprite.cardData.value) {
           const { suit, value } = sprite.cardData;
-          const frontPath = `assets/cards/${suit}/${value}_${suit.charAt(0).toUpperCase()}${suit.slice(1)}.webp`;
+          const frontPath = `https://koshmosh43.github.io/playable/assets/cards/${suit}/${value}_${suit.charAt(0).toUpperCase()}${suit.slice(1)}.webp`;
           
           this.assetLoader.loadTexture(frontPath)
             .then(texture => {
@@ -1450,7 +1614,7 @@ applySpecialHighlight(sprite, color, alpha = 0.3) {
 
   flipCardWithMotionBlur(cardSprite, cardData, onComplete) {
     // Загружаем текстуру лицевой стороны карты
-    const cardPath = `assets/cards/${cardData.suit}/${cardData.value}_${cardData.suit.charAt(0).toUpperCase()}${cardData.suit.slice(1)}.webp`;
+    const cardPath = `https://koshmosh43.github.io/playable/assets/cards/${cardData.suit}/${cardData.value}_${cardData.suit.charAt(0).toUpperCase()}${cardData.suit.slice(1)}.webp`;
     
     // Создаем анимацию с улучшенным визуальным эффектом
     const timeline = gsap.timeline({
@@ -1518,7 +1682,7 @@ applySpecialHighlight(sprite, color, alpha = 0.3) {
       ease: "power1.inOut",
       onComplete: () => {
         // Загружаем текстуру передней стороны карты
-        const cardPath = `assets/cards/${cardData.suit}/${cardData.value}_${cardData.suit.charAt(0).toUpperCase()}${cardData.suit.slice(1)}.webp`;
+        const cardPath = `https://koshmosh43.github.io/playable/assets/cards/${cardData.suit}/${cardData.value}_${cardData.suit.charAt(0).toUpperCase()}${cardData.suit.slice(1)}.webp`;
         
         this.assetLoader.loadTexture(cardPath)
           .then(texture => {
@@ -1625,7 +1789,7 @@ applySpecialHighlight(sprite, color, alpha = 0.3) {
     );
     
     // Load card back texture once
-    this.assetLoader.loadTexture('assets/CardBack_Blue.webp')
+    this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/CardBack_Blue.webp')
       .then(backTexture => {
         // Animation cards array
         const animCards = [];
@@ -1934,7 +2098,7 @@ applySpecialHighlight(sprite, color, alpha = 0.3) {
     );
     
     // First load back texture
-    this.assetLoader.loadTexture('assets/CardBack_Blue.webp')
+    this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/CardBack_Blue.webp')
       .then(backTexture => {
         // Create opponent cards (face down)
         opponentCards.forEach((cardData, index) => {
@@ -1953,7 +2117,7 @@ applySpecialHighlight(sprite, color, alpha = 0.3) {
         
         // Now load front textures for player cards
         Promise.all(playerCards.map(card => {
-          const cardPath = `assets/cards/${card.suit}/${card.value}_${card.suit.charAt(0).toUpperCase()}${card.suit.slice(1)}.webp`;
+          const cardPath = `https://koshmosh43.github.io/playable/assets/cards/${card.suit}/${card.value}_${card.suit.charAt(0).toUpperCase()}${card.suit.slice(1)}.webp`;
           return this.assetLoader.loadTexture(cardPath)
             .then(frontTexture => ({ cardData: card, texture: frontTexture }))
             .catch(err => {
@@ -2019,7 +2183,7 @@ showAllFinalCards(playerCards, opponentCards) {
   );
   
   // Create all cards immediately
-  this.assetLoader.loadTexture('assets/CardBack_Blue.webp')
+  this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/CardBack_Blue.webp')
     .then(backTexture => {
       // Create opponent cards (face down)
       opponentCards.forEach((cardData, index) => {
@@ -2038,7 +2202,7 @@ showAllFinalCards(playerCards, opponentCards) {
       
       // Load player card front textures and create front-facing cards
       Promise.all(playerCards.map(card => {
-        const cardPath = `assets/cards/${card.suit}/${card.value}_${card.suit.charAt(0).toUpperCase()}${card.suit.slice(1)}.webp`;
+        const cardPath = `https://koshmosh43.github.io/playable/assets/cards/${card.suit}/${card.value}_${card.suit.charAt(0).toUpperCase()}${card.suit.slice(1)}.webp`;
         return this.assetLoader.loadTexture(cardPath)
           .then(frontTexture => {
             return {

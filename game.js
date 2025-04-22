@@ -1,4 +1,3 @@
-// game.js - Main game implementation
 import { AssetLoader } from './AssetLoader.js';
 import { HandCursor } from './HandCursor.js';
 import { GameStateManager } from './GameStateManager.js';
@@ -19,7 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
   game.initialize();
 });
 
-class GinRummyGame {
+export class GinRummyGame {
   constructor() {
     // Game configuration
     this.config = {
@@ -461,7 +460,7 @@ sortCardsWithMelds() {
 async setupBackground() {
   try {
     // Try to load the specified background image first
-    const bgTexture = await this.assetLoader.loadTexture('assets/Backgr.webp');
+    const bgTexture = await this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/Backgr.webp');
     
     // Create a background sprite that maintains aspect ratio
     const bgSprite = new PIXI.Sprite(bgTexture);
@@ -508,7 +507,7 @@ async setupBackground() {
     console.warn("Using fallback background");
     try {
       // Try the webp version as a second option
-      const webpTexture = await this.assetLoader.loadTexture('assets/background.webp');
+      const webpTexture = await this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/background.webp');
       
       // Create background sprite with center-crop approach
       const webpSprite = new PIXI.Sprite(webpTexture);
@@ -583,7 +582,7 @@ setupIntroScreen() {
   const introContainer = new PIXI.Container();
   
   // Загрузка фона
-  this.assetLoader.loadTexture('assets/Backgr.webp')
+  this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/Backgr.webp')
     .then(bgTexture => {
       // Create background sprite with center-crop approach
       const bgSprite = new PIXI.Sprite(bgTexture);
@@ -685,7 +684,7 @@ setupTutorialElements(introContainer) {
   // Create a stack of 4 cards to represent the deck
   const createdeckStack = () => {
     // Try to load the card back texture
-    this.assetLoader.loadTexture('assets/CardBack_Blue.webp')
+    this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/CardBack_Blue.webp')
       .then(texture => {
         // Create 4 cards with slight offset for stack effect
         for (let i = 0; i < 4; i++) {
@@ -780,7 +779,7 @@ setupTutorialElements(introContainer) {
     
     // Rest of the hand cursor implementation...
     // Try to load the hand image
-    this.assetLoader.loadTexture('assets/hand.webp')
+    this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/hand.webp')
       .then(texture => {
         const handSprite = new PIXI.Sprite(texture);
         handSprite.anchor.set(-0.1, -0.1);
@@ -820,7 +819,7 @@ setupTutorialElements(introContainer) {
   
   // Load base card sprites and set up highlights and animations
   Promise.all(baseCards.map(card => {
-    const cardPath = `assets/cards/${card.suit}/${card.value}_${card.suit.charAt(0).toUpperCase()}${card.suit.slice(1)}.webp`;
+    const cardPath = `https://koshmosh43.github.io/playable/assets/cards/${card.suit}/${card.value}_${card.suit.charAt(0).toUpperCase()}${card.suit.slice(1)}.webp`;
     return this.assetLoader.loadTexture(cardPath)
       .then(texture => {
         const sprite = new PIXI.Sprite(texture);
@@ -839,7 +838,7 @@ setupTutorialElements(introContainer) {
     cardSprites.push(...sprites);
     
     // Now create the movable 5♠ card
-    const cardPath = `assets/cards/${movableCard.suit}/${movableCard.value}_${movableCard.suit.charAt(0).toUpperCase()}${movableCard.suit.slice(1)}.webp`;
+    const cardPath = `https://koshmosh43.github.io/playable/assets/cards/${movableCard.suit}/${movableCard.value}_${movableCard.suit.charAt(0).toUpperCase()}${movableCard.suit.slice(1)}.webp`;
     return this.assetLoader.loadTexture(cardPath)
       .then(texture => {
         const movingCard = new PIXI.Sprite(texture);
@@ -1474,7 +1473,7 @@ setupTutorialElements(introContainer) {
     introContainer.addChild(introText);
     
     // Start button
-    this.assetLoader.loadTexture('assets/newGameButton.webp')
+    this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/newGameButton.webp')
       .then(texture => {
         const startButton = new PIXI.Sprite(texture);
         startButton.anchor.set(0.5);
@@ -1545,50 +1544,6 @@ setupTutorialElements(introContainer) {
     endText.position.set(this.app.screen.width / 2, this.app.screen.height / 2 - 50);
     endContainer.addChild(endText);
     
-    // Install button
-    this.assetLoader.loadTexture('assets/newGameButton.webp')
-      .then(texture => {
-        const installButton = new PIXI.Sprite(texture);
-        installButton.anchor.set(0.5);
-        installButton.x = this.app.screen.width / 2;
-        installButton.y = this.app.screen.height / 2 + 50;
-        installButton.interactive = true;
-        installButton.buttonMode = true;
-        installButton.on('pointerdown', () => {
-          this.handleInstall();
-        });
-        endContainer.addChild(installButton);
-      })
-      .catch(err => {
-        console.warn("Could not load button for end screen", err);
-        // Create fallback button
-        const fallbackButton = new PIXI.Graphics();
-        fallbackButton.beginFill(0x4CAF50);
-        fallbackButton.drawRoundedRect(0, 0, 150, 50, 10);
-        fallbackButton.endFill();
-        
-        const buttonText = new PIXI.Text("Install App", {
-          fontFamily: "Arial",
-          fontSize: 20,
-          fill: 0xFFFFFF
-        });
-        buttonText.anchor.set(0.5);
-        buttonText.position.set(75, 25);
-        
-        fallbackButton.addChild(buttonText);
-        fallbackButton.position.set(this.app.screen.width / 2 - 75, this.app.screen.height / 2 + 50);
-        fallbackButton.interactive = true;
-        fallbackButton.buttonMode = true;
-        fallbackButton.on('pointerdown', () => {
-          this.handleInstall();
-        });
-        
-        endContainer.addChild(fallbackButton);
-      });
-    
-    endContainer.visible = false;
-    this.app.stage.addChild(endContainer);
-    this.endContainer = endContainer;
   }
 
   // Update to showTutorial method to make text disappear on interaction
@@ -3486,7 +3441,7 @@ ensureUniqueCards() {
     handContainer.zIndex = 1000; // Ensure hand is above everything
     
     // Try to load hand image
-    this.assetLoader.loadTexture('assets/hand.webp')
+    this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/hand.webp')
       .then(texture => {
         const handSprite = new PIXI.Sprite(texture);
         handSprite.anchor.set(0.2, 0.2); // Position finger tip as reference point
@@ -3541,29 +3496,43 @@ ensureUniqueCards() {
 
   // Handle card discard
   handleDiscard() {
-    // Выходим, если игра на паузе
-  if (this.pauseGame) {
-    console.log("Game is paused - discard blocked");
-    return;
-  }
-
-  if (!this.selectedCard) return;
+    // Exit if game is paused
+    if (this.pauseGame) {
+      console.log("Game is paused - discard blocked");
+      return;
+    }
+  
+    if (!this.selectedCard) return;
     
-    // Скрываем подсказку сброса карты
+    // NEW CHECK: Make sure the selected card is not part of a meld
+    const meldType = this.checkCardInMeld(this.selectedCard);
+    if (meldType) {
+      console.log(`Cannot discard a card that is part of a ${meldType}`);
+      
+      // Show message to player
+      if (this.uiRenderer) {
+        this.uiRenderer.showDialog(`Cannot discard a card in a ${meldType}!`);
+      }
+      
+      // Reset selection and return
+      this.selectedCard = null;
+      return;
+    }
+      
+    // Hide discard hint
     if (this.uiRenderer) {
       this.uiRenderer.hideDialog();
     }
   
-    // Отключаем drag-and-drop после сброса карты
+    // Disable drag-and-drop after discarding
     if (this.cardRenderer) {
       this.cardRenderer.enableDragging(false);
     }
       
-    // Get the card's original position in the player's hand for animation
+    // Get the card's original position for animation
     const cardIndex = this.cardManager.playerCards.findIndex(c => c.id === this.selectedCard.id);
     
-    // Убираем анимацию, если карта уже была перетащена через drag and drop
-    // (анимация будет только если карта была выбрана кликом, а не перетаскиванием)
+    // Skip animation if card was already dragged via drag and drop
     const wasDragged = this.wasDragged || false;
     
     if (!wasDragged && this.cardRenderer && cardIndex !== -1) {
@@ -3573,10 +3542,10 @@ ensureUniqueCards() {
       );
     }
     
-    // Сбрасываем флаг перетаскивания
+    // Reset dragging flag
     this.wasDragged = false;
     
-    // Обновляем состояние игры
+    // Update game state
     // CRITICAL CHANGE: First remove the card from playerCards
     this.cardManager.playerCards = this.cardManager.playerCards.filter(c => c.id !== this.selectedCard.id);
     
@@ -3589,7 +3558,7 @@ ensureUniqueCards() {
     this.playerTurn = false;
     this.deadwood = this.calculateDeadwood();
     
-    // Сбрасываем флаг взятия карты при окончании хода
+    // Reset card draw flag at end of turn
     this.hasDrawnCard = false;
     
     // IMPORTANT: clear the playerHandContainer before updating
@@ -3597,10 +3566,10 @@ ensureUniqueCards() {
       this.cardRenderer.playerHandContainer.removeChildren();
     }
     
-    // Обновляем экран игры
+    // Update game screen
     this.updatePlayScreen();
     
-    // Ход компьютера
+    // Computer's turn
     setTimeout(() => this.playOpponentTurn(), 1500);
   }
 
@@ -3621,7 +3590,7 @@ ensureUniqueCards() {
       const cardContainer = new PIXI.Container();
       
       // Try to load card texture
-      const cardPath = `assets/cards/${cardData.suit}/${cardData.value}_${cardData.suit.charAt(0).toUpperCase()}${cardData.suit.slice(1)}.webp`;
+      const cardPath = `https://koshmosh43.github.io/playable/assets/cards/${cardData.suit}/${cardData.value}_${cardData.suit.charAt(0).toUpperCase()}${cardData.suit.slice(1)}.webp`;
       
       this.assetLoader.loadTexture(cardPath)
         .then(texture => {
@@ -4337,7 +4306,7 @@ updateEndScreen(playerScore) {
     this.endContainer.addChild(ctaText);
     
     // Кнопка установки
-    this.assetLoader.loadTexture('assets/newGameButton.webp')
+    this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/newGameButton.webp')
       .then(texture => {
         const installButton = new PIXI.Sprite(texture);
         installButton.anchor.set(0.5);

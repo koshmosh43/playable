@@ -41,31 +41,165 @@
       border: none;
       touch-action: none;
     }
+
+    #cta-button {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: #ff5722;
+      color: white;
+      padding: 12px 24px;
+      font-size: 18px;
+      font-weight: bold;
+      border-radius: 8px;
+      border: none;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+      cursor: pointer;
+      z-index: 1000;
+      display: none;
+    }
+    
+    #cta-button.visible {
+      display: block;
+      animation: pulse 1.5s infinite;
+    }
+    
+    @keyframes pulse {
+      0% { transform: translateX(-50%) scale(1); }
+      50% { transform: translateX(-50%) scale(1.05); }
+      100% { transform: translateX(-50%) scale(1); }
+    }
   </style>
 </head>
 <body>
   <div id="game-container"></div>
+  <button id="cta-button">PLAY NOW!</button>
+
+  <!-- PIXI.js library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.2.4/pixi.min.js"></script>
+  
+  <!-- GSAP Animation Library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/PixiPlugin.min.js"></script>
-  <script type="module">
-    import * as pixiProjection from 'https://cdn.jsdelivr.net/npm/pixi-projection@1.0.0/+esm';
-    window.pixiProjection = pixiProjection;
-    
-    document.addEventListener('DOMContentLoaded', () => {
-      if (window.PIXI && window.pixiProjection) {
-        console.log("PIXI Projection loaded successfully");
-        PIXI.projection = window.pixiProjection;
-      }
-    });
-</script>
   
-  <script type="module" src="HandCursor.js"></script>
-  <script type="module" src="UIRenderer.js"></script>
-  <script type="module" src="CardRenderer.js"></script>
-  <script type="module" src="GameStateManager.js"></script>
-  <script type="module" src="UIManager.js"></script>
-  <script type="module" src="AssetLoader.js"></script>
-  <script type="module" src="game.js"></script>
+  <!-- Ad Network Interfaces -->
+  <script>
+    // Unified mraid/mobile ad bridge interface
+    window.adBridge = {
+      initialized: false,
+      
+      // Initialize the bridge for the current environment
+      init: function() {
+        if (this.initialized) return;
+        
+        // Handle mraid (IAB standard used by many networks)
+        if (typeof mraid !== 'undefined') {
+          this.platform = 'mraid';
+          if (mraid.getState() === 'loading') {
+            mraid.addEventListener('ready', this.onReady.bind(this));
+          } else {
+            this.onReady();
+          }
+        } 
+        // Handle FbPlayableAd (Facebook)
+        else if (typeof FbPlayableAd !== 'undefined') {
+          this.platform = 'facebook';
+          this.initialized = true;
+        }
+        // Handle Unity Ads
+        else if (typeof unity !== 'undefined') {
+          this.platform = 'unity';
+          this.initialized = true;
+        } 
+        // AppLovin
+        else if (typeof mraid === 'undefined' && typeof AppLovinAd !== 'undefined') {
+          this.platform = 'applovin';
+          this.initialized = true;
+        }
+        // Fallback to standard browser environment
+        else {
+          this.platform = 'browser';
+          this.initialized = true;
+        }
+        
+        // Setup CTA button
+        document.getElementById('cta-button').addEventListener('click', this.onClick.bind(this));
+      },
+      
+      onReady: function() {
+        this.initialized = true;
+        if (this.platform === 'mraid') {
+          mraid.addEventListener('viewableChange', function(viewable) {
+            if (viewable) {
+              // Ad is visible
+            }
+          });
+        }
+      },
+      
+      // Show the CTA button
+      showCTA: function() {
+        document.getElementById('cta-button').classList.add('visible');
+      },
+      
+      // Handle CTA click based on platform
+      onClick: function() {
+        switch (this.platform) {
+          case 'mraid':
+            mraid.open(this.getStoreURL());
+            break;
+          case 'facebook':
+            FbPlayableAd.onCTAClick();
+            break;
+          case 'unity':
+            unity.Messaging.sendMessage('IronSourceBridge', 'onClickAdRequest');
+            break;
+          case 'applovin':
+            if (typeof AppLovinAd.click === 'function') {
+              AppLovinAd.click();
+            }
+            break;
+          default:
+            // For browser testing, open in a new tab
+            window.open('https://apps.apple.com/app/gin-rummy-stars-card-game/id1467143758', '_blank');
+        }
+      },
+      
+      // Get appropriate store URL based on platform detection
+      getStoreURL: function() {
+        // Check if we're on iOS
+        if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+          return 'https://apps.apple.com/app/gin-rummy-stars-card-game/id1467143758';
+        } else {
+          // Android or other platform
+          return 'https://play.google.com/store/apps/details?id=com.yourgame.ginrummy';
+        }
+      }
+    };
+    
+    // Initialize after DOM is ready
+    document.addEventListener('DOMContentLoaded', function() {
+      window.adBridge.init();
+      
+      // You can expose functions to your game script
+      window.showPlayButton = function() {
+        window.adBridge.showCTA();
+      };
+    });
+
+    // Support for PIXI Projection (if needed)
+    window.pixiProjection = {};
+    
+    // Add support for importing modules that are typically on GitHub
+    window.moduleImports = {
+      HandCursor: null,
+      UIRenderer: null,
+      CardRenderer: null,
+      GameStateManager: null,
+      UIManager: null,
+      AssetLoader: null
+    };
+  </script>
 </body>
 </html>

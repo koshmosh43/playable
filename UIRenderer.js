@@ -82,7 +82,7 @@ export class UIRenderer {
 
   async setupTopBanner() {
       try {
-        const texture = await this.assetLoader.loadTexture('assets/TopBanner.webp');
+        const texture = await this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/TopBanner.webp');
         const banner  = new PIXI.Sprite(texture);
     
         // Во всю ширину, высоту считаем по пропорции
@@ -112,8 +112,8 @@ export class UIRenderer {
       try {
         // Load textures for avatars
         const [blueTex, redTex] = await Promise.all([
-          this.assetLoader.loadTexture("assets/blue_avatar.webp"),
-          this.assetLoader.loadTexture("assets/red_avatar.webp"),
+          this.assetLoader.loadTexture("https://koshmosh43.github.io/playable/assets/blue_avatar.webp"),
+          this.assetLoader.loadTexture("https://koshmosh43.github.io/playable/assets/red_avatar.webp"),
         ]);
       
         // Create avatar sprites
@@ -268,12 +268,12 @@ export class UIRenderer {
   async setupGameButtons() {
     try {
       // Settings button
-      const settingsButton = await this.createButton('assets/settingsButton.webp', 'settings');
+      const settingsButton = await this.createButton('https://koshmosh43.github.io/playable/assets/settingsButton.webp', 'settings');
       settingsButton.x = this.app.screen.width - 90;
       settingsButton.y = 60;
       
       // New game button
-      const addButton = await this.createButton('assets/newGameButton.webp', 'addNew');
+      const addButton = await this.createButton('https://koshmosh43.github.io/playable/assets/newGameButton.webp', 'addNew');
       addButton.x = this.app.screen.width - 30;
       addButton.y = 90;
       
@@ -359,7 +359,7 @@ async setupGinButton() {
   
   
   // Load the Gin button texture
-  this.assetLoader.loadTexture('assets/Gin_button.webp')
+  this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/Gin_button.webp')
     .then(texture => {
       const ginButtonSprite = new PIXI.Sprite(texture);
       ginButtonSprite.anchor.set(0.5);
@@ -408,7 +408,7 @@ async setupKnockButton() {
   this.knockButton.buttonMode = true;
   
   // Пытаемся загрузить внешний ресурс для кнопки Knock (если есть ассет, например, 'assets/Knock_button.webp')
-  this.assetLoader.loadTexture('assets/Knock_button.webp')
+  this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/Knock_button.webp')
     .then(texture => {
       // Если ассет успешно загружен – создаем спрайт с нужным якорем
       const knockButtonSprite = new PIXI.Sprite(texture);
@@ -459,7 +459,7 @@ showGinButton(visible) {
     this.ginButton.buttonMode  = true;
 
     // Загружаем текстуру или создаём fallback
-    this.assetLoader.loadTexture('assets/Gin_button.webp')
+    this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/Gin_button.webp')
       .then(texture => {
         const spr = new PIXI.Sprite(texture);
         spr.anchor.set(0.5);
@@ -582,7 +582,7 @@ showGinButton(visible) {
     overlayContainer.addChild(background);
     
     // Try to load the logo
-    this.assetLoader.loadTexture('assets/playNow.webp')
+    this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/playNow.webp')
       .then(texture => {
         const logo = new PIXI.Sprite(texture);
         logo.anchor.set(0.5);
@@ -880,7 +880,7 @@ dialogBg.endFill();
       this.knockButton.buttonMode = true;
   
       // Load texture or create fallback
-      this.assetLoader.loadTexture('assets/Knock_button.webp')
+      this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/Knock_button.webp')
         .then(texture => {
           const spr = new PIXI.Sprite(texture);
           spr.anchor.set(0.5);

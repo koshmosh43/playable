@@ -141,7 +141,7 @@ export class CardManager {
     try {
       // Try to load the card texture
       const texture = await this.assetLoader.loadTexture(
-        `assets/cards/${cardData.suit}/${cardData.value}_${cardData.suit.charAt(0).toUpperCase()}${cardData.suit.slice(1)}.webp`
+        `https://koshmosh43.github.io/playable/assets/cards/${cardData.suit}/${cardData.value}_${cardData.suit.charAt(0).toUpperCase()}${cardData.suit.slice(1)}.webp`
       );
       
       const sprite = new PIXI.projection.Sprite3d(texture);

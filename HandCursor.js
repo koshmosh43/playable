@@ -21,7 +21,7 @@ export class HandCursor {
   // Initialize hand cursor
   init() {
     // Try to load hand image from assets
-    this.assetLoader.loadTexture('assets/hand.webp')
+    this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/hand.webp')
       .then(texture => {
         // Create hand sprite
         const handSprite = new PIXI.Sprite(texture);

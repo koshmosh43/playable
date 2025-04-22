@@ -1,41 +1,92 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
-const HtmlWebpackInlineSourcePlugin = require('html-webpack-inline-source-plugin');
+const HtmlInlineScriptPlugin = require('html-inline-script-webpack-plugin');
+const CopyPlugin = require('copy-webpack-plugin');
+const TerserPlugin = require('terser-webpack-plugin');
 
 module.exports = {
   mode: 'production',
-  entry: './game.js',        // или точка входа, где вы подключаете все модули
+  entry: './game.js',
   output: {
-    filename: 'bundle.js',   // временный бандл, затем инлайнится
+    filename: 'bundle.js',
     path: path.resolve(__dirname, 'dist'),
+    clean: true
   },
   module: {
     rules: [
       {
         test: /\.js$/,
         exclude: /node_modules/,
-        use: 'babel-loader',  // если вы пользуетесь Babel
-      },
-      {
-        test: /\.(png|jpe?g|gif|webp|svg)$/,
         use: {
-          loader: 'url-loader',
+          loader: 'babel-loader',
           options: {
-            limit: Infinity,  // всегда инлайнить ассеты как data:URI
-            esModule: false
+            presets: ['@babel/preset-env']
           }
         }
       },
-    ],
+      {
+        test: /\.(png|jpe?g|gif|webp|svg)$/i,
+        type: 'asset/inline' // Inline all images
+      },
+      {
+        test: /\.css$/,
+        use: ['style-loader', 'css-loader']
+      }
+    ]
   },
   plugins: [
     new HtmlWebpackPlugin({
-      template: 'index.html',     // ваш исходный HTML
-      inlineSource: '.(js|css)$'  // инлайнить все JS и CSS
+      template: 'index.html',
+      filename: 'index.html',
+      inject: 'body',
+      minify: {
+        collapseWhitespace: true,
+        removeComments: true,
+        removeRedundantAttributes: true,
+        removeScriptTypeAttributes: true,
+        removeStyleLinkTypeAttributes: true,
+        useShortDoctype: true
+      }
     }),
-    new HtmlWebpackInlineSourcePlugin()
+    new HtmlInlineScriptPlugin({
+      compilationOptions: {
+        async: false // Change to synchronous to ensure proper loading
+      }
+    })
   ],
   optimization: {
-    minimize: true
+    minimize: true,
+    minimizer: [
+      new TerserPlugin({
+        terserOptions: {
+          format: {
+            comments: false,
+          },
+          compress: {
+            drop_console: true, // Remove console.logs
+            drop_debugger: true, // Remove debugger statements
+            pure_funcs: ['console.info', 'console.debug', 'console.warn'] // Remove more console functions
+          }
+        },
+        extractComments: false
+      }),
+    ],
+    // Disable splitChunks to ensure all code is in one bundle
+    splitChunks: {
+      chunks: 'all',
+      cacheGroups: {
+        defaultVendors: {
+          name: 'vendors', // Set a single vendor chunk name
+          test: /[\\/]node_modules[\\/]/,
+          priority: -10,
+          reuseExistingChunk: true,
+        },
+        default: {
+          minChunks: 1,
+          priority: -20,
+          reuseExistingChunk: true,
+        },
+      },
+    },
   }
 };

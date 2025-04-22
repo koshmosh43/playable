@@ -1,47 +1,43 @@
 /**
  * Asset loader for the Gin Rummy game
- * Manages loading and caching of all game assets
+ * Optimized for Playable Ads with CORS fixes
  */
-const BASE_URL = 'https://koshmosh43.github.io/playable/assets/';
+
+import { assets } from './assets.js';
 
 export class AssetLoader {
   constructor() {
     this.textureCache = {};
+    this.preloadedAssets = assets || {}; // Use pre-defined assets
   }
 
   async loadGameAssets(progressCallback) {
     // Critical assets that must load first
     const criticalAssets = [
-      { name: 'background', path: `${BASE_URL}Backgr.webp` },
-      { name: 'cardBack', path: `${BASE_URL}CardBack_Blue.webp` },
-      { name: 'hand', path: `${BASE_URL}hand.webp` }
+      { name: 'background', path: 'Backgr.webp' },
+      { name: 'cardBack', path: 'CardBack_Blue.webp' },
+      { name: 'hand', path: 'hand.webp' }
     ];
 
     // Initial card assets needed for first display
     const initialCards = [
-      { name: 'A_Hearts', path: `${BASE_URL}cards/hearts/A_Hearts.webp` },
-      { name: '5_Hearts', path: `${BASE_URL}cards/hearts/5_Hearts.webp` },
-      { name: '10_Hearts', path: `${BASE_URL}cards/hearts/10_Hearts.webp` },
-      { name: 'K_Hearts', path: `${BASE_URL}cards/hearts/K_Hearts.webp` },
-      { name: 'A_Spades', path: `${BASE_URL}cards/spades/A_Spades.webp` },
-      { name: '5_Spades', path: `${BASE_URL}cards/spades/5_Spades.webp` },
-      { name: '10_Spades', path: `${BASE_URL}cards/spades/10_Spades.webp` },
-      { name: 'K_Spades', path: `${BASE_URL}cards/spades/K_Spades.webp` },
-      { name: 'A_Clubs', path: `${BASE_URL}cards/clubs/A_Clubs.webp` },
-      { name: '7_Clubs', path: `${BASE_URL}cards/clubs/7_Clubs.webp` },
-      { name: 'J_Clubs', path: `${BASE_URL}cards/clubs/J_Clubs.webp` },
-      { name: 'A_Diamonds', path: `${BASE_URL}cards/diamonds/A_Diamonds.webp` },
-      { name: '7_Diamonds', path: `${BASE_URL}cards/diamonds/7_Diamonds.webp` },
-      { name: 'J_Diamonds', path: `${BASE_URL}cards/diamonds/J_Diamonds.webp` }
+      { name: 'A_Hearts', path: 'cards/hearts/A_Hearts.webp' },
+      { name: 'K_Hearts', path: 'cards/hearts/K_Hearts.webp' },
+      { name: 'A_Spades', path: 'cards/spades/A_Spades.webp' },
+      { name: 'K_Spades', path: 'cards/spades/K_Spades.webp' },
+      { name: 'A_Clubs', path: 'cards/clubs/A_Clubs.webp' },
+      { name: 'J_Clubs', path: 'cards/clubs/J_Clubs.webp' },
+      { name: 'A_Diamonds', path: 'cards/diamonds/A_Diamonds.webp' },
+      { name: 'J_Diamonds', path: 'cards/diamonds/J_Diamonds.webp' }
     ];
 
     // Secondary assets that can load after critical ones
     const secondaryAssets = [
-      { name: 'blueAvatar', path: `${BASE_URL}blue_avatar.webp` },
-      { name: 'redAvatar', path: `${BASE_URL}red_avatar.webp` },
-      { name: 'settingsButton', path: `${BASE_URL}settingsButton.webp` },
-      { name: 'newGameButton', path: `${BASE_URL}newGameButton.webp` },
-      { name: 'topBanner', path: `${BASE_URL}TopBanner.webp` }
+      { name: 'blueAvatar', path: 'blue_avatar.webp' },
+      { name: 'redAvatar', path: 'red_avatar.webp' },
+      { name: 'settingsButton', path: 'settingsButton.webp' },
+      { name: 'newGameButton', path: 'newGameButton.webp' },
+      { name: 'topBanner', path: 'TopBanner.webp' }
     ];
 
     let loadedCount = 0;
@@ -78,7 +74,31 @@ export class AssetLoader {
     }
 
     try {
-      const texture = await PIXI.Assets.load(path);
+      let texture;
+      let url;
+
+      // Convert GitHub repository URLs to GitHub Pages URLs to avoid CORS issues
+      if (path.startsWith('https://koshmosh43.github.io/playable/assets/')) {
+        url = path.replace(
+          'https://koshmosh43.github.io/playable/assets/',
+          'https://koshmosh43.github.io/playable/assets/'
+        );
+      } 
+      // Use preloaded assets if available
+      else if (this.preloadedAssets[path]) {
+        url = this.preloadedAssets[path];
+      }
+      // For relative paths, use GitHub Pages URL
+      else if (!path.startsWith('http')) {
+        url = `https://koshmosh43.github.io/playable/assets/${path}`;
+      }
+      // Keep as is if it's already a full URL
+      else {
+        url = path;
+      }
+
+      // Load the texture
+      texture = await PIXI.Assets.load(url);
       this.textureCache[path] = texture;
       return texture;
     } catch (error) {
@@ -98,8 +118,16 @@ export class AssetLoader {
     if (path.includes('red_avatar')) return this.createAvatarFallback(0xFF3366);
     if (path.includes('hand')) return this.createHandCursorFallback();
     if (path.includes('cards/')) {
-      const suit = path.match(/hearts|diamonds|clubs|spades/)[0];
-      const value = path.match(/\/(\w+)_/)[1];
+      // Extract suit and value from path
+      let suit = 'spades';
+      let value = 'A';
+      
+      const suitMatch = path.match(/hearts|diamonds|clubs|spades/);
+      if (suitMatch) suit = suitMatch[0];
+      
+      const valueMatch = path.match(/\/(\w+)_/);
+      if (valueMatch) value = valueMatch[1];
+      
       return this.createCardFallback(value, suit);
     }
     if (path.includes('background')) return this.createBackgroundFallback();
@@ -108,6 +136,8 @@ export class AssetLoader {
     return PIXI.Texture.WHITE;
   }
 
+  // [The rest of the fallback creation methods remain unchanged]
+  
   createBackgroundFallback() {
     // Create simple green background for card table
     const graphics = new PIXI.Graphics();
@@ -224,27 +254,6 @@ export class AssetLoader {
     return renderTexture;
   }
 
-  createLightbulbFallback() {
-    const graphics = new PIXI.Graphics();
-    
-    // Yellow bulb
-    graphics.beginFill(0xFFFF33, 0.8);
-    graphics.drawCircle(25, 20, 15);
-    graphics.endFill();
-    
-    // Base of bulb
-    graphics.beginFill(0xCCCCCC);
-    graphics.drawRect(20, 35, 10, 5);
-    graphics.drawRect(18, 40, 14, 5);
-    graphics.endFill();
-    
-    const renderTexture = PIXI.RenderTexture.create({ width: 50, height: 50 });
-    const renderer = PIXI.autoDetectRenderer();
-    renderer.render(graphics, { renderTexture });
-    
-    return renderTexture;
-  }
-
   createCardFallback(value, suit) {
     const graphics = new PIXI.Graphics();
     
@@ -303,7 +312,7 @@ export class AssetLoader {
   
   async loadCardOnDemand(value, suit) {
     const filename = `${value}_${suit.charAt(0).toUpperCase()}${suit.slice(1)}.webp`;
-    const path = `${BASE_URL}cards/${suit}/${filename}`;
+    const path = `cards/${suit}/${filename}`;
     
     try {
       return await this.loadTexture(path);
