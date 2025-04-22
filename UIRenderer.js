@@ -492,11 +492,10 @@ showGinButton(visible) {
       gsap.killTweensOf(this.ginButton.scale);
       // 3) Быстро скрываем кнопку и показываем оверлей
       gsap.to(this.ginButton, {
-        alpha: 0, duration: 0.2, ease: "power2.in",
+        alpha: 0, scale: 0.4, duration: 0.2, ease: "power2.in",
         onComplete: () => {
           this.ginButton.visible = false;
           this.ginButton.clickProcessing = false;
-          this.showPlayNowOverlay();
         }
       });
     });
@@ -528,6 +527,13 @@ showGinButton(visible) {
 
 
   showPlayNowOverlay() {
+    if (this.knockButton && this.knockButton.parent) {
+      this.knockButton.parent.removeChild(this.knockButton);
+    }
+    
+    if (this.ginButton && this.ginButton.parent) {
+      this.ginButton.parent.removeChild(this.ginButton);
+    }
     // Hide tutorial elements directly instead of calling hideTutorialElements
     // Find and remove any tutorial text containers from stage
     if (this.app && this.app.stage) {
@@ -912,11 +918,10 @@ dialogBg.endFill();
         
         // Hide button
         gsap.to(this.knockButton, {
-          alpha: 0, duration: 0.2, ease: "power2.in",
+          alpha: 0, scale: 0.5, duration: 0.2, ease: "power2.in",
           onComplete: () => {
             this.knockButton.visible = false;
             this.knockButton.clickProcessing = false;
-            this.showPlayNowOverlay();
           }
         });
       });

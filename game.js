@@ -2519,15 +2519,7 @@ updateGamePositions() {
         }, 100);
       }
       
-      // Автоматически симулируем нажатие KNOCK после показа кнопки
-      setTimeout(() => {
-        // Вызываем обработчик нажатия KNOCK
-        if (this.onKnockClick) {
-          this.onKnockClick();
-        } else if (this.uiRenderer && this.uiRenderer.onKnockClick) {
-          this.uiRenderer.onKnockClick();
-        }
-      }, 1500); // Задержка перед автоматическим "нажатием" KNOCK
+      // УБИРАЕМ автоматический клик на KNOCK - теперь только по действию пользователя
     }
     
     // Update UI (score, deadwood, etc.)
@@ -2600,6 +2592,7 @@ updateGamePositions() {
       }, 100);
     }
   }
+  
   
 // Calculate deadwood value
 calculateDeadwood() {
@@ -3351,6 +3344,7 @@ handleDrawFromDiscard(cardData) {
 ensureUniqueCards() {
   // Track all card values and suits to ensure no duplicates
   const seenCards = new Set();
+  const duplicates = [];
   
   // Helper to check and fix a single array of cards
   const checkAndFixArray = (cardsArray, source) => {
@@ -3361,6 +3355,7 @@ ensureUniqueCards() {
       
       if (seenCards.has(cardKey)) {
         console.warn(`Duplicate card detected in ${source}:`, card);
+        duplicates.push({ card, source });
         // Skip this card as it's a duplicate
       } else {
         seenCards.add(cardKey);
@@ -3379,9 +3374,12 @@ ensureUniqueCards() {
   
   // Fix discard pile - special handling to keep only unique cards
   this.cardManager.discardPile = checkAndFixArray(this.cardManager.discardPile, 'discard pile');
+  
+  // Log any duplicates found and fixed
+  if (duplicates.length > 0) {
+    console.log(`Fixed ${duplicates.length} duplicate cards:`, duplicates);
+  }
 }
-
-
 
   // Get suit symbol
   getSuitSymbol(suit) {
@@ -3688,18 +3686,82 @@ ensureUniqueCards() {
       container.addChild(cardContainer);
     });
   }
+
+  createUniqueCard() {
+    // Get all existing cards in the game
+    const allCards = [
+      ...this.cardManager.playerCards,
+      ...this.cardManager.opponentCards,
+      ...this.cardManager.discardPile
+    ];
+    
+    // Track all value-suit combinations already in play
+    const usedCombinations = new Set();
+    allCards.forEach(card => {
+      usedCombinations.add(`${card.value}_${card.suit}`);
+    });
+    
+    // All possible card values and suits
+    const values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+    const suits = ['hearts', 'diamonds', 'clubs', 'spades'];
+    
+    // Find an unused combination
+    let value, suit;
+    
+    for (suit of suits) {
+      for (value of values) {
+        if (!usedCombinations.has(`${value}_${suit}`)) {
+          // Found an unused combination
+          return {
+            id: Math.floor(Math.random() * 10000) + 800,
+            value,
+            suit,
+            faceDown: true,
+            filename: `${value}_${suit.charAt(0).toUpperCase()}${suit.slice(1)}.webp`
+          };
+        }
+      }
+    }
+    
+    // If all 52 combinations are used (extremely unlikely), generate a random card
+    // with a suffix to make it unique
+    value = values[Math.floor(Math.random() * values.length)];
+    suit = suits[Math.floor(Math.random() * suits.length)];
+    console.warn("All 52 cards in use - creating card with random variant");
+    
+    return {
+      id: Math.floor(Math.random() * 10000) + 800,
+      value,
+      suit,
+      faceDown: true,
+      variant: Math.floor(Math.random() * 1000), // Add variant to make it unique
+      filename: `${value}_${suit.charAt(0).toUpperCase()}${suit.slice(1)}.webp`
+    };
+  }
   
   // Play opponent's turn
   playOpponentTurn() {
-    // Выходим, если игра на паузе
-  if (this.pauseGame) {
-    console.log("Game is paused - opponent turn blocked");
-    return;
-  }
+    if (this.pauseGame) {
+      console.log("Game is paused - opponent turn blocked");
+      return;
+    }
   
     if (this.cardRenderer) {
       this.cardRenderer.enableDragging(false);
     }
+    
+    // Local function to check for duplicate cards - no 'this' needed
+    const isCardDuplicate = (newCard, collection) => {
+      if (!newCard || !collection) return false;
+      
+      // Create a unique key for the card based on value and suit
+      const newCardKey = `${newCard.value}_${newCard.suit}`;
+      
+      // Check if this card already exists in the collection
+      return collection.some(existingCard => 
+        `${existingCard.value}_${existingCard.suit}` === newCardKey
+      );
+    };
     
     // Отложенное выполнение
     setTimeout(() => {
@@ -3712,17 +3774,64 @@ ensureUniqueCards() {
         // Get or create a card for the opponent
         let newCard;
         if (takeFromDeck) {
-          // Take a new card from the deck
-          newCard = this.drawCardFromDeck();
-          newCard.faceDown = true; // Make sure it's face down for opponent
+          // Take a new card from the deck - ADDED DUPLICATE CHECK
+          let attempts = 0;
+          let cardFound = false;
+          
+          while (!cardFound && attempts < 10) {
+            newCard = this.drawCardFromDeck();
+            newCard.faceDown = true; // Make sure it's face down for opponent
+            
+            // Check if this card would be a duplicate - using local function
+            if (!isCardDuplicate(newCard, this.cardManager.opponentCards) &&
+                !isCardDuplicate(newCard, this.cardManager.playerCards) &&
+                !isCardDuplicate(newCard, this.cardManager.discardPile)) {
+              cardFound = true;
+            }
+            
+            attempts++;
+          }
+          
+          // If we couldn't find a non-duplicate after several attempts,
+          // create a completely unique card
+          if (!cardFound) {
+            console.warn("Could not find non-duplicate card after multiple attempts");
+            newCard = this.createUniqueCard();
+            newCard.faceDown = true;
+          }
+          
           this.deckCount--;
         } else {
           // Take top card from discard pile
           newCard = this.cardManager.discardPile.pop();
           newCard.faceDown = true; // Make sure it's face down once in opponent's hand
+          
+          // Extra check to ensure it's not a duplicate - using local function
+          if (isCardDuplicate(newCard, this.cardManager.opponentCards)) {
+            console.warn("Avoiding duplicate from discard pile");
+            // Return the card to discard pile
+            this.cardManager.discardPile.push(newCard);
+            
+            // Get a fresh card from the deck instead
+            newCard = this.drawCardFromDeck();
+            newCard.faceDown = true;
+            this.deckCount--;
+          }
         }
         
-        // Add card to opponent's hand first (for proper indexing in animation)
+        // IMPORTANT: Check for duplicate ID, regenerate if needed
+        const existingIds = new Set([
+          ...this.cardManager.playerCards.map(c => c.id),
+          ...this.cardManager.opponentCards.map(c => c.id),
+          ...this.cardManager.discardPile.map(c => c.id)
+        ]);
+        
+        // Ensure unique ID
+        while (existingIds.has(newCard.id)) {
+          newCard.id = Math.floor(Math.random() * 10000) + 800;
+        }
+        
+        // Add card to opponent's hand
         this.cardManager.opponentCards.push(newCard);
         
         // Calculate the index for where the card will go (at the end of the hand)
@@ -3772,6 +3881,7 @@ ensureUniqueCards() {
       }
     }, 800);
   }
+  
 
   trackAllCards() {
     // Get all cards currently in play
