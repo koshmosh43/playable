@@ -3005,49 +3005,52 @@ showMakeMeldText(visible) {
   // Handle card click
   // Update to handleCardClick method to remove tutorial text on interaction
   handleCardClick(cardData, source) {
-    console.log('Card clicked:', cardData, 'source:', source);
+    // Сохраняем ссылку на подсветку, чтобы не потерять ее
+    let highlightBar = null;
+    let filters = null;
+    let originalSprite = null;
     
-    // Удаляем элементы обучения при клике на любую карту
-    this.hideTutorialElements();
-    
-    // Для карт игрока - только визуальная обратная связь, но не обрабатываем как сброс
+    // Находим спрайт карты, если это карта игрока
     if (source === 'player') {
-      // НОВАЯ ПРОВЕРКА: если мы в фазе взятия, запрещаем использовать карты из руки игрока
-      const isDrawPhase = this.playerTurn && this.gameStep % 2 === 0;
-      
-      if (isDrawPhase) {
-        console.log("Нельзя использовать карты из руки в фазе взятия");
-        if (this.uiRenderer) {
-          this.uiRenderer.showDialog("Take a card from deck\nor discard pile first!");
+      this.playerHandContainer.children.forEach(sprite => {
+        if (sprite.cardData && sprite.cardData.id === cardData.id) {
+          // Сохраняем ссылки на подсветку и фильтры
+          highlightBar = sprite.highlightBar;
+          filters = sprite.filters;
+          originalSprite = sprite;
         }
-        return; // Выход из метода
-      }
+      });
+    }
+    
+    // Вызываем оригинальный обработчик клика
+    if (this.onCardClick) {
+      this.onCardClick(cardData, source);
+    }
+    
+    // Если это карта из руки игрока и у нее была подсветка,
+    // восстанавливаем ее после клика
+    if (source === 'player' && originalSprite) {
+      // Применяем визуальный эффект без изменения масштаба
+      this.enhanceCardClickFeedback(originalSprite);
       
-      // Визуальная обратная связь, но НЕ обрабатываем как сброс
-      if (this.cardRenderer) {
-        let clickedSprite = null;
-        this.cardRenderer.playerHandContainer.children.forEach(sprite => {
-          if (sprite.cardData && sprite.cardData.id === cardData.id) {
-            clickedSprite = sprite;
-          }
-        });
+      // Восстанавливаем подсветку, если она была
+      setTimeout(() => {
+        // Проверяем, входит ли карта в мелд
+        const meldType = window.game && 
+                         window.game.checkCardInMeld && 
+                         cardData &&
+                         window.game.checkCardInMeld(cardData);
         
-        if (clickedSprite) {
-          this.cardRenderer.enhanceCardClickFeedback(clickedSprite);
+        if (meldType === 'set' || meldType === 'run') {
+          // Определяем цвет подсветки по типу мелда
+          const color = meldType === 'set' ? 0xFFFE7A : 0x98FB98;
+          
+          // Применяем подсветку с сохранением исходного highlightBar
+          if (!originalSprite.highlightBar || originalSprite.highlightBar !== highlightBar) {
+            this.applySpecialHighlight(originalSprite, color, 0.5);
+          }
         }
-      }
-      return; // Выход из метода без дальнейшей обработки
-    }
-    
-    // Обработка кликов по колоде и отбою как раньше
-    if (source === 'deck' && this.playerTurn && this.gameStep % 2 === 0) {
-      this.handleDrawFromdeck();
-      return;
-    }
-    
-    if (source === 'discard' && this.playerTurn && this.gameStep % 2 === 0) {
-      this.handleDrawFromDiscard(cardData);
-      return;
+      }, 100);
     }
   }
   
@@ -3496,7 +3499,7 @@ ensureUniqueCards() {
 
   // Handle card discard
   handleDiscard() {
-    // Exit if game is paused
+    // Выходим, если игра на паузе
     if (this.pauseGame) {
       console.log("Game is paused - discard blocked");
       return;
@@ -3504,36 +3507,44 @@ ensureUniqueCards() {
   
     if (!this.selectedCard) return;
     
-    // NEW CHECK: Make sure the selected card is not part of a meld
+    // НОВАЯ ПРОВЕРКА: Убеждаемся, что выбранная карта не часть мелда
     const meldType = this.checkCardInMeld(this.selectedCard);
     if (meldType) {
       console.log(`Cannot discard a card that is part of a ${meldType}`);
       
-      // Show message to player
+      // Показываем сообщение игроку
       if (this.uiRenderer) {
         this.uiRenderer.showDialog(`Cannot discard a card in a ${meldType}!`);
       }
       
-      // Reset selection and return
+      // Сбрасываем выбор и выходим
       this.selectedCard = null;
       return;
     }
       
-    // Hide discard hint
+    // Скрываем подсказку дискарда
     if (this.uiRenderer) {
       this.uiRenderer.hideDialog();
     }
   
-    // Disable drag-and-drop after discarding
+    // Отключаем drag-and-drop после сброса
     if (this.cardRenderer) {
       this.cardRenderer.enableDragging(false);
     }
       
-    // Get the card's original position for animation
+    // Получаем индекс карты для анимации
     const cardIndex = this.cardManager.playerCards.findIndex(c => c.id === this.selectedCard.id);
     
-    // Skip animation if card was already dragged via drag and drop
+    // Пропускаем анимацию, если карта уже перетащена через drag-and-drop
     const wasDragged = this.wasDragged || false;
+    
+    // НОВОЕ: Удаляем подсветку с выбранной карты перед сбросом
+    if (this.selectedCard.highlightBar) {
+      delete this.selectedCard.highlightBar;
+    }
+    if (this.selectedCard.filters) {
+      delete this.selectedCard.filters;
+    }
     
     if (!wasDragged && this.cardRenderer && cardIndex !== -1) {
       this.cardRenderer.animateCardDiscard(
@@ -3542,34 +3553,34 @@ ensureUniqueCards() {
       );
     }
     
-    // Reset dragging flag
+    // Сбрасываем флаг перетаскивания
     this.wasDragged = false;
     
-    // Update game state
-    // CRITICAL CHANGE: First remove the card from playerCards
+    // Обновляем состояние игры
+    // Сначала удаляем карту из руки игрока
     this.cardManager.playerCards = this.cardManager.playerCards.filter(c => c.id !== this.selectedCard.id);
     
-    // Then add to discard pile
+    // Затем добавляем в отбой
     this.cardManager.discardPile.push(this.selectedCard);
     
-    // Update other game state
+    // Обновляем другие состояния игры
     this.selectedCard = null;
     this.gameStep++;
     this.playerTurn = false;
     this.deadwood = this.calculateDeadwood();
     
-    // Reset card draw flag at end of turn
+    // Сбрасываем флаг взятия карты в конце хода
     this.hasDrawnCard = false;
     
-    // IMPORTANT: clear the playerHandContainer before updating
+    // Очищаем контейнер руки игрока перед обновлением
     if (this.cardRenderer) {
       this.cardRenderer.playerHandContainer.removeChildren();
     }
     
-    // Update game screen
+    // Обновляем экран игры
     this.updatePlayScreen();
     
-    // Computer's turn
+    // Ход компьютера
     setTimeout(() => this.playOpponentTurn(), 1500);
   }
 
