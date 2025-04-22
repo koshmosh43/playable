@@ -1293,13 +1293,13 @@ applySpecialHighlight(sprite, color, alpha = 0.3) {
   // 1) Применяем фильтр общей подсветки для всех карт мелда
   const colorMatrix = new PIXI.filters.ColorMatrixFilter();
   if (color === 0x98FB98) { // Зеленый для RUN
-    colorMatrix.matrix[0] = 0.8;
-    colorMatrix.matrix[6] = 1.3;
-    colorMatrix.matrix[12] = 0.8;
+    colorMatrix.matrix[0] = 0.9;
+    colorMatrix.matrix[6] = 1.1;
+    colorMatrix.matrix[12] = 0.9;
   } else if (color === 0xFFFE7A) { // Желтый для SET
-    colorMatrix.matrix[0] = 1.2;
-    colorMatrix.matrix[6] = 1.2;
-    colorMatrix.matrix[12] = 0.5;
+    colorMatrix.matrix[0] = 1.1;
+    colorMatrix.matrix[6] = 1.1;
+    colorMatrix.matrix[12] = 0.9;
   }
   sprite.filters = [colorMatrix];
 
@@ -1336,7 +1336,7 @@ applySpecialHighlight(sprite, color, alpha = 0.3) {
   const cornerRadius = barHeight / 2;
   
   // Рисуем бар с закругленными углами
-  bar.beginFill(color, alpha);
+  bar.beginFill(color, 0.85);
   // Position centered with extra width for full coverage
   bar.drawRoundedRect(
     -sprite.width * (SAFETY_FACTOR - 1) / 2 - 30, // center the bar with extra width
@@ -1434,6 +1434,7 @@ clearAllHighlights() {
   if (!this.playerHandContainer) return;
 
   this.playerHandContainer.children.forEach(sprite => {
+    
     // remove tint
     sprite.filters = null;
 

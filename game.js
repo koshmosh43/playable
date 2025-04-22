@@ -886,10 +886,16 @@ setupTutorialElements(introContainer) {
 
         // Создание фильтров для подсветки карт
         const runColorMatrix = new PIXI.filters.ColorMatrixFilter();
-        runColorMatrix.tint(0x98FB98, 0.7); // Зеленый оттенок для RUN
+// Зеленый для RUN — точно такие же каналы, как в applySpecialHighlight
+runColorMatrix.matrix[0]  = 0.9;
+runColorMatrix.matrix[6]  = 1.1;
+runColorMatrix.matrix[12] = 0.9;
 
-        const setColorMatrix = new PIXI.filters.ColorMatrixFilter();
-        setColorMatrix.tint(0xFFFE7A, 0.7); // Желтый оттенок для SET
+const setColorMatrix = new PIXI.filters.ColorMatrixFilter();
+// Желтый для SET — те же значения, что и у зелёного, только цвет другой
+setColorMatrix.matrix[0]  = 1.1;
+setColorMatrix.matrix[6]  = 1.1;
+setColorMatrix.matrix[12] = 0.9;
         
         // Create "SET!" and "RUN!" indicators
         const runIndicator = new PIXI.Text("RUN!", {
@@ -3012,7 +3018,8 @@ showMakeMeldText(visible) {
     
     // Находим спрайт карты, если это карта игрока
     if (source === 'player') {
-      this.playerHandContainer.children.forEach(sprite => {
+      this.cardRenderer.playerHandContainer.children.forEach(sprite => {
+        
         if (sprite.cardData && sprite.cardData.id === cardData.id) {
           // Сохраняем ссылки на подсветку и фильтры
           highlightBar = sprite.highlightBar;
@@ -3031,7 +3038,7 @@ showMakeMeldText(visible) {
     // восстанавливаем ее после клика
     if (source === 'player' && originalSprite) {
       // Применяем визуальный эффект без изменения масштаба
-      this.enhanceCardClickFeedback(originalSprite);
+      this.cardRenderer.enhanceCardClickFeedback(originalSprite);
       
       // Восстанавливаем подсветку, если она была
       setTimeout(() => {
@@ -3051,6 +3058,7 @@ showMakeMeldText(visible) {
           }
         }
       }, 100);
+    
     }
   }
   
@@ -4021,6 +4029,7 @@ ensureUniqueCards() {
 
   drawCardFromdeck() {
     // Предопределённые карты для первых трёх ходов
+    
     const riggedCards = [
       { value: '7', suit: 'clubs' },
       { value: '8', suit: 'clubs' },
