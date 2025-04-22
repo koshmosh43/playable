@@ -336,68 +336,68 @@ this.highlightedSource = null;
     
     
     // Внутри метода setupDragAndDrop(...)
-    const onDragMove = (event) => {
-      if (!isDragging) return;
+const onDragMove = (event) => {
+  if (!isDragging) return;
+  
+  // Вычисляем новую позицию на основе движения мыши/тача
+  const newPosition = event.data.global;
+  
+  // Преобразуем глобальные координаты в локальные координаты контейнера
+  const newLocalPos = this.playerHandContainer.toLocal(newPosition);
+  
+  // Обновляем позицию спрайта
+  sprite.x = newLocalPos.x;
+  sprite.y = newLocalPos.y;
+  
+  // Держим карту вертикально при перетаскивании
+  sprite.rotation = 0;
+  
+  // Проверяем, находится ли карта над отбоем для визуальной обратной связи
+  const globalPos = sprite.toGlobal(new PIXI.Point(0, 0));
+  const isOverDiscard = this.isOverDiscardPile(globalPos);
+  
+  // Проверяем, находимся ли мы в фазе взятия карты для карт игрока
+  const isPlayerCardInDrawPhase = 
+    sprite.dragPhaseInfo && 
+    sprite.dragPhaseInfo.isDrawPhase && 
+    cardData.source !== 'deck' && 
+    cardData.source !== 'discard';
+  
+  // Визуальная обратная связь при нахождении над отбоем - с особым случаем для фазы взятия
+  if (isOverDiscard && !sprite.isOverDiscard) {
+    sprite.isOverDiscard = true;
+    
+    if (isPlayerCardInDrawPhase) {
+      // Особый случай - показываем визуальную обратную связь "недопустимо"
+      gsap.to(sprite.scale, {
+        x: 0.65, y: 0.65,
+        duration: 0.2
+      });
       
-      // Вычисляем новую позицию на основе движения мыши/тача
-      const newPosition = event.data.global;
+      // Применяем красную подсветку, чтобы указать на недопустимый ход
+      this.applySpecialHighlight(sprite, 0xFF0000, 0.3); // Красный цвет при попытке сбросить во время фазы взятия
+    } else {
+      // Нормальный случай - показываем обратную связь "допустимый сброс"
+      gsap.to(sprite.scale, {
+        x: 0.65, y: 0.65,
+        duration: 0.2
+      });
       
-      // Преобразуем глобальные координаты в локальные координаты контейнера
-      const newLocalPos = this.playerHandContainer.toLocal(newPosition);
-      
-      // Обновляем позицию спрайта
-      sprite.x = newLocalPos.x;
-      sprite.y = newLocalPos.y;
-      
-      // Держим карту вертикально при перетаскивании
-      sprite.rotation = 0;
-      
-      // Проверяем, находится ли карта над отбоем для визуальной обратной связи
-      const globalPos = sprite.toGlobal(new PIXI.Point(0, 0));
-      const isOverDiscard = this.isOverDiscardPile(globalPos);
-      
-      // Проверяем, находимся ли мы в фазе взятия карты для карт игрока
-      const isPlayerCardInDrawPhase = 
-        sprite.dragPhaseInfo && 
-        sprite.dragPhaseInfo.isDrawPhase && 
-        cardData.source !== 'deck' && 
-        cardData.source !== 'discard';
-      
-      // Визуальная обратная связь при нахождении над отбоем - с особым случаем для фазы взятия
-      if (isOverDiscard && !sprite.isOverDiscard) {
-        sprite.isOverDiscard = true;
-        
-        if (isPlayerCardInDrawPhase) {
-          // Особый случай - показываем визуальную обратную связь "недопустимо"
-          gsap.to(sprite.scale, {
-            x: 0.65, y: 0.65,
-            duration: 0.2
-          });
-          
-          // Применяем красную подсветку, чтобы указать на недопустимый ход
-          this.applySpecialHighlight(sprite, 0xFF0000, 0.3); // Красный цвет при попытке сбросить во время фазы взятия
-        } else {
-          // Нормальный случай - показываем обратную связь "допустимый сброс"
-          gsap.to(sprite.scale, {
-            x: 0.65, y: 0.65,
-            duration: 0.2
-          });
-          
-          // Применяем особую подсветку "допустимый сброс"
-          this.applySpecialHighlight(sprite, 0x00FF00, 0.3); // Зеленый цвет при допустимом сбросе
-        }
-      } else if (!isOverDiscard && sprite.isOverDiscard) {
-        sprite.isOverDiscard = false;
-        // Восстанавливаем нормальный вид при перетаскивании
-        gsap.to(sprite.scale, {
-          x: 0.7, y: 0.7,
-          duration: 0.2
-        });
-        
-        // Применяем нормальную подсветку при перетаскивании
-        this.applySimpleSelectedHighlight(sprite);
-      }
-    };
+      // Применяем особую подсветку "допустимый сброс"
+      this.applySpecialHighlight(sprite, 0x00FF00, 0.3); // Зеленый цвет при допустимом сбросе
+    }
+  } else if (!isOverDiscard && sprite.isOverDiscard) {
+    sprite.isOverDiscard = false;
+    // Восстанавливаем нормальный вид при перетаскивании
+    gsap.to(sprite.scale, {
+      x: 0.7, y: 0.7,
+      duration: 0.2
+    });
+    
+    // Применяем нормальную подсветку при перетаскивании
+    this.applySimpleSelectedHighlight(sprite);
+  }
+};
 
     
 const onDragEnd = (event) => {
@@ -422,6 +422,9 @@ const onDragEnd = (event) => {
   // КРИТИЧЕСКОЕ УСЛОВИЕ: Если пытаемся сбросить карту в фазе взятия, запрещаем
   if (isOverDiscard && isDrawPhase) {
     // Показываем уведомление
+    if (window.game && window.game.uiRenderer) {
+      window.game.uiRenderer.showDialog("Take a card from deck\nor discard pile\nfirst!");
+    }
     
     // Генерируем специальное событие
     const wrongPhaseEvent = new CustomEvent('cardDragEnd', { 
@@ -646,6 +649,10 @@ const onDragEnd = (event) => {
     if (isOverDiscard && isDrawPhase && this.draggingCardSource === 'player') {
       console.log("Запрещено сбрасывать карту в фазе взятия - возвращаем в руку");
       
+      // Уведомляем игрока
+      if (window.game && window.game.uiRenderer) {
+        window.game.uiRenderer.showDialog("Take a card from deck or discard first!");
+      }
       
       // Возвращаем карту в руку
       this.returnDraggingCard();
@@ -2315,35 +2322,13 @@ async renderDeck(deckCount) {
   }
 
   returnCardToHand(cardData) {
-    // Если есть текущая перетаскиваемая карта — возвращаем её в руку
+    // Если есть текуще перетаскиваемая карта — возвращаем её в руку
     if (this.draggingCard) {
       this.snapCardBack(this.draggingCard);
       // Очищаем состояние перетаскивания
       this.draggingCard = null;
       this.draggingCardData = null;
       this.draggingCardSource = null;
-    }
-    
-    // ДОБАВЛЕНО: Проверка и уведомление о возврате карты
-    if (window.game) {
-      // Проверяем, есть ли уже такая карта в руке игрока
-      const cardExists = window.game.cardManager.playerCards.some(c => 
-        c.id === cardData.id
-      );
-      
-      // Если карты нет в руке игрока, добавляем её
-      if (!cardExists && cardData) {
-        console.log("Принудительно возвращаем карту в руку игрока:", cardData);
-        window.game.cardManager.playerCards.push(cardData);
-        
-        // Сортируем карты
-        if (window.game.sortCardsWithMelds) {
-          window.game.cardManager.playerCards = window.game.sortCardsWithMelds();
-        }
-        
-        // Обновляем отображение
-        window.game.updatePlayScreen();
-      }
     }
   }
   

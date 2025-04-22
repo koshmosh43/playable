@@ -1819,6 +1819,10 @@ handleGinConfirm(confirmed) {
         // Обновляем отображение игры
         this.updatePlayScreen();
         
+        // Показываем сообщение игроку
+        if (this.uiRenderer) {
+          this.uiRenderer.showDialog("Take a card from deck\nor discard pile\nfirst!");
+        }
         
         return; // Прерываем обработку
       }
@@ -1888,6 +1892,10 @@ handleGinConfirm(confirmed) {
         // Update the screen to show the card back in the player's hand
         this.updatePlayScreen();
         
+        // Display a tooltip to inform the player they need to draw first
+        if (this.uiRenderer) {
+          this.uiRenderer.showDialog("Take a card from deck\nor discard pile\nfirst!");
+        }
         // После того, как ход игрока завершился и дедвуд обновлён
 if (this.deadwood <= 10 && !this.playerTurn) {
   this.uiRenderer.showKnockButton(true);
@@ -1901,30 +1909,75 @@ if (this.deadwood <= 10 && !this.playerTurn) {
       const { cardData, source } = event.detail;
       console.log(`Card added to hand from ${source}:`, cardData);
       
-      // Скрываем обучение и убираем подсветку
+      // Hide tutorial and remove highlighting
       this.hideTutorialElements();
       this.removeCardHighlighting();
       
-      // НОВАЯ ПРОВЕРКА: если мы в фазе сброса, запрещаем добавление карты
-      const isDiscardPhase = window.game && window.game.playerTurn && window.game.gameStep % 2 === 1;
-      
-      if (isDiscardPhase && (source === 'deck' || source === 'discard')) {
-        console.log("Нельзя брать карты в фазе сброса");
-        
-        // Показываем сообщение
-        if (window.game && window.game.uiRenderer) {
-          window.game.uiRenderer.showDialog("Discard a card to end your turn!");
+      // Handle adding the card based on its source
+      if (source === 'deck') {
+        // Check if we have a pre-drawn card from dragging
+        if (this.preDrawnCard) {
+          // Use the pre-drawn card instead of drawing a new one
+          this.cardManager.playerCards.push(this.preDrawnCard);
+          
+          // Sort cards with melds
+          this.cardManager.playerCards = this.sortCardsWithMelds();
+          
+          // Decrease deck count
+          this.deckCount--;
+          this.gameStep++;
+          
+          // Set flag that player has drawn a card
+          this.hasDrawnCard = true;
+          
+          // Clear the pre-drawn card reference
+          this.preDrawnCard = null;
+          
+          // IMPROVED: Force complete redraw of player's hand to ensure proper fan layout
+          if (this.cardRenderer) {
+            // First clear all cards from container
+            this.cardRenderer.playerHandContainer.removeChildren();
+          }
+          
+          // Update the game display
+          this.updatePlayScreen();
+          
+          // Wait for animation to complete before showing discard hint
+          setTimeout(() => {
+            this.showDiscardHint();
+          }, 800);
+        } else {
+          // Fall back to regular method if no pre-drawn card exists
+          this.handleDrawFromDeck();
+        }
+      } else if (source === 'discard') {
+        // Add the card to player's hand (if it wasn't already added)
+        if (!this.cardManager.playerCards.some(c => c.id === cardData.id)) {
+          this.cardManager.playerCards.push(cardData);
         }
         
-        // Отменяем добавление карты
-        return;
-      }
-      
-      // Обработка добавления карты в зависимости от источника
-      if (source === 'deck') {
-        // ... (оставшаяся часть без изменений)
-      } else if (source === 'discard') {
-        // ... (оставшаяся часть без изменений)
+        // Sort cards with melds
+        this.cardManager.playerCards = this.sortCardsWithMelds();
+        
+        // Update game state
+        this.gameStep++;
+        
+        // Set flag that player has drawn a card
+        this.hasDrawnCard = true;
+        
+        // IMPROVED: Force complete redraw of player's hand to ensure proper fan layout
+        if (this.cardRenderer) {
+          // First clear all cards from container
+          this.cardRenderer.playerHandContainer.removeChildren();
+        }
+        
+        // Update game screen immediately
+        this.updatePlayScreen();
+        
+        // Wait for animation to complete before showing discard hint
+        setTimeout(() => {
+          this.showDiscardHint();
+        }, 800);
       }
     });
   }
@@ -2999,6 +3052,9 @@ showMakeMeldText(visible) {
       
       if (isDrawPhase) {
         console.log("Нельзя использовать карты из руки в фазе взятия");
+        if (this.uiRenderer) {
+          this.uiRenderer.showDialog("Take a card from deck\nor discard pile\nfirst!");
+        }
         return; // Выход из метода
       }
       
