@@ -1246,9 +1246,16 @@ snapCardBack(sprite, useShakeAnimation = true) {
         duration: 0.06,
         ease: "power1.inOut",
         onComplete: () => {
-          // Гарантируем правильную подсветку для карт из мелдов
-          if (meldType && highlightColor) {
-            this.applySpecialHighlight(sprite, highlightColor, 0.5);
+          if (meldType && sprite.originalHighlightBar) {
+            // Удаляем вновь созданный бар, если он есть
+            if (sprite.highlightBar && sprite.highlightBar !== sprite.originalHighlightBar) {
+              sprite.removeChild(sprite.highlightBar);
+            }
+            // Восстанавливаем оригинальный бар
+            sprite.addChild(sprite.originalHighlightBar);
+            sprite.highlightBar = sprite.originalHighlightBar;
+            // Восстанавливаем оригинальные фильтры
+            sprite.filters = sprite.originalFilters || null;
           }
         }
       })
@@ -1320,10 +1327,10 @@ applySpecialHighlight(sprite, color, alpha = 0.3) {
   
   // Ширина с запасом для полного покрытия
   const SAFETY_FACTOR = 2.0;
-  const barWidth = sprite.width * SAFETY_FACTOR;
+  const barWidth = sprite.width * SAFETY_FACTOR - 20;
   
   // Позиция бара в нижней части карты
-  const barY = sprite.height - barHeight;
+  const barY = -sprite.height * 0.05;
   
   // Радиус скругления углов (половина высоты бара для мягкого скругления)
   const cornerRadius = barHeight / 2;
@@ -1332,7 +1339,7 @@ applySpecialHighlight(sprite, color, alpha = 0.3) {
   bar.beginFill(color, alpha);
   // Position centered with extra width for full coverage
   bar.drawRoundedRect(
-    -sprite.width * (SAFETY_FACTOR - 1) / 2, // center the bar with extra width
+    -sprite.width * (SAFETY_FACTOR - 1) / 2 - 30, // center the bar with extra width
     barY,
     barWidth,
     barHeight,
