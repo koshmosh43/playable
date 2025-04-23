@@ -365,34 +365,35 @@ sortCardsWithMelds() {
         this.setupEventHandlers();
 }
 
-    async setupBackground() {
+async setupBackground() {
   try {
-        const bgTexture = await this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/Backgr.webp');
+    const bgTexture = await this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/Backgr.webp');
+    const bgSprite = new PIXI.Sprite(bgTexture);
     
-        const bgSprite = new PIXI.Sprite(bgTexture);
-    
-        const scaleX = this.app.screen.width / bgTexture.width;
+    const scaleX = this.app.screen.width / bgTexture.width;
     const scaleY = this.app.screen.height / bgTexture.height;
     const scale = Math.max(scaleX, scaleY);     
-        bgSprite.scale.set(scale, scale);
+    bgSprite.scale.set(scale, scale);
     
-        bgSprite.x = (this.app.screen.width - bgSprite.width) / 2;
+    // Center horizontally
+    bgSprite.x = (this.app.screen.width - bgSprite.width) / 2;
     
-        const height = this.app.screen.height;
-    const width = this.app.screen.width;
-    const aspectRatio = width / height;
+    const isLandscape = this.app.screen.width > this.app.screen.height;
     
-            if (height <= 568) {
-            bgSprite.y = (this.app.screen.height - bgSprite.height) / 2 + 180;       console.log("Applied iPhone SE specific positioning");
-    }
-        else if (height < 670) {
-            const cardHeight = this.config.cardHeight || 120;
-      bgSprite.y = (this.app.screen.height - bgSprite.height) / 2 + cardHeight;
-      console.log("Applied small screen positioning");
-    } 
-    else {
-            bgSprite.y = (this.app.screen.height - bgSprite.height) / 2;
-      console.log("Applied standard positioning");
+    if (isLandscape) {
+      // In landscape mode, center vertically without offsets
+      bgSprite.y = (this.app.screen.height - bgSprite.height) / 2;
+    } else {
+      // In portrait mode, keep existing logic
+      const height = this.app.screen.height;
+      if (height <= 568) {
+        bgSprite.y = (this.app.screen.height - bgSprite.height) / 2 + 180;
+      } else if (height < 670) {
+        const cardHeight = this.config.cardHeight || 120;
+        bgSprite.y = (this.app.screen.height - bgSprite.height) / 2 + cardHeight;
+      } else {
+        bgSprite.y = (this.app.screen.height - bgSprite.height) / 2;
+      }
     }
     
     this.containers.background.removeChildren();
@@ -454,7 +455,7 @@ sortCardsWithMelds() {
     
     this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/Backgr.webp')
     .then(bgTexture => {
-      // Устанавливаем фон
+      // Setup background
       const bgSprite = new PIXI.Sprite(bgTexture);
       
       const scaleX = this.app.screen.width / bgTexture.width;
@@ -462,28 +463,37 @@ sortCardsWithMelds() {
       const scale = Math.max(scaleX, scaleY);  
       bgSprite.scale.set(scale, scale);
       
+      // Center horizontally
       bgSprite.x = (this.app.screen.width - bgSprite.width) / 2;
       
-      const isSmallScreen = this.app.screen.height < 570;  
-      if (isSmallScreen) {
-        const cardHeight = this.config.cardHeight || 120;
-        bgSprite.y = (this.app.screen.height - bgSprite.height) / 2 + cardHeight;
-      } else {
+      const isLandscape = this.app.screen.width > this.app.screen.height;
+      
+      if (isLandscape) {
+        // In landscape mode, center vertically without offsets
         bgSprite.y = (this.app.screen.height - bgSprite.height) / 2;
+      } else {
+        // In portrait mode, keep existing logic
+        const isSmallScreen = this.app.screen.height < 570;  
+        if (isSmallScreen) {
+          const cardHeight = this.config.cardHeight || 120;
+          bgSprite.y = (this.app.screen.height - bgSprite.height) / 2 + cardHeight;
+        } else {
+          bgSprite.y = (this.app.screen.height - bgSprite.height) / 2;
+        }
       }
       
       introContainer.addChild(bgSprite);
       
-      // Устанавливаем элементы туториала
+      // Setup tutorial elements
       this.setupTutorialElements(introContainer);
       
-      // Добавляем кнопку Play Now в верхней части экрана, как на скриншоте
+      // Add Play Now button in the upper part of the screen
       this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/playButton.webp')
       .then(playTexture => {
         const playButton = new PIXI.Sprite(playTexture);
         playButton.anchor.set(0.5);
         
-        // Устанавливаем масштаб кнопки так, чтобы она была такого же размера как на скриншоте
+        // Set button scale
         const maxWidth = this.app.screen.width * 0.5;
         const originalScale = Math.min(1, maxWidth / playTexture.width);
         const finalScale = originalScale * 0.6; 
@@ -492,31 +502,30 @@ sortCardsWithMelds() {
         const isMobile = this.app.screen.width < 1000;
         const finalLandscapeScale = (originalScale * 0.6) * 0.5;
         const finalLandscapeMobileScale = (originalScale * 0.6) * 0.4;
-
-      if (isLandscape && isMobile) {
-        playButton.scale.set(finalLandscapeMobileScale); // Make button 30% smaller in landscape
-      } else if (isLandscape) {
-  playButton.scale.set(finalLandscapeScale); // Make button 30% smaller in landscape
-
-} else {
-  playButton.scale.set(finalScale);
-}
+  
+        if (isLandscape && isMobile) {
+          playButton.scale.set(finalLandscapeMobileScale); // Make button smaller in mobile landscape
+        } else if (isLandscape) {
+          playButton.scale.set(finalLandscapeScale); // Make button smaller in landscape
+        } else {
+          playButton.scale.set(finalScale);
+        }
         
-        // Позиционируем кнопку вверху экрана как на скриншоте
+        // Position the button at the top of the screen
         playButton.x = this.app.screen.width / 2;
-        playButton.y = this.app.screen.height * 0.08; // 20% от высоты экрана
+        playButton.y = this.app.screen.height * 0.08; // 8% from top of screen
         
-        // Делаем кнопку интерактивной
+        // Make button interactive
         playButton.interactive = true;
         playButton.buttonMode = true;
         playButton.on('pointerdown', () => {
           window.open('https://apps.apple.com/app/gin-rummy-stars-card-game/id1467143758', '_blank');
-        this.app.stage.removeChild(overlayContainer);
+          this.app.stage.removeChild(overlayContainer);
         });
         
-        // Добавляем кнопку
+        // Add button to container
         introContainer.addChild(playButton);
-
+  
         if (isLandscape && isMobile) {
           gsap.to(playButton, {
             y: playButton.y - 5,
@@ -535,31 +544,31 @@ sortCardsWithMelds() {
             ease: "sine.inOut"
           });
         } else {
-        
-        // Добавляем анимации
-        gsap.to(playButton, {
-          y: playButton.y - 5,
-          duration: 0.8,
-          repeat: -1,
-          yoyo: true,
-          ease: "sine.inOut"
-        });
-        
-        gsap.to(playButton.scale, {
-          x: finalScale * 1.05, 
-          y: finalScale * 1.05,
-          duration: 1.2,
-          repeat: -1,
-          yoyo: true,
-          ease: "sine.inOut"
-        });}
+          // Add animations
+          gsap.to(playButton, {
+            y: playButton.y - 5,
+            duration: 0.8,
+            repeat: -1,
+            yoyo: true,
+            ease: "sine.inOut"
+          });
+          
+          gsap.to(playButton.scale, {
+            x: finalScale * 1.05, 
+            y: finalScale * 1.05,
+            duration: 1.2,
+            repeat: -1,
+            yoyo: true,
+            ease: "sine.inOut"
+          });
+        }
       })
       .catch(err => {
         console.warn("Could not load play button, using fallback", err);
         
-        // Fallback - создаем кнопку как графику
+        // Fallback - create button as graphics
         const fallbackButton = new PIXI.Graphics();
-        fallbackButton.beginFill(0xF39C12); // Оранжевый цвет как на скриншоте
+        fallbackButton.beginFill(0xF39C12); // Orange color as in screenshot
         fallbackButton.drawRoundedRect(0, 0, 180, 60, 15);
         fallbackButton.endFill();
         
@@ -582,7 +591,7 @@ sortCardsWithMelds() {
         
         introContainer.addChild(fallbackButton);
         
-        // Добавляем анимации
+        // Add animations
         gsap.to(fallbackButton, {
           y: fallbackButton.y - 5,
           duration: 0.8,
@@ -643,12 +652,19 @@ setupTutorialElements(introContainer) {
     const cardWidth = this.config.cardWidth || 80;
   const cardHeight = this.config.cardHeight || 120;
   const spacing = 50;   
+
+  const isLandscape = this.app.screen.width > this.app.screen.height;
+const centerY = this.app.screen.height / 2 - cardHeight / 2;
+
     const cardsContainer = new PIXI.Container();
-  cardsContainer.x = this.app.screen.width / 2 - 180;   cardsContainer.y = 350;   cardsContainer.zIndex = 10;    introContainer.addChild(cardsContainer);
+  cardsContainer.x = this.app.screen.width / 2 - 180;   
+  cardsContainer.y = isLandscape ? centerY : 350;
+  cardsContainer.zIndex = 10;    
+  introContainer.addChild(cardsContainer);
 
     const deckContainer = new PIXI.Container();
     deckContainer.x = cardsContainer.x + 380 - cardWidth;
-  deckContainer.y = cardsContainer.y + 10;
+    deckContainer.y = isLandscape ? centerY : (cardsContainer.y + 10);
   deckContainer.scale.set(0.9);     deckContainer.zIndex = 5;    introContainer.addChild(deckContainer);
 
     const createdeckStack = () => {
@@ -795,7 +811,7 @@ setupTutorialElements(introContainer) {
           dropShadowDistance: 4
         });
         runText.anchor.set(0.5);
-        runText.x = spacing;         runText.y = -100;         runText.alpha = 1;
+        runText.x = spacing;         runText.y = isLandscape ? -20 : -100;         runText.alpha = 1;
         runText.visible = true;
         cardRowContainer.addChild(runText);
 
@@ -809,7 +825,7 @@ setupTutorialElements(introContainer) {
           dropShadowDistance: 4
         });
         setText.anchor.set(0.5);
-        setText.x = spacing * 4;         setText.y = -100;         setText.alpha = 0;
+        setText.x = spacing * 4 + 25;         setText.y = isLandscape ? -20 : -100;         setText.alpha = 0;
         setText.visible = true;
         cardRowContainer.addChild(setText);
 
@@ -3815,111 +3831,119 @@ ensureUniqueCards() {
     this.errorContainer = errorContainer;
   }
 
-    resize() {
+  resize() {
     const width = window.innerWidth;
-  const height = window.innerHeight;
-  
-  this.app.renderer.resize(width, height);
-  
-    if (this.containers.background.children[0]) {
-    const bg = this.containers.background.children[0];
+    const height = window.innerHeight;
     
-        if (bg instanceof PIXI.Sprite && bg.texture) {
-            const scaleX = width / bg.texture.width;
-      const scaleY = height / bg.texture.height;
-      const scale = Math.max(scaleX, scaleY);       
-            bg.scale.set(scale, scale);
+    this.app.renderer.resize(width, height);
+    
+    if (this.containers.background.children[0]) {
+      const bg = this.containers.background.children[0];
       
-            bg.x = (width - bg.width) / 2;
-      
-            const isSmallScreen = height < 570;       
-      if (isSmallScreen) {
-                const cardHeight = this.config.cardHeight || 120;
-        bg.y = (height - bg.height) / 2 + cardHeight;
-      } else {
-                bg.y = (height - bg.height) / 2;
+      if (bg instanceof PIXI.Sprite && bg.texture) {
+        const scaleX = width / bg.texture.width;
+        const scaleY = height / bg.texture.height;
+        const scale = Math.max(scaleX, scaleY);       
+        bg.scale.set(scale, scale);
+        
+        // Center horizontally
+        bg.x = (width - bg.width) / 2;
+        
+        const isLandscape = width > height;
+        
+        if (isLandscape) {
+          // In landscape mode, center vertically without offsets
+          bg.y = (height - bg.height) / 2;
+        } else {
+          // In portrait mode, keep existing logic
+          const isSmallScreen = height < 570;       
+          if (isSmallScreen) {
+            const cardHeight = this.config.cardHeight || 120;
+            bg.y = (height - bg.height) / 2 + cardHeight;
+          } else {
+            bg.y = (height - bg.height) / 2;
+          }
+        }
+      } 
+      else if (bg instanceof PIXI.Graphics) {
+        bg.width = width;
+        bg.height = height;
       }
-    } 
-        else if (bg instanceof PIXI.Graphics) {
-      bg.width = width;
-      bg.height = height;
     }
-  }
-  
+    
     if (this.uiRenderer) {
-    this.uiRenderer.resize(width, height);
-  }
-  
+      this.uiRenderer.resize(width, height);
+    }
+    
     if (this.cardRenderer) {
-    this.cardRenderer.updatePositions(
-      this.uiRenderer?.adHeight || 0,
-      this.uiRenderer?.navHeight || 0,
-      width,
-      height
-    );
-  }
-  
+      this.cardRenderer.updatePositions(
+        this.uiRenderer?.adHeight || 0,
+        this.uiRenderer?.navHeight || 0,
+        width,
+        height
+      );
+    }
+    
     if (this.introContainer) {
-    this.introContainer.children.forEach(child => {
-      if (child instanceof PIXI.Text && child.text.includes("SET or RUN")) {
-        child.position.set(width / 2, height * 0.2);
-      } else if (child instanceof PIXI.Text && child.text.includes("Tap cards")) {
-        child.position.set(width / 2, height - 100);
-      } else if (child instanceof PIXI.Container && child.name === "cards-container") {
-        child.position.set(width / 2, height / 2);
-      }
-    });
-  }
-  
+      this.introContainer.children.forEach(child => {
+        if (child instanceof PIXI.Text && child.text.includes("SET or RUN")) {
+          child.position.set(width / 2, height * 0.2);
+        } else if (child instanceof PIXI.Text && child.text.includes("Tap cards")) {
+          child.position.set(width / 2, height - 100);
+        } else if (child instanceof PIXI.Container && child.name === "cards-container") {
+          child.position.set(width / 2, height / 2);
+        }
+      });
+    }
     
     if (this.endContainer) {
-    this.endContainer.children.forEach(child => {
-      if (child instanceof PIXI.Graphics && !child.children.length) {
-        child.clear();
-        child.beginFill(0x000000, 0.8);
-        child.drawRect(0, 0, width, height);
-        child.endFill();
-      } else if (child instanceof PIXI.Text) {
-        child.position.set(width / 2, height / 2 - 50);
-      } else if (child instanceof PIXI.Sprite || 
-               (child instanceof PIXI.Graphics && child.children.length)) {
-        child.position.set(width / 2 - 75, height / 2 + 50);
-      }
-    });
-  }
-  
-    if (this.errorContainer) {
-    this.errorContainer.children.forEach(child => {
-      if (child instanceof PIXI.Graphics && !child.children.length) {
-        child.clear();
-        child.beginFill(0x000000, 0.8);
-        child.drawRect(0, 0, width, height);
-        child.endFill();
-      } else if (child instanceof PIXI.Text) {
-        child.position.set(width / 2, height / 2);
-      } else if (child instanceof PIXI.Graphics && child.children.length) {
-        child.position.set(width / 2 - 75, height / 2 + 60);
-      }
-    });
-  }
-  
-    if (this.loadingContainer) {
-    this.loadingContainer.children.forEach(child => {
-      if (child instanceof PIXI.Graphics && !child.children.length) {
-        if (child === this.progressBarFill) {
-                    child.position.set((width - 300) / 2, height / 2);
-        } else if (child.width > 100) {
-                    child.clear();
-          child.beginFill(0x000000, 0.7);
+      this.endContainer.children.forEach(child => {
+        if (child instanceof PIXI.Graphics && !child.children.length) {
+          child.clear();
+          child.beginFill(0x000000, 0.8);
           child.drawRect(0, 0, width, height);
           child.endFill();
-        } else {
-                    child.position.set((width - 300) / 2, height / 2);
+        } else if (child instanceof PIXI.Text) {
+          child.position.set(width / 2, height / 2 - 50);
+        } else if (child instanceof PIXI.Sprite || 
+                 (child instanceof PIXI.Graphics && child.children.length)) {
+          child.position.set(width / 2 - 75, height / 2 + 50);
         }
-      } else if (child instanceof PIXI.Text) {
-        child.position.set(width / 2, height / 2 - 30);
-      }
-    });
+      });
+    }
+    
+    if (this.errorContainer) {
+      this.errorContainer.children.forEach(child => {
+        if (child instanceof PIXI.Graphics && !child.children.length) {
+          child.clear();
+          child.beginFill(0x000000, 0.8);
+          child.drawRect(0, 0, width, height);
+          child.endFill();
+        } else if (child instanceof PIXI.Text) {
+          child.position.set(width / 2, height / 2);
+        } else if (child instanceof PIXI.Graphics && child.children.length) {
+          child.position.set(width / 2 - 75, height / 2 + 60);
+        }
+      });
+    }
+    
+    if (this.loadingContainer) {
+      this.loadingContainer.children.forEach(child => {
+        if (child instanceof PIXI.Graphics && !child.children.length) {
+          if (child === this.progressBarFill) {
+            child.position.set((width - 300) / 2, height / 2);
+          } else if (child.width > 100) {
+            child.clear();
+            child.beginFill(0x000000, 0.7);
+            child.drawRect(0, 0, width, height);
+            child.endFill();
+          } else {
+            child.position.set((width - 300) / 2, height / 2);
+          }
+        } else if (child instanceof PIXI.Text) {
+          child.position.set(width / 2, height / 2 - 30);
+        }
+      });
+    }
   }
-}
 }
