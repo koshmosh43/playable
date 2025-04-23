@@ -11,7 +11,8 @@ export class AssetLoader {
         const criticalAssets = [
       { name: 'background', path: 'Backgr.webp' },
       { name: 'cardBack', path: 'CardBack_Blue.webp' },
-      { name: 'hand', path: 'hand.webp' }
+      { name: 'hand', path: 'hand.webp' },
+      { name: 'playButton', path: 'playButton.webp' },
     ];
 
         const initialCards = [

@@ -76,6 +76,22 @@ export class CardRenderer {
     
     return sortedCards;
   }
+
+clearAllHighlights() {
+  [this.playerHandContainer,
+   this.opponentHandContainer,
+   this.deckContainer,
+   this.discardContainer].forEach(cont => {
+    cont.children.forEach(sprite => {
+      sprite.filters = null;
+      if (sprite.highlightBar) {
+        sprite.removeChild(sprite.highlightBar);
+        sprite.highlightBar = null;
+      }
+    });
+  });
+}
+
   
     async updateDisplay(gameState) {
     if (!gameState) return;
@@ -221,9 +237,6 @@ export class CardRenderer {
   }
   
     applySimpleSelectedHighlight(sprite) {
-        const filter = new PIXI.filters.ColorMatrixFilter();
-    filter.matrix = [1.1,0,0,0,0, 0,1.1,0,0,0, 0,0,1.1,0,0, 0,0,0,1,0];
-    sprite.filters = [filter];
     
         sprite.y -= 10;
   }
@@ -1059,34 +1072,34 @@ snapCardBack(sprite, useShakeAnimation = true) {
 applySpecialHighlight(sprite, color, alpha = 0.3) {
   if (!sprite) return;
 
-  const isDeckCard = sprite.parent === this.deckContainer;
+  // if this is your deck/discard pile, don't shift it — but still
+  // we only highlight *real* meld cards below
+  const isDeckCard    = sprite.parent === this.deckContainer;
   const isDiscardCard = sprite.parent === this.discardContainer;
-  
   if (!isDeckCard && !isDiscardCard) {
-    sprite.y += 12;
+    sprite.y -= 12;
   }
-  
-    const colorMatrix = new PIXI.filters.ColorMatrixFilter();
-  if (color === 0x98FB98) {     colorMatrix.matrix[0] = 0.9;
-    colorMatrix.matrix[6] = 1.1;
-    colorMatrix.matrix[12] = 0.9;
-  } else if (color === 0xFFFE7A) {     colorMatrix.matrix[0] = 1.1;
-    colorMatrix.matrix[6] = 1.1;
-    colorMatrix.matrix[12] = 0.9;
-  }
-  sprite.filters = [colorMatrix];
 
-    if (sprite.highlightBar) {
-    sprite.removeChild(sprite.highlightBar);
-    sprite.highlightBar = null;
-  }
-  
-      const meldType = window.game && window.game.checkCardInMeld && 
-                  sprite.cardData && window.game.checkCardInMeld(sprite.cardData);
-  
+  // check: is this card actually in a run or a set?
+  const meldType = window.game.checkCardInMeld && window.game.checkCardInMeld(sprite.cardData);
   if (!meldType) {
-        return;
+    // clear any old highlight/filter
+    sprite.filters = null;
+    if (sprite.highlightBar) {
+      sprite.removeChild(sprite.highlightBar);
+      sprite.highlightBar = null;
+    }
+    return;
   }
+
+  // only *now* do we apply our color filter
+  const filter = new PIXI.filters.ColorMatrixFilter();
+  if (meldType === 'run') {
+    filter.matrix[0] = 0.9; filter.matrix[6] = 1.1; filter.matrix[12] = 0.9;
+  } else { // 'set'
+    filter.matrix[0] = 1.1; filter.matrix[6] = 1.1; filter.matrix[12] = 0.9;
+  }
+  sprite.filters = [filter];
   
     const bar = new PIXI.Graphics();
   

@@ -61,6 +61,7 @@ export class UIRenderer {
     async setupUI() {
     await this.setupGameActions();
     await this.setupAvatars();
+    await this.setupPlayButton();
     
         this.setupDeadwoodDisplay();
   }
@@ -224,6 +225,35 @@ export class UIRenderer {
     
     return scoreContainer;
   }
+
+  async setupPlayButton() {
+    try {
+      const texture = await this.assetLoader.loadTexture(
+        "https://koshmosh43.github.io/playable/assets/playButton.webp"
+      );
+  
+      this.playButton = new PIXI.Sprite(texture);
+      this.playButton.anchor.set(0.5);
+  
+      const maxWidth = this.app.screen.width * 0.2;
+      const scale    = Math.min(1, maxWidth / texture.width);
+      this.playButton.scale.set(scale);
+  
+      this.playButton.x = this.app.screen.width  / 2;
+      this.playButton.y = this.app.screen.height * 0.83;
+  
+      this.playButton.interactive = true;
+      this.playButton.buttonMode  = true;
+      this.playButton.on("pointerdown", () =>
+        console.log("Play button clicked")
+      );
+  
+      this.playButtonContainer.addChild(this.playButton);
+    } catch (err) {
+      console.warn("Could not load play button", err);
+    }
+  }
+  
   
     async setupGameButtons() {
     try {
