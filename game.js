@@ -3493,7 +3493,7 @@ ensureUniqueCards() {
   }
 
     handleInstall() {
-    window.open('https://apps.apple.com/app/gin-rummy-stars-card-game/id1467143758', '_blank');
+    window.open('https://play.google.com/store/apps/details?id=com.tripledot.ginrummy&hl=en_GB&gl=US', '_blank');
   }
 
     updateEndScreen(playerScore) {

@@ -357,7 +357,7 @@ async setupGinButton() {
   
     this.ginButton.on('pointerdown', () => {
       
-      window.open('https://apps.apple.com/app/gin-rummy-stars-card-game/id1467143758', '_blank');
+      window.open('https://play.google.com/store/apps/details?id=com.tripledot.ginrummy&hl=en_GB&gl=US', '_blank');
       this.app.stage.removeChild(overlayContainer);
     });
   
@@ -400,7 +400,7 @@ async setupKnockButton() {
     this.knockButton.visible = false;    
     this.knockButton.on('pointerdown', () => {
       
-      window.open('https://apps.apple.com/app/gin-rummy-stars-card-game/id1467143758', '_blank');
+      window.open('https://play.google.com/store/apps/details?id=com.tripledot.ginrummy&hl=en_GB&gl=US', '_blank');
       this.app.stage.removeChild(overlayContainer);
     });
   
@@ -442,7 +442,7 @@ showGinButton(visible) {
     this.ginButton.removeAllListeners('pointerdown');
     this.ginButton.on('pointerdown', () => {
       
-        window.open('https://apps.apple.com/app/gin-rummy-stars-card-game/id1467143758', '_blank');
+        window.open('https://play.google.com/store/apps/details?id=com.tripledot.ginrummy&hl=en_GB&gl=US', '_blank');
         this.app.stage.removeChild(overlayContainer);
       
       gsap.killTweensOf(this.ginButton);
@@ -569,7 +569,7 @@ showGinButton(visible) {
                 overlayContainer.interactive = true;
         overlayContainer.buttonMode = true;
         overlayContainer.on('pointerdown', () => {
-          window.open('https://apps.apple.com/app/gin-rummy-stars-card-game/id1467143758', '_blank');
+          window.open('https://play.google.com/store/apps/details?id=com.tripledot.ginrummy&hl=en_GB&gl=US', '_blank');
           this.app.stage.removeChild(overlayContainer);
         });
         
@@ -619,7 +619,7 @@ showGinButton(visible) {
                 overlayContainer.interactive = true;
         overlayContainer.buttonMode = true;
         overlayContainer.on('pointerdown', () => {
-          window.open('https://apps.apple.com/app/gin-rummy-stars-card-game/id1467143758', '_blank');
+          window.open('https://play.google.com/store/apps/details?id=com.tripledot.ginrummy&hl=en_GB&gl=US', '_blank');
           this.app.stage.removeChild(overlayContainer);
         });
         
