@@ -207,13 +207,20 @@ sortCardsWithMelds() {
   return allSortedCards;
 }
 
-  preDragCardFromdeck() {
-    if (!this.playerTurn || this.gameStep % 2 !== 0) return null;
-    
-        const newCard = this.drawCardFromdeck();
+preDragCardFromdeck() {
+  if (!this.playerTurn || this.gameStep % 2 !== 0) return null;
+  
+  // IMPORTANT CHANGE: Only create a new preDrawnCard if one doesn't already exist
+  if (!this.preDrawnCard) {
+    const newCard = this.drawCardFromdeck();
     this.preDrawnCard = newCard;
-    return newCard;
+    console.log("Generated new preDrawnCard:", newCard);
+  } else {
+    console.log("Using existing preDrawnCard:", this.preDrawnCard);
   }
+  
+  return this.preDrawnCard;
+}
 
   sortCardsBySuitAndRank(cards) {
         const suitOrder = {
@@ -254,45 +261,52 @@ sortCardsWithMelds() {
     return sortedCards;
   }
 
-    async initialize() {
+  async initialize() {
     this.initializeGSAP();
     try {
-            const gameContainer = document.getElementById('game-container');
+      // Set up the app container
+      const gameContainer = document.getElementById('game-container');
       if (gameContainer) {
         gameContainer.appendChild(this.app.view);
         
-                this.app.view.style.width = '100%';
+        this.app.view.style.width = '100%';
         this.app.view.style.height = '100%';
       }
       
       this.removeLoadingElement();
       
-            this.setupContainers();
+      this.setupContainers();
       
-            try {
+      try {
         await this.loadAssets();
       } catch (error) {
         console.error('Error loading assets:', error);
         this.showErrorMessage('Error loading game assets. Please refresh.');
-        return;       }
+        return;
+      }
       
-            this.initializeComponents();
-
-           this.app.view.addEventListener('pointerdown', () => {
+      this.initializeComponents();
+  
+      // Add event listeners
+      this.app.view.addEventListener('pointerdown', () => {
         this.handCursor.hide();
         this.uiRenderer.hideDialog();
       });
-            document.addEventListener('cardDragStart', () => {
+      document.addEventListener('cardDragStart', () => {
         this.handCursor.hide();
         this.uiRenderer.hideDialog();
       });
       
-            await this.setupGame();
+      await this.setupGame();
       
-            this.stateManager.changeState('intro');
+      this.stateManager.changeState('intro');
       
-            window.addEventListener('resize', () => this.resize());
+      window.addEventListener('resize', () => this.resize());
       this.resize();
+      
+      // IMPORTANT ADDITION: Initialize preDrawnCard to null
+      this.preDrawnCard = null;
+      
     } catch (error) {
       console.error('Error initializing game:', error);
       this.showErrorMessage('Failed to initialize game. Please refresh.');
@@ -2666,53 +2680,61 @@ hideTutorialElements() {
 handleDrawFromdeck() {
   console.log('Player draws from deck');
   
-    this.hideTutorialElements();
+  this.hideTutorialElements();
   this.removeCardHighlighting();
   
-    if (!this.playerTurn || this.gameStep % 2 !== 0) return;
+  if (!this.playerTurn || this.gameStep % 2 !== 0) return;
   
-    const newCard = this.preDrawnCard || this.drawCardFromdeck();
+  // IMPORTANT CHANGE: Use existing preDrawnCard if available instead of creating a new one
+  const newCard = this.preDrawnCard || this.drawCardFromdeck();
   
-    if (this.preDrawnCard) {
+  // Log the card being drawn
+  console.log("Drew card from deck:", newCard);
+  
+  // Check if the card is already in play
+  const cardExists = this.isCardInAnyCollection(newCard);
+  if (cardExists) {
+    console.error("ERROR: Attempting to add a duplicate card:", newCard);
+    // Draw a replacement card to avoid duplicates
+    const replacementCard = this.drawUniqueCardFromdeck();
+    console.log("Drew replacement card instead:", replacementCard);
+    
+    this.cardManager.playerCards.push(replacementCard);
+    
+    // Clear preDrawnCard since we've used a different card
+    this.preDrawnCard = null;
+  } else {
+    // Add the card to the player's hand
+    if (this.cardRenderer) {
+      const destIndex = this.cardManager.playerCards.length;
+      
+      this.cardRenderer.animateCardTake(newCard, 'deck', destIndex);
+    }
+    
+    this.cardManager.playerCards.push(newCard);
+    
+    // Clear preDrawnCard since we've used it
     this.preDrawnCard = null;
   }
   
-  console.log("Drew card from deck:", newCard);
+  // Sort cards, update game state
+  this.cardManager.playerCards = this.sortCardsWithMelds();
   
-    const cardExists = this.isCardInAnyCollection(newCard);
-  if (cardExists) {
-    console.error("ERROR: Attempting to add a duplicate card:", newCard);
-        const replacementCard = this.drawUniqueCardFromdeck();
-    console.log("Drew replacement card instead:", replacementCard);
-    
-        this.cardManager.playerCards.push(replacementCard);
-  } else {
-        if (this.cardRenderer) {
-            const destIndex = this.cardManager.playerCards.length;
-      
-            this.cardRenderer.animateCardTake(newCard, 'deck', destIndex);
-    }
-    
-        this.cardManager.playerCards.push(newCard);
-  }
-  
-    this.cardManager.playerCards = this.sortCardsWithMelds();
-  
-    this.deckCount--;
+  this.deckCount--;
   this.gameStep++;
   
-    this.hasDrawnCard = true;
+  this.hasDrawnCard = true;
   
-    if (this.cardRenderer) {
+  if (this.cardRenderer) {
     this.cardRenderer.enableDragging(true);
     
-        this.cardRenderer.playerHandContainer.removeChildren();
+    this.cardRenderer.playerHandContainer.removeChildren();
   }
   
-    setTimeout(() => {
+  setTimeout(() => {
     this.updatePlayScreen();
     
-        setTimeout(() => {
+    setTimeout(() => {
       this.showDiscardHint();
     }, 600);
   }, 100);
@@ -2785,7 +2807,15 @@ handleDrawFromDiscard(cardData) {
 
     if (!this.cardManager.discardPile.length) return;
   
-    const discardCard = this.cardManager.discardPile.pop();
+    // Удаляем из discardPile только если перетаскивали именно её
+  const top = this.cardManager.discardPile[this.cardManager.discardPile.length - 1];
+  let discardCard;
+  if (top.value === cardData.value && top.suit === cardData.suit) {
+    discardCard = this.cardManager.discardPile.pop();
+  } else {
+    // если карта не совпадает с верхней, не трогаем discardPile
+    discardCard = cardData;
+  }
   if (!discardCard) return;
   
     const isDuplicate = this.cardManager.playerCards.some(card => 

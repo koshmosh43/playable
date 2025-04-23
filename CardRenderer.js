@@ -557,12 +557,14 @@ clearAllHighlights() {
   releaseCardHandler = (event) => {
     if (!this.draggingCard) return;
   
-        gsap.killTweensOf(this.deckContainer.scale);
+    // Reset the deck and discard container scales
+    gsap.killTweensOf(this.deckContainer.scale);
     gsap.killTweensOf(this.discardContainer.scale);
     this.deckContainer.scale.set(1, 1);
     this.discardContainer.scale.set(1, 1);
   
-        let clientX, clientY;
+    // Get the position of the released card
+    let clientX, clientY;
     if (event.type === 'touchend') {
       const touch = event.changedTouches[0];
       clientX = touch.clientX;
@@ -572,37 +574,41 @@ clearAllHighlights() {
       clientY = event.clientY;
     }
   
-        const rect = this.app.view.getBoundingClientRect();
+    const rect = this.app.view.getBoundingClientRect();
     const x = (clientX - rect.left) * (this.app.screen.width / rect.width);
     const y = (clientY - rect.top) * (this.app.screen.height / rect.height);
     const position = { x, y };
   
-        const isOverHand = this.isOverPlayerHand(position);
+    // Check if the card is over the player's hand or discard pile
+    const isOverHand = this.isOverPlayerHand(position);
     const isOverDiscard = this.isOverDiscardPile(position);
   
-        const isDrawPhase = window.game && window.game.playerTurn && window.game.gameStep % 2 === 0;
+    // Get the current game state
+    const isDrawPhase = window.game && window.game.playerTurn && window.game.gameStep % 2 === 0;
     const isDiscardPhase = window.game && window.game.playerTurn && window.game.gameStep % 2 === 1;
   
-        const isCardInMeld = window.game && window.game.checkCardInMeld && 
-                        this.draggingCardSource === 'player' &&
-                        window.game.checkCardInMeld(this.draggingCardData);
+    // Check if the card is part of a meld
+    const isCardInMeld = window.game && window.game.checkCardInMeld && 
+                      this.draggingCardSource === 'player' &&
+                      window.game.checkCardInMeld(this.draggingCardData);
   
-        if (isOverDiscard && isDrawPhase && this.draggingCardSource === 'player') {
+    // Prevent discarding during draw phase
+    if (isOverDiscard && isDrawPhase && this.draggingCardSource === 'player') {
       console.log("Cannot discard a card during draw phase - returning to hand");
       
-            if (this.draggingCard && (!this.draggingCard.originalPosition || this.draggingCard.originalPosition.scaleX === undefined)) {
+      if (this.draggingCard && (!this.draggingCard.originalPosition || this.draggingCard.originalPosition.scaleX === undefined)) {
         this.draggingCard.originalPosition = this.draggingCard.originalPosition || {};
         this.draggingCard.originalPosition.scaleX = 0.53;
         this.draggingCard.originalPosition.scaleY = 0.53;
       }
       
-            if (window.game && window.game.uiRenderer) {
+      if (window.game && window.game.uiRenderer) {
         window.game.uiRenderer.showDialog("Take a card from deck or discard first!");
       }
       
-            this.returnDraggingCard(isCardInMeld);
+      this.returnDraggingCard(isCardInMeld);
       
-            document.dispatchEvent(new CustomEvent('cardDragReleased', {
+      document.dispatchEvent(new CustomEvent('cardDragReleased', {
         detail: {
           cardData: this.draggingCardData,
           source: this.draggingCardSource,
@@ -614,43 +620,40 @@ clearAllHighlights() {
       return;
     }
   
-        if (isOverDiscard && isDrawPhase) {
-            if (window.game && window.game.uiRenderer) {
-        window.game.uiRenderer.showDialog("Take a card from deck\nor\ndiscard pile first!");
+    // Handle the case when taking a card (from deck or discard) but not adding it to hand
+    // IMPORTANT CHANGE: Do not reset preDrawnCard when drag fails
+    if ((this.draggingCardSource === 'deck' || this.draggingCardSource === 'discard') && !isOverHand) {
+      console.log("Card not successfully added to hand - returning card to source");
+      
+      if (window.game && window.game.uiRenderer) {
+        window.game.uiRenderer.hideDialog();
       }
       
-            const wrongPhaseEvent = new CustomEvent('cardDragEnd', { 
-        detail: { 
-          cardData, 
-          sprite, 
-          targetArea: 'wrong-phase-discard',
-          position: globalPos
-        }
-      });
-      document.dispatchEvent(wrongPhaseEvent);
-      
-            this.snapCardBack(sprite, false);
-      return;
-    }
+      // Добавляем анимацию дребезжания для карты из колоды
+      // После исправления:
+if ((this.draggingCardSource === 'deck' || this.draggingCardSource === 'discard') && !isOverHand) {
+  console.log("Card not successfully added to hand - returning card to source");
   
-        if ((this.draggingCardSource === 'deck' || this.draggingCardSource === 'discard') && isDiscardPhase) {
-      console.log("Cannot take a card during discard phase - canceling action");
+  if (window.game && window.game.uiRenderer) {
+    window.game.uiRenderer.hideDialog();
+  }
+  
+  // Вместо удаления используем анимацию возврата с дребезжанием
+  this.returnDraggingCard(true);
+  return;
+}
       
-            if (window.game && window.game.uiRenderer) {
-        window.game.uiRenderer.showDialog("Discard a card to end your turn!");
-      }
-      
-            if (this.draggingCard) {
-        this.animationContainer.removeChild(this.draggingCard);
-        this.draggingCard = null;
-        this.draggingCardData = null;
-        this.draggingCardSource = null;
-      }
+      // Удаляем обработчики событий
+      window.removeEventListener('mousemove', this.moveCardHandler);
+      window.removeEventListener('touchmove', this.moveCardHandler);
+      window.removeEventListener('mouseup', this.releaseCardHandler);
+      window.removeEventListener('touchend', this.releaseCardHandler);
       
       return;
     }
   
-        document.dispatchEvent(new CustomEvent('cardDragReleased', {
+    // Dispatch the cardDragReleased event
+    document.dispatchEvent(new CustomEvent('cardDragReleased', {
       detail: {
         cardData: this.draggingCardData,
         source: this.draggingCardSource,
@@ -659,20 +662,24 @@ clearAllHighlights() {
       }
     }));
   
-        window.removeEventListener('mousemove', this.moveCardHandler);
+    // Remove event listeners
+    window.removeEventListener('mousemove', this.moveCardHandler);
     window.removeEventListener('touchmove', this.moveCardHandler);
     window.removeEventListener('mouseup', this.releaseCardHandler);
     window.removeEventListener('touchend', this.releaseCardHandler);
   
-        if (isOverHand) {
-            gsap.to(this.draggingCard.scale, {
+    // Handle different release scenarios
+    if (isOverHand) {
+      // Successfully added to hand
+      gsap.to(this.draggingCard.scale, {
         x: 1.0, y: 1.0,
         duration: 0.15,
         ease: "power2.out",
         onComplete: () => this.addDraggingCardToHand()
       });
     } else if (isOverDiscard) {
-            gsap.to(this.draggingCard.scale, {
+      // Card was dropped on discard pile
+      gsap.to(this.draggingCard.scale, {
         x: 1.0, y: 1.0,
         duration: 0.15,
         ease: "power2.out",
@@ -681,25 +688,43 @@ clearAllHighlights() {
             this.animationContainer.removeChild(this.draggingCard);
             this.draggingCard = null;
           }
-                    this.draggingCardData = null;
+          this.draggingCardData = null;
           this.draggingCardSource = null;
         }
       });
     } else {
-            this.returnDraggingCard();
+      // Card was dropped elsewhere - return it
+      this.returnDraggingCard(true);
     }
   }
 
   returnDraggingCard(useShakeAnimation = true) {
     if (!this.draggingCard) return;
     
-        if (!this.draggingCard.originalPosition) {
-      this.draggingCard.originalPosition = {
-        x: this.draggingCard.x,
-        y: this.draggingCard.y,
-        rotation: this.draggingCard.rotation,
-        zIndex: this.draggingCard.zIndex < 100 ? this.draggingCard.zIndex : 0
-      };
+    if (!this.draggingCard.originalPosition) {
+      // For cards from deck or discard, set proper original position
+      if (this.draggingCardSource === 'deck') {
+        this.draggingCard.originalPosition = {
+          x: this.deckContainer.x + this.config.cardWidth / 2,
+          y: this.deckContainer.y + this.config.cardHeight / 2,
+          rotation: 0,
+          zIndex: this.draggingCard.zIndex < 100 ? this.draggingCard.zIndex : 0
+        };
+      } else if (this.draggingCardSource === 'discard') {
+        this.draggingCard.originalPosition = {
+          x: this.discardContainer.x + this.config.cardWidth / 2,
+          y: this.discardContainer.y + this.config.cardHeight / 2,
+          rotation: 0,
+          zIndex: this.draggingCard.zIndex < 100 ? this.draggingCard.zIndex : 0
+        };
+      } else {
+        this.draggingCard.originalPosition = {
+          x: this.draggingCard.x,
+          y: this.draggingCard.y,
+          rotation: this.draggingCard.rotation,
+          zIndex: this.draggingCard.zIndex < 100 ? this.draggingCard.zIndex : 0
+        };
+      }
     }
   
         this.draggingCard.zIndex = this.draggingCard.originalPosition.zIndex || 0;
@@ -791,47 +816,52 @@ clearAllHighlights() {
     }
   }
 
-addDraggingCardToHand() {
-  if (!this.draggingCard || !this.draggingCardData) return;
-  
+  addDraggingCardToHand() {
+    if (!this.draggingCard || !this.draggingCardData) return;
+    
     const newIndex = this.calculateNewCardIndex();
-  
+    
     if (this.draggingCardSource === 'discard') {
-    console.log("Card added from discard, ensuring it's removed from discard pile");
-  }
-  
-    document.dispatchEvent(new CustomEvent('cardAddedToHand', {
-    detail: {
-      cardData: this.draggingCardData,
-      source: this.draggingCardSource,
-      index: newIndex
+      console.log("Card added from discard, ensuring it's removed from discard pile");
     }
-  }));
-  
-    this.animationContainer.removeChild(this.draggingCard);
-  this.draggingCard = null;
-  this.draggingCardData = null;
-  this.draggingCardSource = null;
-  
-      if (window.game) {
-        this.playerHandContainer.removeChildren();
     
-        window.game.cardManager.playerCards = window.game.sortCardsWithMelds();
-    
-    console.log("Card add complete - triggering complete redraw of player hand");
-    
-        setTimeout(() => {
-            window.game.updatePlayScreen();
-    }, 50);
-  } else {
-        console.log("Card add complete - triggering redraw");
-    setTimeout(() => {
-            if (window.game) {
-        window.game.updatePlayScreen();
+    document.dispatchEvent(new CustomEvent('cardAddedToHand', {
+      detail: {
+        cardData: this.draggingCardData,
+        source: this.draggingCardSource,
+        index: newIndex
       }
-    }, 50);
+    }));
+    
+    this.animationContainer.removeChild(this.draggingCard);
+    this.draggingCard = null;
+    this.draggingCardData = null;
+    this.draggingCardSource = null;
+    
+    // IMPORTANT CHANGE: Clear preDrawnCard when card is successfully added to hand
+    if (window.game && this.draggingCardSource === 'deck') {
+      window.game.preDrawnCard = null;
+    }
+      
+    if (window.game) {
+      this.playerHandContainer.removeChildren();
+      
+      window.game.cardManager.playerCards = window.game.sortCardsWithMelds();
+      
+      console.log("Card add complete - triggering complete redraw of player hand");
+      
+      setTimeout(() => {
+        window.game.updatePlayScreen();
+      }, 50);
+    } else {
+      console.log("Card add complete - triggering redraw");
+      setTimeout(() => {
+        if (window.game) {
+          window.game.updatePlayScreen();
+        }
+      }, 50);
+    }
   }
-}
 
 async createCardSprite(cardData, isFaceDown = false) {
   let texture;
@@ -2069,56 +2099,62 @@ calculateCardPositions(cards, target) {
   }
   
   async renderdeck(deckCount) {
-  if (!deckCount) deckCount = 0;
-
-  const maxVisible = 5;
-  const visibleCount = Math.min(deckCount, maxVisible);
-
+    if (!deckCount) deckCount = 0;
+  
+    const maxVisible = 5;
+    const visibleCount = Math.min(deckCount, maxVisible);
+  
     for (let i = 0; i < visibleCount; i++) {
-    const sprite = await this.createCardSprite({ faceDown: true }, true);
-    sprite.cardData = { source: 'deck' };
-
-    sprite.anchor.set(0.5, 0.5);
-    sprite.x = this.config.cardWidth / 2;
-    sprite.y = this.config.cardHeight / 2 - 3 * i;
-    sprite.zIndex = i;
-
-        if (i === visibleCount - 1 && deckCount > 0) {
-      this.adddeckCounter(sprite, deckCount);
-
-      sprite.interactive = true;
-      sprite.buttonMode = true;
-      sprite.zIndex = 5000;
-      sprite.removeAllListeners();
-
-      sprite.on('pointerdown', (event) => {
-        event.stopPropagation();
-
-                gsap.killTweensOf(this.deckContainer);
-        gsap.killTweensOf(this.deckContainer.scale);
-        this.deckContainer.scale.set(0.6, 0.6);
-
-        this.deckContainer.children.forEach(card => {
-          gsap.killTweensOf(card);
-          gsap.killTweensOf(card.scale);
-          if (card.filters) card.filters = null;
+      const sprite = await this.createCardSprite({ faceDown: true }, true);
+      sprite.cardData = { source: 'deck' };
+  
+      sprite.anchor.set(0.5, 0.5);
+      sprite.x = this.config.cardWidth / 2;
+      sprite.y = this.config.cardHeight / 2 - 3 * i;
+      sprite.zIndex = i;
+  
+      // Add extra properties and event handling to the top card
+      if (i === visibleCount - 1 && deckCount > 0) {
+        this.adddeckCounter(sprite, deckCount);
+  
+        sprite.interactive = true;
+        sprite.buttonMode = true;
+        sprite.zIndex = 5000;
+        sprite.removeAllListeners();
+  
+        sprite.on('pointerdown', (event) => {
+          event.stopPropagation();
+  
+          // Animation effects
+          gsap.killTweensOf(this.deckContainer);
+          gsap.killTweensOf(this.deckContainer.scale);
+          this.deckContainer.scale.set(0.6, 0.6);
+  
+          this.deckContainer.children.forEach(card => {
+            gsap.killTweensOf(card);
+            gsap.killTweensOf(card.scale);
+            if (card.filters) card.filters = null;
+          });
+  
+          // IMPORTANT CHANGE: Use the persisted preDrawnCard if it exists, otherwise generate a new one
+          const cardToDrag = (window.game && window.game.preDrawnCard) 
+            ? window.game.preDrawnCard 
+            : (this.deckDragCallback ? this.deckDragCallback() : null);
+            
+          if (cardToDrag) {
+            this.startCardDragging(cardToDrag, 'deck');
+          } else {
+            this.startCardDragging(
+              { faceDown: false, value: '?', suit: '?', filename: '' },
+              'deck'
+            );
+          }
         });
-
-        const cardToDrag = this.deckDragCallback ? this.deckDragCallback() : null;
-        if (cardToDrag) {
-          this.startCardDragging(cardToDrag, 'deck');
-        } else {
-          this.startCardDragging(
-            { faceDown: false, value: '?', suit: '?', filename: '' },
-            'deck'
-          );
-        }
-      });
+      }
+  
+      this.deckContainer.addChild(sprite);
     }
-
-    this.deckContainer.addChild(sprite);
   }
-}
 
   
     adddeckCounter(sprite, deckCount) {
