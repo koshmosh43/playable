@@ -43,33 +43,73 @@
     }
 
     #cta-button {
-      position: absolute;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background-color: #ff5722;
-      color: white;
-      padding: 12px 24px;
-      font-size: 18px;
-      font-weight: bold;
-      border-radius: 8px;
-      border: none;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-      cursor: pointer;
-      z-index: 1000;
-      display: none;
-    }
-    
-    #cta-button.visible {
-      display: block;
-      animation: pulse 1.5s infinite;
-    }
-    
-    @keyframes pulse {
-      0% { transform: translateX(-50%) scale(1); }
-      50% { transform: translateX(-50%) scale(1.05); }
-      100% { transform: translateX(-50%) scale(1); }
-    }
+  position: absolute;
+  top: 4%; /* 8% от верха экрана, как было в интро скрине */
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  z-index: 1000;
+  display: none;
+  width: 200px;
+  height: 60px;
+  background-image: url('https://koshmosh43.github.io/playable/assets/playButton.webp');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  color: transparent; 
+  font-size: 0;
+  padding: 0;
+  text-shadow: none;
+  box-shadow: none;
+}
+
+#cta-button.visible {
+  display: block;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: translateX(-50%) scale(1); }
+  50% { transform: translateX(-50%) scale(1.05); }
+  100% { transform: translateX(-50%) scale(1); }
+}
+
+/* Медиа-запрос для ландшафтной ориентации на мобильных устройствах */
+@media (max-width: 1000px) and (orientation: landscape) {
+  #cta-button {
+    top: 2%; /* Сохраняем ту же позицию относительно верха */
+    width: 120px; /* Меньший размер для ландшафтной ориентации на мобильных */
+    height: 36px;
+  }
+  
+  #cta-button.visible {
+    animation: pulse-landscape 1.5s infinite;
+  }
+  
+  @keyframes pulse-landscape {
+    0% { transform: translateX(-50%) scale(1); }
+    50% { transform: translateX(-50%) scale(1.05); }
+    100% { transform: translateX(-50%) scale(1); }
+  }
+}
+
+/* Медиа-запрос для обычной ландшафтной ориентации (не мобильной) */
+@media (min-width: 1001px) and (orientation: landscape) {
+  #cta-button {
+    top: 8%;
+    width: 160px; /* Средний размер кнопки для ландшафта на десктопе */
+    height: 48px;
+  }
+  @media (max-width: 1000px) and (orientation: portrait) {
+  #cta-button {
+    top: 4%; /* 2% от верха для мобильных устройств в портретной ориентации */
+    width: 180px; /* Немного меньший размер */
+    height: 54px;
+  }
+}
+}
   </style>
 </head>
 <body>
@@ -129,9 +169,22 @@
         }
       },
       
-            showCTA: function() {
-        document.getElementById('cta-button').classList.add('visible');
-      },
+      showCTA: function() {
+    const ctaButton = document.getElementById('cta-button');
+    ctaButton.classList.add('visible');
+    
+    // Apply GSAP animation if available
+    if (window.gsap) {
+      gsap.killTweensOf(ctaButton);
+      gsap.to(ctaButton, {
+        scale: 1.05,
+        duration: 0.8,
+        repeat: -1,
+        yoyo: true,
+        ease: "sine.inOut"
+      });
+    }
+  },
       
             onClick: function() {
         switch (this.platform) {
@@ -169,6 +222,23 @@
             window.showPlayButton = function() {
         window.adBridge.showCTA();
       };
+      window.addEventListener('resize', function() {
+  // If the button is visible, update its position and size
+  const ctaButton = document.getElementById('cta-button');
+  if (ctaButton.classList.contains('visible')) {
+    // Reset any GSAP animations when orientation changes
+    if (window.gsap) {
+      gsap.killTweensOf(ctaButton);
+      gsap.to(ctaButton, {
+        scale: 1.05,
+        duration: 0.8,
+        repeat: -1,
+        yoyo: true,
+        ease: "sine.inOut"
+      });
+    }
+  }
+});
     });
 
         window.pixiProjection = {};

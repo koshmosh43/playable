@@ -17,7 +17,6 @@ export class UIRenderer {
       this.deadwoodContainer = new PIXI.Container();
       this.dialogContainer = new PIXI.Container();
       this.scoreDisplayContainer = new PIXI.Container();
-      this.playButtonContainer = new PIXI.Container(); // Added missing container
 
       this.avatarsContainer = new PIXI.Container();
       this.avatarsContainer.zIndex = 5;
@@ -49,7 +48,6 @@ export class UIRenderer {
       this.deadwoodContainer.zIndex = 104;
       this.dialogContainer.zIndex = 200;
       this.scoreDisplayContainer.zIndex = 101;
-      this.playButtonContainer.zIndex = 102; // Added zIndex for playButtonContainer
 
       this.container.addChild(this.adContainer);
       this.container.addChild(this.topNavContainer);
@@ -57,15 +55,14 @@ export class UIRenderer {
       this.container.addChild(this.uiButtonsContainer);
       this.container.addChild(this.dialogContainer);
       this.container.addChild(this.scoreDisplayContainer);
-      this.container.addChild(this.playButtonContainer); // Added to main container
 
       this.dialogContainer.visible = false;
   }
   
   async setupUI() {
-      await this.setupGameActions();
-      await this.setupAvatars();
-      await this.setupPlayButton();
+    await this.setupGameActions();
+    await this.setupAvatars();
+    this.setupHTMLPlayButton();
     
       this.setupDeadwoodDisplay();
   }
@@ -240,69 +237,10 @@ export class UIRenderer {
     return scoreContainer;
   }
 
-  async setupPlayButton() {
-    try {
-      const texture = await this.assetLoader.loadTexture(
-        "https://koshmosh43.github.io/playable/assets/playButton.webp"
-      );
-  
-      this.playButton = new PIXI.Sprite(texture);
-      this.playButton.anchor.set(0.5);
-  
-      const maxWidth = this.app.screen.width * 0.20;
-      const scale    = Math.min(1, maxWidth / texture.width);
-      this.playButton.scale.set(scale);
-  
-      this.playButton.x = this.app.screen.width  / 2;
-      this.playButton.y = this.app.screen.height * 0.83;
-  
-      this.playButton.interactive = true;
-      this.playButton.buttonMode  = true;
-      this.playButton.on('pointerdown', () => {
-        window.open('https://apps.apple.com/app/gin-rummy-stars-card-game/id1467143758', '_blank');
-        this.app.stage.removeChild(overlayContainer);
-      });
-  
-      this.playButtonContainer.removeChildren(); // Clear any previous buttons
-      this.playButtonContainer.addChild(this.playButton);
-      
-      // Make sure it's visible
-      this.playButtonContainer.visible = true;
-      
-      
-      return this.playButton;
-    } catch (err) {
-      console.warn("Could not load play button", err);
-      
-      // Create fallback button
-      const fallbackButton = new PIXI.Graphics();
-      fallbackButton.beginFill(0x4CAF50);
-      fallbackButton.drawRoundedRect(0, 0, 180, 60, 10);
-      fallbackButton.endFill();
-      
-      const buttonText = new PIXI.Text("PLAY", {
-        fontFamily: "Arial",
-        fontSize: 24,
-        fill: 0xFFFFFF,
-        fontWeight: 'bold'
-      });
-      buttonText.anchor.set(0.5);
-      buttonText.position.set(90, 30);
-      
-      fallbackButton.addChild(buttonText);
-      fallbackButton.position.set(this.app.screen.width / 2 - 90, this.app.screen.height * 0.83 - 30);
-      fallbackButton.interactive = true;
-      fallbackButton.buttonMode = true;
-      fallbackButton.on('pointerdown', () => {
-        window.open('https://apps.apple.com/app/gin-rummy-stars-card-game/id1467143758', '_blank');
-        this.app.stage.removeChild(overlayContainer);
-      });
-      
-      this.playButtonContainer.removeChildren();
-      this.playButtonContainer.addChild(fallbackButton);
-      this.playButtonContainer.visible = true;
-      
-      return fallbackButton;
+  setupHTMLPlayButton() {
+    // Show the HTML CTA button
+    if (window.showPlayButton) {
+      window.showPlayButton();
     }
   }
   
@@ -1119,25 +1057,6 @@ showGinButton(visible) {
         this.ginButton.y = this.app.screen.height * 0.6;
       }
       
-      // Update play button position on resize
-      if (this.playButton) {
-        this.playButton.x = this.app.screen.width / 2;
-        this.playButton.y = this.app.screen.height * 0.08;
-        
-        const maxWidth = this.app.screen.width * 0.4;
-        const isLandscape = this.app.screen.width > this.app.screen.height;
-        
-const originalScale = Math.min(1, maxWidth / this.playButton.texture.width);
-// Make the button 3 times smaller
-const finalScale = originalScale / 1.5;
-if (isLandscape) {
-  this.playButton.scale.set(finalScale * 0.5); // Make button 30% smaller in landscape
-} else {
-  this.playButton.scale.set(finalScale);
-}
-
-
-      }
     
             if (this.dialogContainer.visible && this.dialogContainer.children[0]) {
         const dialog = this.dialogContainer.children[0];
