@@ -646,7 +646,7 @@ async setupBackground() {
 setupTutorialElements(introContainer) {
     introContainer.sortableChildren = true;
   
-    const fontSize = this.app.screen.width < 500 ? 40 : 48;
+    const fontSize = this.app.screen.width < 1000 ? 30 : 48;
   
     const titleText = new PIXI.Text("Make SET or RUN!", {
     fontFamily: "Arial",
@@ -654,13 +654,13 @@ setupTutorialElements(introContainer) {
     fill: 0xFFFFFF,
     fontWeight: 'bold',
     stroke: 0x000000,
-    strokeThickness: 3,
+    strokeThickness: 2,
     dropShadow: true,
     dropShadowColor: 0x000000,
     dropShadowDistance: 4
   });
   titleText.anchor.set(0.5);
-  titleText.position.set(this.app.screen.width / 2, 100);
+  titleText.position.set((this.app.screen.width < 1000 && isLandscape) ? (this.app.screen.width / 2, 135): this.app.screen.width / 2, 100);
   titleText.zIndex = 20;    introContainer.addChild(titleText);
   
     const cardWidth = this.config.cardWidth || 80;
