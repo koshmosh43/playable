@@ -629,8 +629,6 @@ clearAllHighlights() {
         window.game.uiRenderer.hideDialog();
       }
       
-      // Добавляем анимацию дребезжания для карты из колоды
-      // После исправления:
 if ((this.draggingCardSource === 'deck' || this.draggingCardSource === 'discard') && !isOverHand) {
   console.log("Card not successfully added to hand - returning card to source");
   
@@ -638,12 +636,10 @@ if ((this.draggingCardSource === 'deck' || this.draggingCardSource === 'discard'
     window.game.uiRenderer.hideDialog();
   }
   
-  // Вместо удаления используем анимацию возврата с дребезжанием
   this.returnDraggingCard(true);
   return;
 }
       
-      // Удаляем обработчики событий
       window.removeEventListener('mousemove', this.moveCardHandler);
       window.removeEventListener('touchmove', this.moveCardHandler);
       window.removeEventListener('mouseup', this.releaseCardHandler);

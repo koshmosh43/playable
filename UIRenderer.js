@@ -421,7 +421,6 @@ showGinButton(visible) {
         const spr = new PIXI.Sprite(texture);
         spr.anchor.set(0.5);
         
-        // Уменьшаем масштаб в 1.5 раза для не мобильного ландшафтного режима
         const initialScale = (isLandscape && isMobile) ? 0.15 : 0.2 / 1.5;
         spr.scale.set(initialScale, initialScale);
         
@@ -475,17 +474,13 @@ showGinButton(visible) {
     if (!this.ginButton.pulsing) {
       this.ginButton.pulsing = true;
       
-      // Сбрасываем текущий масштаб перед анимацией для мобильного ландшафта
       if (isLandscape && isMobile) {
-        // Устанавливаем базовый масштаб для ландшафтного режима
         this.ginButton.scale.set(0.6, 0.6);
       }
       
-      // Разные анимации для разных режимов
       if (isLandscape && isMobile) {
-        // Небольшая пульсация для ландшафтного режима на мобильном
         gsap.to(this.ginButton.scale, {
-          x: 0.8, y: 0.8, // Увеличение на 20% от базового размера
+          x: 0.8, y: 0.8, 
           duration: 0.6, 
           repeat: 100, 
           yoyo: true, 
@@ -495,9 +490,8 @@ showGinButton(visible) {
           }
         });
       } else {
-        // Стандартная анимация для других режимов
         gsap.to(this.ginButton.scale, {
-          x: "*=1.15", y: "*=1.15", // Увеличение на 15% от текущего размера
+          x: "*=1.15", y: "*=1.15",
           duration: 1.2, 
           repeat: 100, 
           yoyo: true, 
@@ -680,24 +674,20 @@ showGinButton(visible) {
   showDialog(message) {
     this.dialogContainer.removeChildren();
     
-    // Проверяем, находится ли устройство в ландшафтной ориентации и является ли оно мобильным
     const isLandscape = this.app.screen.width > this.app.screen.height;
     const isMobile = this.app.screen.width < 1000;
     
-    // Установка размеров диалога в зависимости от ориентации и типа устройства
     const dialogWidth = (isLandscape && isMobile) ? 175 : 350;
     const dialogHeight = (isLandscape && isMobile) ? 50 : 100;
     const fontSize = (isLandscape && isMobile) ? 16 : 20;
     const borderRadius = (isLandscape && isMobile) ? 10 : 20;
     const wordWrapWidth = (isLandscape && isMobile) ? 165 : 330;
     
-    // Создаем фон диалога
     const dialogBg = new PIXI.Graphics();
     dialogBg.beginFill(0xFFF8E1, 0.9);
     dialogBg.drawRoundedRect(0, 0, dialogWidth, dialogHeight, borderRadius);
     dialogBg.endFill();
     
-    // Добавляем указатель диалога (треугольник)
     dialogBg.beginFill(0xFFFBF0, 0.9);
     if (isLandscape && isMobile) {
         dialogBg.moveTo(dialogWidth/2, dialogHeight + 10); 
@@ -711,7 +701,6 @@ showGinButton(visible) {
     dialogBg.closePath();
     dialogBg.endFill();
     
-    // Создаем текст диалога
     const dialogText = new PIXI.Text(message, {
         fontFamily: "Arial",
         fontSize: fontSize,
@@ -728,7 +717,6 @@ showGinButton(visible) {
     
     dialogBg.addChild(dialogText);
     
-    // Позиционируем диалог на экране
     dialogBg.x = (this.app.screen.width - dialogWidth) / 2;
     dialogBg.y = (this.app.screen.height / 2) + (isLandscape && isMobile ? -140 : 75);
     
@@ -774,7 +762,6 @@ showGinButton(visible) {
   }
 
   showKnockButton(visible) {
-    // Проверяем, находится ли устройство в ландшафтной ориентации и является ли оно мобильным
     const isLandscape = this.app.screen.width > this.app.screen.height;
     const isMobile = this.app.screen.width < 1000;
           
@@ -788,8 +775,6 @@ showGinButton(visible) {
           const spr = new PIXI.Sprite(texture);
           spr.anchor.set(0.5);
           
-          // Применяем начальный масштаб в зависимости от ориентации и типа устройства
-          // Для НЕ (isLandscape && isMobile) уменьшаем масштаб в 1.5 раза (с 0.33 до 0.22)
           const initialScale = (isLandscape && isMobile) ? 0.15 : 0.22;
           spr.scale.set(initialScale, initialScale);
           
@@ -800,7 +785,6 @@ showGinButton(visible) {
           const bg = new PIXI.Graphics();
           bg.beginFill(0xFF5722);
           
-          // Размер фона для кнопки в зависимости от ориентации и типа устройства
           const btnWidth = (isLandscape && isMobile) ? 25 : 40;
           const btnHeight = (isLandscape && isMobile) ? 8 : 14;
           const btnRadius = (isLandscape && isMobile) ? 3 : 4;
@@ -830,7 +814,6 @@ showGinButton(visible) {
           gsap.killTweensOf(this.knockButton);
           gsap.killTweensOf(this.knockButton.scale);
           
-          // Масштаб для анимации нажатия корректируем с учетом ориентации
           const clickScale = (isLandscape && isMobile) ? 0.1 : 0.5;
           
           gsap.to(this.knockButton, {
@@ -851,10 +834,8 @@ showGinButton(visible) {
         this.uiButtonsContainer.addChild(this.knockButton);
       }
     
-      // Определяем позицию кнопки с учетом ориентации и типа устройства
       this.knockButton.x = this.app.screen.width / 2;
       if (isLandscape && isMobile) {
-        // Для ландшафтной ориентации на мобильном устройстве располагаем кнопку ниже
         this.knockButton.y = this.app.screen.height * 0.55;
       } else {
         this.knockButton.y = this.app.screen.height * 0.6;
@@ -874,17 +855,13 @@ showGinButton(visible) {
           if (!this.knockButton.pulsing) {
             this.knockButton.pulsing = true;
             
-            // Сбрасываем текущий масштаб перед анимацией
             if (isLandscape && isMobile) {
-              // Важно: устанавливаем базовый масштаб именно здесь, чтобы анимация шла от него
               this.knockButton.scale.set(0.6, 0.6);
             }
             
-            // Различные анимации для разных режимов экрана
             if (isLandscape && isMobile) {
-              // Очень небольшая пульсация для ландшафтного режима на мобильном
               gsap.to(this.knockButton.scale, {
-                x: 0.8, y: 0.8, // Увеличение всего на 20% от базового размера
+                x: 0.8, y: 0.8,
                 duration: 0.6, 
                 repeat: 100, 
                 yoyo: true, 
@@ -894,9 +871,8 @@ showGinButton(visible) {
                 }
               });
             } else {
-              // Стандартная анимация с небольшим увеличением
               gsap.to(this.knockButton.scale, {
-                x: "*=1.15", y: "*=1.15", // Увеличение на 15% от текущего размера
+                x: "*=1.15", y: "*=1.15", 
                 duration: 1.2, 
                 repeat: 100, 
                 yoyo: true, 

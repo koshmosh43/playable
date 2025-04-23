@@ -2686,13 +2686,11 @@ handleDrawFromDiscard(cardData) {
 
     if (!this.cardManager.discardPile.length) return;
   
-    // Удаляем из discardPile только если перетаскивали именно её
   const top = this.cardManager.discardPile[this.cardManager.discardPile.length - 1];
   let discardCard;
   if (top.value === cardData.value && top.suit === cardData.suit) {
     discardCard = this.cardManager.discardPile.pop();
   } else {
-    // если карта не совпадает с верхней, не трогаем discardPile
     discardCard = cardData;
   }
   if (!discardCard) return;

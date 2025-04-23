@@ -239,22 +239,19 @@ showConfirmationTooltip(message, options = {}) {
 // Show tutorial sequence
 showTooltip(message, onComplete) {
   
-  // Создаем контейнер для подсказки
   const tooltipContainer = new PIXI.Container();
   tooltipContainer.zIndex = 200;
   
-  // Фон подсказки (скругленный прямоугольник)
   const tooltipBg = new PIXI.Graphics();
-  tooltipBg.beginFill(0x333333, 0.85); // Тёмный фон как в референсе
+  tooltipBg.beginFill(0x333333, 0.85); 
   tooltipBg.drawRoundedRect(0, 0, 300, 60, 10);
   tooltipBg.endFill();
   
-  // Текст подсказки
   const tooltipText = new PIXI.Text(message, {
     fontFamily: "Arial",
     fontSize: 18,
     fontWeight: "bold",
-    fill: 0xFFFFFF, // Белый текст как в референсе
+    fill: 0xFFFFFF, 
     align: "center",
     wordWrap: true,
     wordWrapWidth: 280
@@ -263,39 +260,30 @@ showTooltip(message, onComplete) {
   tooltipText.x = 150;
   tooltipText.y = 30;
   
-  // Добавляем текст к фону
   tooltipBg.addChild(tooltipText);
   tooltipContainer.addChild(tooltipBg);
   
-  // Позиционируем подсказку по центру сверху
   tooltipContainer.x = (this.app.screen.width - 300) / 2;
-  tooltipContainer.y = 150; // Выше по центру как в референсе
+  tooltipContainer.y = 150; 
   
-  // Начальная прозрачность и масштаб
   tooltipContainer.alpha = 0;
   
-  // Добавляем к сцене
   this.app.stage.addChild(tooltipContainer);
   
-  // Анимация появления
   gsap.to(tooltipContainer, {
     alpha: 1,
     duration: 0.3,
     ease: "power2.out"
   });
   
-  // Держим подсказку на экране некоторое время
   setTimeout(() => {
-    // Анимация исчезновения
     gsap.to(tooltipContainer, {
       alpha: 0,
       duration: 0.3,
       ease: "power2.in",
       onComplete: () => {
-        // Удаляем подсказку
         this.app.stage.removeChild(tooltipContainer);
         
-        // Вызываем коллбэк, если он передан
         if (onComplete) onComplete();
       }
     });
