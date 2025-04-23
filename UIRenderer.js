@@ -5,65 +5,69 @@ export class UIRenderer {
       this.config      = config;
     
       this.designWidth = 390;
+      this.baseWidth = 390; // Adding baseWidth for resize calculations
     
-    this.container = new PIXI.Container();
-    this.container.sortableChildren = true;
+      this.container = new PIXI.Container();
+      this.container.sortableChildren = true;
     
-    this.adContainer = new PIXI.Container();
-    this.topNavContainer = new PIXI.Container();
-    this.bannerContainer = new PIXI.Container();
-    this.uiButtonsContainer = new PIXI.Container();
-    this.deadwoodContainer = new PIXI.Container();
-    this.dialogContainer = new PIXI.Container();
-    this.scoreDisplayContainer = new PIXI.Container();
+      this.adContainer = new PIXI.Container();
+      this.topNavContainer = new PIXI.Container();
+      this.bannerContainer = new PIXI.Container();
+      this.uiButtonsContainer = new PIXI.Container();
+      this.deadwoodContainer = new PIXI.Container();
+      this.dialogContainer = new PIXI.Container();
+      this.scoreDisplayContainer = new PIXI.Container();
+      this.playButtonContainer = new PIXI.Container(); // Added missing container
 
-  this.avatarsContainer = new PIXI.Container();
-  this.avatarsContainer.zIndex = 5;
+      this.avatarsContainer = new PIXI.Container();
+      this.avatarsContainer.zIndex = 5;
     
-    this.adHeight = 0;
-    this.navHeight = 0;
-    this.bannerHeight = 0;
+      this.adHeight = 0;
+      this.navHeight = 0;
+      this.bannerHeight = 0;
     
-    this.knockButton = null;
-    this.meldButton = null;
-    this.ginButton = null;
-    this.onGinClick = null;
-    this.deadwoodText = null;
-    this.blueScoreText = null;
-    this.redScoreText = null;
+      this.knockButton = null;
+      this.meldButton = null;
+      this.ginButton = null;
+      this.onGinClick = null;
+      this.deadwoodText = null;
+      this.blueScoreText = null;
+      this.redScoreText = null;
     
     
-    this.onKnockClick = null;
-    this.onMeldClick = null;
+      this.onKnockClick = null;
+      this.onMeldClick = null;
     
-    this.init();
+      this.init();
   }
   
   init() {
-    this.adContainer.zIndex = 101;
-    this.topNavContainer.zIndex = 101;
-    this.bannerContainer.zIndex = 99;
-    this.uiButtonsContainer.zIndex = 101;
-    this.deadwoodContainer.zIndex = 104;
-    this.dialogContainer.zIndex = 200;
-    this.scoreDisplayContainer.zIndex = 101;
+      this.adContainer.zIndex = 101;
+      this.topNavContainer.zIndex = 101;
+      this.bannerContainer.zIndex = 99;
+      this.uiButtonsContainer.zIndex = 101;
+      this.deadwoodContainer.zIndex = 104;
+      this.dialogContainer.zIndex = 200;
+      this.scoreDisplayContainer.zIndex = 101;
+      this.playButtonContainer.zIndex = 102; // Added zIndex for playButtonContainer
 
-    this.container.addChild(this.adContainer);
-    this.container.addChild(this.topNavContainer);
-    this.container.addChild(this.bannerContainer);
-    this.container.addChild(this.uiButtonsContainer);
-    this.container.addChild(this.dialogContainer);
-    this.container.addChild(this.scoreDisplayContainer);
+      this.container.addChild(this.adContainer);
+      this.container.addChild(this.topNavContainer);
+      this.container.addChild(this.bannerContainer);
+      this.container.addChild(this.uiButtonsContainer);
+      this.container.addChild(this.dialogContainer);
+      this.container.addChild(this.scoreDisplayContainer);
+      this.container.addChild(this.playButtonContainer); // Added to main container
 
-        this.dialogContainer.visible = false;
-}
+      this.dialogContainer.visible = false;
+  }
   
-    async setupUI() {
-    await this.setupGameActions();
-    await this.setupAvatars();
-    await this.setupPlayButton();
+  async setupUI() {
+      await this.setupGameActions();
+      await this.setupAvatars();
+      await this.setupPlayButton();
     
-        this.setupDeadwoodDisplay();
+      this.setupDeadwoodDisplay();
   }
 
   async setupTopBanner() {
@@ -71,7 +75,7 @@ export class UIRenderer {
         const texture = await this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/TopBanner.webp');
         const banner  = new PIXI.Sprite(texture);
     
-                banner.originalAspect = texture.height / texture.width;
+        banner.originalAspect = texture.height / texture.width;
         banner.width  = this.app.screen.width;
         banner.height = this.app.screen.width * banner.originalAspect;
         banner.x = 0;
@@ -95,35 +99,37 @@ export class UIRenderer {
 
     async setupAvatars() {
       try {
-                const [blueTex, redTex] = await Promise.all([
+        const [blueTex, redTex] = await Promise.all([
           this.assetLoader.loadTexture("https://koshmosh43.github.io/playable/assets/blue_avatar.webp"),
           this.assetLoader.loadTexture("https://koshmosh43.github.io/playable/assets/red_avatar.webp"),
         ]);
       
-                this.blueAvatar = new PIXI.Sprite(blueTex);
+        this.blueAvatar = new PIXI.Sprite(blueTex);
         this.redAvatar = new PIXI.Sprite(redTex);
       
-                this.blueAvatar.anchor.set(0.5);
+        this.blueAvatar.anchor.set(0.5);
         this.redAvatar.anchor.set(0.5);
       
-                this.blueAvatar.scale.set(0.2);
+        this.blueAvatar.scale.set(0.2);
         this.redAvatar.scale.set(0.2);
       
-                        if (this.app.screen.height < 667) {
-                    this.redAvatar.y = this.app.screen.height * 0.30;            this.blueAvatar.y = this.app.screen.height * 0.65;         } else {
-                    this.redAvatar.y = this.app.screen.height * 0.23;
+        if (this.app.screen.height < 667) {
+          this.redAvatar.y = this.app.screen.height * 0.30;            
+          this.blueAvatar.y = this.app.screen.height * 0.65;         
+        } else {
+          this.redAvatar.y = this.app.screen.height * 0.23;
           this.blueAvatar.y = this.app.screen.height * 0.7;
         }
         
-                this.redAvatar.x = this.app.screen.width / 2;
+        this.redAvatar.x = this.app.screen.width / 2;
         this.blueAvatar.x = this.app.screen.width / 2;
       
-                this.avatarsContainer.addChild(this.blueAvatar);
+        this.avatarsContainer.addChild(this.blueAvatar);
         this.avatarsContainer.addChild(this.redAvatar);
       } catch (err) {
         console.warn("Could not load avatars", err);
       }
-      }
+    }
 
   
     async setupScoreDisplay() {
@@ -235,7 +241,7 @@ export class UIRenderer {
       this.playButton = new PIXI.Sprite(texture);
       this.playButton.anchor.set(0.5);
   
-      const maxWidth = this.app.screen.width * 0.2;
+      const maxWidth = this.app.screen.width * 0.20;
       const scale    = Math.min(1, maxWidth / texture.width);
       this.playButton.scale.set(scale);
   
@@ -244,13 +250,51 @@ export class UIRenderer {
   
       this.playButton.interactive = true;
       this.playButton.buttonMode  = true;
-      this.playButton.on("pointerdown", () =>
-        console.log("Play button clicked")
-      );
+      this.playButton.on('pointerdown', () => {
+        window.open('https://apps.apple.com/app/gin-rummy-stars-card-game/id1467143758', '_blank');
+        this.app.stage.removeChild(overlayContainer);
+      });
   
+      this.playButtonContainer.removeChildren(); // Clear any previous buttons
       this.playButtonContainer.addChild(this.playButton);
+      
+      // Make sure it's visible
+      this.playButtonContainer.visible = true;
+      
+      
+      return this.playButton;
     } catch (err) {
       console.warn("Could not load play button", err);
+      
+      // Create fallback button
+      const fallbackButton = new PIXI.Graphics();
+      fallbackButton.beginFill(0x4CAF50);
+      fallbackButton.drawRoundedRect(0, 0, 180, 60, 10);
+      fallbackButton.endFill();
+      
+      const buttonText = new PIXI.Text("PLAY", {
+        fontFamily: "Arial",
+        fontSize: 24,
+        fill: 0xFFFFFF,
+        fontWeight: 'bold'
+      });
+      buttonText.anchor.set(0.5);
+      buttonText.position.set(90, 30);
+      
+      fallbackButton.addChild(buttonText);
+      fallbackButton.position.set(this.app.screen.width / 2 - 90, this.app.screen.height * 0.83 - 30);
+      fallbackButton.interactive = true;
+      fallbackButton.buttonMode = true;
+      fallbackButton.on('pointerdown', () => {
+        window.open('https://apps.apple.com/app/gin-rummy-stars-card-game/id1467143758', '_blank');
+        this.app.stage.removeChild(overlayContainer);
+      });
+      
+      this.playButtonContainer.removeChildren();
+      this.playButtonContainer.addChild(fallbackButton);
+      this.playButtonContainer.visible = true;
+      
+      return fallbackButton;
     }
   }
   
@@ -366,8 +410,12 @@ async setupGinButton() {
     this.ginButton.visible = false;
   
     this.ginButton.on('pointerdown', () => {
-    this.showPlayNowOverlay();
-  });
+      if (this.onGinClick) {
+        this.onGinClick();
+      } else {
+        this.showPlayNowOverlay();
+      }
+    });
   
     this.uiButtonsContainer.addChild(this.ginButton);
 }
@@ -405,8 +453,12 @@ async setupKnockButton() {
   
     this.knockButton.x = this.app.screen.width / 2;   this.knockButton.y = this.app.screen.height * 0.6;      this.knockButton.visible = false;    
     this.knockButton.on('pointerdown', () => {
-    this.showPlayNowOverlay();
-  });
+      if (this.onKnockClick) {
+        this.onKnockClick();
+      } else {
+        this.showPlayNowOverlay();
+      }
+    });
   
     this.uiButtonsContainer.addChild(this.knockButton);
 }
@@ -450,6 +502,9 @@ async setupKnockButton() {
         onComplete: () => {
           this.ginButton.visible = false;
           this.ginButton.clickProcessing = false;
+          if (this.onGinClick) {
+            this.onGinClick();
+          }
         }
       });
     });
@@ -692,6 +747,64 @@ async setupKnockButton() {
     return meldContainer;
   }
 
+  showMeldText(meldType) {
+    if (!this.runDisplay || !this.setDisplay) {
+      this.createMeldDisplay();
+    }
+    
+    if (meldType === "RUN!") {
+      this.runDisplay.visible = true;
+      this.setDisplay.visible = false;
+      
+      gsap.fromTo(this.runDisplay, 
+        { alpha: 0, scale: 0.5 },
+        { alpha: 1, scale: 1.2, duration: 0.5, ease: "back.out" }
+      );
+      
+      gsap.to(this.runDisplay, {
+        y: -50, 
+        duration: 1.5, 
+        delay: 0.5,
+        ease: "power1.out",
+        onComplete: () => {
+          gsap.to(this.runDisplay, {
+            alpha: 0,
+            duration: 0.3,
+            onComplete: () => {
+              this.runDisplay.visible = false;
+              this.runDisplay.y = 0;
+            }
+          });
+        }
+      });
+    } else if (meldType === "SET!") {
+      this.setDisplay.visible = true;
+      this.runDisplay.visible = false;
+      
+      gsap.fromTo(this.setDisplay, 
+        { alpha: 0, scale: 0.5 },
+        { alpha: 1, scale: 1.2, duration: 0.5, ease: "back.out" }
+      );
+      
+      gsap.to(this.setDisplay, {
+        y: -50, 
+        duration: 1.5, 
+        delay: 0.5,
+        ease: "power1.out",
+        onComplete: () => {
+          gsap.to(this.setDisplay, {
+            alpha: 0,
+            duration: 0.3,
+            onComplete: () => {
+              this.setDisplay.visible = false;
+              this.setDisplay.y = 0;
+            }
+          });
+        }
+      });
+    }
+  }
+
     showDialog(message) {
     this.dialogContainer.removeChildren();
     
@@ -807,6 +920,9 @@ dialogBg.endFill();
           onComplete: () => {
             this.knockButton.visible = false;
             this.knockButton.clickProcessing = false;
+            if (this.onKnockClick) {
+              this.onKnockClick();
+            }
           }
         });
       });
@@ -989,6 +1105,18 @@ dialogBg.endFill();
       if (this.ginButton) {
         this.ginButton.x = this.app.screen.width / 2;
         this.ginButton.y = this.app.screen.height * 0.6;
+      }
+      
+      // Update play button position on resize
+      if (this.playButton) {
+        this.playButton.x = this.app.screen.width / 2;
+        this.playButton.y = this.app.screen.height * 0.08;
+        
+        const maxWidth = this.app.screen.width * 0.4;
+const originalScale = Math.min(1, maxWidth / this.playButton.texture.width);
+// Make the button 3 times smaller
+const finalScale = originalScale / 1.5;
+this.playButton.scale.set(finalScale);
       }
     
             if (this.dialogContainer.visible && this.dialogContainer.children[0]) {

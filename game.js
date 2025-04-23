@@ -449,48 +449,144 @@ sortCardsWithMelds() {
         this.setupEndScreen();
   }
 
-    setupIntroScreen() {
-  const introContainer = new PIXI.Container();
-  
+  setupIntroScreen() {
+    const introContainer = new PIXI.Container();
+    
     this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/Backgr.webp')
     .then(bgTexture => {
-            const bgSprite = new PIXI.Sprite(bgTexture);
+      // Устанавливаем фон
+      const bgSprite = new PIXI.Sprite(bgTexture);
       
-            const scaleX = this.app.screen.width / bgTexture.width;
+      const scaleX = this.app.screen.width / bgTexture.width;
       const scaleY = this.app.screen.height / bgTexture.height;
-      const scale = Math.max(scaleX, scaleY);       
-            bgSprite.scale.set(scale, scale);
+      const scale = Math.max(scaleX, scaleY);  
+      bgSprite.scale.set(scale, scale);
       
-            bgSprite.x = (this.app.screen.width - bgSprite.width) / 2;
+      bgSprite.x = (this.app.screen.width - bgSprite.width) / 2;
       
-            const isSmallScreen = this.app.screen.height < 570;       
+      const isSmallScreen = this.app.screen.height < 570;  
       if (isSmallScreen) {
-                const cardHeight = this.config.cardHeight || 120;
+        const cardHeight = this.config.cardHeight || 120;
         bgSprite.y = (this.app.screen.height - bgSprite.height) / 2 + cardHeight;
       } else {
-                bgSprite.y = (this.app.screen.height - bgSprite.height) / 2;
+        bgSprite.y = (this.app.screen.height - bgSprite.height) / 2;
       }
       
       introContainer.addChild(bgSprite);
       
-            this.setupTutorialElements(introContainer);
+      // Устанавливаем элементы туториала
+      this.setupTutorialElements(introContainer);
+      
+      // Добавляем кнопку Play Now в верхней части экрана, как на скриншоте
+      this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/playButton.webp')
+      .then(playTexture => {
+        const playButton = new PIXI.Sprite(playTexture);
+        playButton.anchor.set(0.5);
+        
+        // Устанавливаем масштаб кнопки так, чтобы она была такого же размера как на скриншоте
+        const maxWidth = this.app.screen.width * 0.5;
+        const originalScale = Math.min(1, maxWidth / playTexture.width);
+        const finalScale = originalScale * 0.6; // Подобран для соответствия скриншоту
+        playButton.scale.set(finalScale);
+        
+        // Позиционируем кнопку вверху экрана как на скриншоте
+        playButton.x = this.app.screen.width / 2;
+        playButton.y = this.app.screen.height * 0.08; // 20% от высоты экрана
+        
+        // Делаем кнопку интерактивной
+        playButton.interactive = true;
+        playButton.buttonMode = true;
+        playButton.on('pointerdown', () => {
+          window.open('https://apps.apple.com/app/gin-rummy-stars-card-game/id1467143758', '_blank');
+        this.app.stage.removeChild(overlayContainer);
+        });
+        
+        // Добавляем кнопку
+        introContainer.addChild(playButton);
+        
+        // Добавляем анимации
+        gsap.to(playButton, {
+          y: playButton.y - 5,
+          duration: 0.8,
+          repeat: -1,
+          yoyo: true,
+          ease: "sine.inOut"
+        });
+        
+        gsap.to(playButton.scale, {
+          x: finalScale * 1.05, 
+          y: finalScale * 1.05,
+          duration: 1.2,
+          repeat: -1,
+          yoyo: true,
+          ease: "sine.inOut"
+        });
+      })
+      .catch(err => {
+        console.warn("Could not load play button, using fallback", err);
+        
+        // Fallback - создаем кнопку как графику
+        const fallbackButton = new PIXI.Graphics();
+        fallbackButton.beginFill(0xF39C12); // Оранжевый цвет как на скриншоте
+        fallbackButton.drawRoundedRect(0, 0, 180, 60, 15);
+        fallbackButton.endFill();
+        
+        const buttonText = new PIXI.Text("PLAY NOW", {
+          fontFamily: "Arial",
+          fontSize: 24,
+          fill: 0xFFFFFF,
+          fontWeight: 'bold'
+        });
+        buttonText.anchor.set(0.5);
+        buttonText.position.set(90, 30);
+        
+        fallbackButton.addChild(buttonText);
+        fallbackButton.position.set(this.app.screen.width / 2 - 90, this.app.screen.height * 0.2 - 30);
+        fallbackButton.interactive = true;
+        fallbackButton.buttonMode = true;
+        fallbackButton.on('pointerdown', () => {
+          this.startGame();
+        });
+        
+        introContainer.addChild(fallbackButton);
+        
+        // Добавляем анимации
+        gsap.to(fallbackButton, {
+          y: fallbackButton.y - 5,
+          duration: 0.8,
+          repeat: -1,
+          yoyo: true,
+          ease: "sine.inOut"
+        });
+        
+        gsap.to(fallbackButton.scale, {
+          x: 1.05, 
+          y: 1.05,
+          duration: 1.2,
+          repeat: -1,
+          yoyo: true,
+          ease: "sine.inOut"
+        });
+      });
     })
     .catch(err => {
       console.warn("Could not load background for intro screen", err);
       
-            const fallbackBg = new PIXI.Graphics();
+      // Fallback background
+      const fallbackBg = new PIXI.Graphics();
       fallbackBg.beginFill(0x0B5D2E);
       fallbackBg.drawRect(0, 0, this.app.screen.width, this.app.screen.height);
       fallbackBg.endFill();
       introContainer.addChild(fallbackBg);
       
-            this.setupTutorialElements(introContainer);
+      // Setup tutorial elements
+      this.setupTutorialElements(introContainer);
     });
   
-  introContainer.visible = false;
-  this.app.stage.addChild(introContainer);
-  this.introContainer = introContainer;
-}
+    introContainer.visible = false;
+    this.app.stage.addChild(introContainer);
+    this.introContainer = introContainer;
+  }
 
 setupTutorialElements(introContainer) {
     introContainer.sortableChildren = true;

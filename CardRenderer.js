@@ -16,12 +16,14 @@ export class CardRenderer {
     this.deckContainer = new PIXI.Container();
     this.discardContainer = new PIXI.Container();
     this.animationContainer = new PIXI.Container();
+    this.playButtonContainer = new PIXI.Container();
     
         this.playerHandContainer.zIndex = 50;
     this.opponentHandContainer.zIndex = 5;
     this.deckContainer.zIndex = 45;
     this.discardContainer.zIndex = 45;
     this.animationContainer.zIndex = 150;
+    this.playButtonContainer.zIndex = 100;
     
         this.playerHandContainer.sortableChildren = true;
     this.discardContainer.sortableChildren = true;
@@ -36,6 +38,7 @@ export class CardRenderer {
     this.container.addChild(this.deckContainer);
     this.container.addChild(this.discardContainer);
     this.container.addChild(this.animationContainer);
+    this.container.addChild(this.playButtonContainer);
   }
   
   sortCardsBySuitAndRank(cards) {
@@ -1737,7 +1740,9 @@ clearAllHighlights() {
     
     return positions;
   }
+
   
+
 
   createFinalCardsInContainers(playerCards, opponentCards, playerPositions, opponentPositions, backTexture) {
         opponentCards.forEach((cardData, index) => {
