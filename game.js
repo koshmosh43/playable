@@ -514,7 +514,7 @@ async setupBackground() {
         const isLandscape = this.app.screen.width > this.app.screen.height;
         // Check if we're on a mobile device - based on screen size
         const isMobile = this.app.screen.width < 1000;
-        const finalLandscapeScale = (originalScale * 0.6) * 0.5;
+        const finalLandscapeScale = (originalScale * 0.6) * 0.4;
         const finalLandscapeMobileScale = (originalScale * 0.6) * 0.4;
   
         if (isLandscape && isMobile) {
@@ -552,6 +552,23 @@ async setupBackground() {
           gsap.to(playButton.scale, {
             x: finalLandscapeMobileScale * 1.05, 
             y: finalLandscapeMobileScale * 1.05,
+            duration: 1.2,
+            repeat: -1,
+            yoyo: true,
+            ease: "sine.inOut"
+          });
+        } else if (isLandscape) {
+          gsap.to(playButton, {
+            y: playButton.y - 5,
+            duration: 0.8,
+            repeat: -1,
+            yoyo: true,
+            ease: "sine.inOut"
+          });
+          
+          gsap.to(playButton.scale, {
+            x: finalLandscapeScale * 1.05, 
+            y: finalLandscapeScale * 1.05,
             duration: 1.2,
             repeat: -1,
             yoyo: true,
