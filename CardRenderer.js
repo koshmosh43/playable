@@ -1058,7 +1058,13 @@ snapCardBack(sprite, useShakeAnimation = true) {
 
 applySpecialHighlight(sprite, color, alpha = 0.3) {
   if (!sprite) return;
-  sprite.y += 12;
+
+  const isDeckCard = sprite.parent === this.deckContainer;
+  const isDiscardCard = sprite.parent === this.discardContainer;
+  
+  if (!isDeckCard && !isDiscardCard) {
+    sprite.y += 12;
+  }
   
     const colorMatrix = new PIXI.filters.ColorMatrixFilter();
   if (color === 0x98FB98) {     colorMatrix.matrix[0] = 0.9;
