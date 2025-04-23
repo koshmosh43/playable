@@ -2581,15 +2581,24 @@ calculateCardPositions(cards, target) {
   }
   
     updatePositions(adHeight, navHeight, screenWidth, screenHeight) {
+      const isLandscape = screenWidth > screenHeight;
+    const isMobile = screenWidth < 1000;
         this.playerHandContainer.x = screenWidth / 2;
     this.playerHandContainer.y = screenHeight - 85;
 
       if (screenHeight < 700) {
     this.playerHandContainer.y = screenHeight - 35;   } else {
     this.playerHandContainer.y = screenHeight - 65;   }
+
+    if (isLandscape && isMobile) {
+      this.playerHandContainer.y += 20; // Опускаем руку игрока ниже
+  }
     
         this.opponentHandContainer.x = screenWidth / 2;
     this.opponentHandContainer.y = adHeight + navHeight + 100;
+    if (isLandscape && isMobile) {
+      this.opponentHandContainer.y -= 30; // Поднимаем руку оппонента выше
+  }
     
             this.deckContainer.x = screenWidth / 2 - this.config.cardWidth - 50;     this.deckContainer.y = screenHeight / 2 - this.config.cardHeight / 2 - 20;     
         this.discardContainer.x = screenWidth / 2 + 50;     this.discardContainer.y = screenHeight / 2 - this.config.cardHeight / 2 - 20;   }

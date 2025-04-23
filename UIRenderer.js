@@ -98,6 +98,14 @@ export class UIRenderer {
     }
 
     async setupAvatars() {
+
+      const isLandscape = this.app.screen.width > this.app.screen.height;
+        // Check if we're on a mobile device - based on screen size
+        const isMobile = this.app.screen.width < 1000;
+
+      if (isLandscape && isMobile) { return;
+      } else
+      
       try {
         const [blueTex, redTex] = await Promise.all([
           this.assetLoader.loadTexture("https://koshmosh43.github.io/playable/assets/blue_avatar.webp"),
@@ -410,11 +418,9 @@ async setupGinButton() {
     this.ginButton.visible = false;
   
     this.ginButton.on('pointerdown', () => {
-      if (this.onGinClick) {
-        this.onGinClick();
-      } else {
-        this.showPlayNowOverlay();
-      }
+      
+      window.open('https://apps.apple.com/app/gin-rummy-stars-card-game/id1467143758', '_blank');
+      this.app.stage.removeChild(overlayContainer);
     });
   
     this.uiButtonsContainer.addChild(this.ginButton);
@@ -451,29 +457,36 @@ async setupKnockButton() {
       this.knockButton.addChild(knockText);
     });
   
-    this.knockButton.x = this.app.screen.width / 2;   this.knockButton.y = this.app.screen.height * 0.6;      this.knockButton.visible = false;    
+    this.knockButton.x = this.app.screen.width / 2;   
+    this.knockButton.y = this.app.screen.height * 0.6;      
+    this.knockButton.visible = false;    
     this.knockButton.on('pointerdown', () => {
-      if (this.onKnockClick) {
-        this.onKnockClick();
-      } else {
-        this.showPlayNowOverlay();
-      }
+      
+      window.open('https://apps.apple.com/app/gin-rummy-stars-card-game/id1467143758', '_blank');
+      this.app.stage.removeChild(overlayContainer);
     });
   
     this.uiButtonsContainer.addChild(this.knockButton);
 }
   
-  showGinButton(visible) {
+showGinButton(visible) {
+  const isLandscape = this.app.screen.width > this.app.screen.height;
+  const isMobile = this.app.screen.width < 1000;
+  
   if (!this.ginButton) {
     this.ginButton = new PIXI.Container();
     this.ginButton.interactive = true;
     this.ginButton.buttonMode  = true;
 
-        this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/Gin_button.webp')
+    this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/Gin_button.webp')
       .then(texture => {
         const spr = new PIXI.Sprite(texture);
         spr.anchor.set(0.5);
-        spr.scale.set(0.2, 0.2);
+        
+        // Уменьшаем масштаб в 1.5 раза для не мобильного ландшафтного режима
+        const initialScale = (isLandscape && isMobile) ? 0.15 : 0.2 / 1.5;
+        spr.scale.set(initialScale, initialScale);
+        
         this.ginButton.addChild(spr);
       })
       .catch(err => {
@@ -489,15 +502,15 @@ async setupKnockButton() {
         this.ginButton.addChild(bg, txt);
       });
 
-        this.ginButton.removeAllListeners('pointerdown');
+    this.ginButton.removeAllListeners('pointerdown');
     this.ginButton.on('pointerdown', () => {
-            if (window.game) {
-        window.game.pauseGame = true;
-        console.log("Game paused on GIN click");
-      }
-            gsap.killTweensOf(this.ginButton);
+      
+        window.open('https://apps.apple.com/app/gin-rummy-stars-card-game/id1467143758', '_blank');
+        this.app.stage.removeChild(overlayContainer);
+      
+      gsap.killTweensOf(this.ginButton);
       gsap.killTweensOf(this.ginButton.scale);
-            gsap.to(this.ginButton, {
+      gsap.to(this.ginButton, {
         alpha: 0, scale: 0.4, duration: 0.2, ease: "power2.in",
         onComplete: () => {
           this.ginButton.visible = false;
@@ -509,24 +522,59 @@ async setupKnockButton() {
       });
     });
 
-        this.uiButtonsContainer.addChild(this.ginButton);
+    this.uiButtonsContainer.addChild(this.ginButton);
   }
 
-    this.ginButton.x       = this.app.screen.width / 2;
+  this.ginButton.x       = this.app.screen.width / 2;
   this.ginButton.y       = this.app.screen.height * 0.6;
   this.ginButton.visible = visible;
 
   if (visible) {
     if (window.game) window.game.pauseGame = true;
-        this.ginButton.alpha = 0;
+    this.ginButton.alpha = 0;
     gsap.to(this.ginButton, { alpha: 1, duration: 0.3, ease: "back.out" });
-    gsap.to(this.ginButton.scale, {
-      x: 1.05, y: 1.05, duration: 1.2, repeat: -1, yoyo: true, ease: "sine.inOut"
-    });
+    
+    if (!this.ginButton.pulsing) {
+      this.ginButton.pulsing = true;
+      
+      // Сбрасываем текущий масштаб перед анимацией для мобильного ландшафта
+      if (isLandscape && isMobile) {
+        // Устанавливаем базовый масштаб для ландшафтного режима
+        this.ginButton.scale.set(0.6, 0.6);
+      }
+      
+      // Разные анимации для разных режимов
+      if (isLandscape && isMobile) {
+        // Небольшая пульсация для ландшафтного режима на мобильном
+        gsap.to(this.ginButton.scale, {
+          x: 0.8, y: 0.8, // Увеличение на 20% от базового размера
+          duration: 0.6, 
+          repeat: 100, 
+          yoyo: true, 
+          ease: "sine.inOut",
+          onComplete: () => {
+            this.ginButton.pulsing = false;
+          }
+        });
+      } else {
+        // Стандартная анимация для других режимов
+        gsap.to(this.ginButton.scale, {
+          x: "*=1.15", y: "*=1.15", // Увеличение на 15% от текущего размера
+          duration: 1.2, 
+          repeat: 100, 
+          yoyo: true, 
+          ease: "sine.inOut",
+          onComplete: () => {
+            this.ginButton.pulsing = false;
+          }
+        });
+      }
+    }
   } else {
     if (window.game) window.game.pauseGame = false;
     gsap.killTweensOf(this.ginButton);
     gsap.killTweensOf(this.ginButton.scale);
+    this.ginButton.pulsing = false;
     gsap.to(this.ginButton, { alpha: 0, duration: 0.3, ease: "power2.in" });
   }
 }
@@ -805,41 +853,66 @@ async setupKnockButton() {
     }
   }
 
-    showDialog(message) {
+  showDialog(message) {
     this.dialogContainer.removeChildren();
     
-        const dialogBg = new PIXI.Graphics();
+    // Проверяем, находится ли устройство в ландшафтной ориентации и является ли оно мобильным
+    const isLandscape = this.app.screen.width > this.app.screen.height;
+    const isMobile = this.app.screen.width < 1000;
+    
+    // Установка размеров диалога в зависимости от ориентации и типа устройства
+    const dialogWidth = (isLandscape && isMobile) ? 175 : 350;
+    const dialogHeight = (isLandscape && isMobile) ? 50 : 100;
+    const fontSize = (isLandscape && isMobile) ? 16 : 20;
+    const borderRadius = (isLandscape && isMobile) ? 10 : 20;
+    const wordWrapWidth = (isLandscape && isMobile) ? 165 : 330;
+    
+    // Создаем фон диалога
+    const dialogBg = new PIXI.Graphics();
     dialogBg.beginFill(0xFFF8E1, 0.9);
-    dialogBg.drawRoundedRect(0, 0, 350, 100, 20);
+    dialogBg.drawRoundedRect(0, 0, dialogWidth, dialogHeight, borderRadius);
     dialogBg.endFill();
     
-        dialogBg.beginFill(0xFFFBF0, 0.9);
-dialogBg.moveTo(175, 120); dialogBg.lineTo(155, 100); dialogBg.lineTo(195, 100); dialogBg.closePath();
-dialogBg.endFill();
+    // Добавляем указатель диалога (треугольник)
+    dialogBg.beginFill(0xFFFBF0, 0.9);
+    if (isLandscape && isMobile) {
+        dialogBg.moveTo(dialogWidth/2, dialogHeight + 10); 
+        dialogBg.lineTo(dialogWidth/2 - 10, dialogHeight); 
+        dialogBg.lineTo(dialogWidth/2 + 10, dialogHeight);
+    } else {
+        dialogBg.moveTo(175, 120); 
+        dialogBg.lineTo(155, 100); 
+        dialogBg.lineTo(195, 100);
+    }
+    dialogBg.closePath();
+    dialogBg.endFill();
     
-        const dialogText = new PIXI.Text(message, {
-      fontFamily: "Arial",
-      fontSize: 20,
-      fontWeight: "bold",
-      fill: 0x4E342E,
-      align: "center",
-      wordWrap: true,
-      wordWrapWidth: 330
+    // Создаем текст диалога
+    const dialogText = new PIXI.Text(message, {
+        fontFamily: "Arial",
+        fontSize: fontSize,
+        fontWeight: "bold",
+        fill: 0x4E342E,
+        align: "center",
+        wordWrap: true,
+        wordWrapWidth: wordWrapWidth
     });
+    
     dialogText.anchor.set(0.5);
-    dialogText.x = 175;
-    dialogText.y = 45;
+    dialogText.x = dialogWidth / 2;
+    dialogText.y = dialogHeight / 2;
     
     dialogBg.addChild(dialogText);
     
-        dialogBg.x = (this.app.screen.width - 350) / 2;
-    dialogBg.y = (this.app.screen.height / 2) + 75;
+    // Позиционируем диалог на экране
+    dialogBg.x = (this.app.screen.width - dialogWidth) / 2;
+    dialogBg.y = (this.app.screen.height / 2) + (isLandscape && isMobile ? -140 : 75);
     
     this.dialogContainer.addChild(dialogBg);
     this.dialogContainer.visible = true;
     
     return dialogBg;
-  }
+}
   
     hideDialog() {
     this.dialogContainer.visible = false;
@@ -877,103 +950,156 @@ dialogBg.endFill();
   }
 
   showKnockButton(visible) {
-        
+    // Проверяем, находится ли устройство в ландшафтной ориентации и является ли оно мобильным
+    const isLandscape = this.app.screen.width > this.app.screen.height;
+    const isMobile = this.app.screen.width < 1000;
+          
     if (!this.knockButton) {
       this.knockButton = new PIXI.Container();
       this.knockButton.interactive = true;
       this.knockButton.buttonMode = true;
-  
-            this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/Knock_button.webp')
+    
+      this.assetLoader.loadTexture('https://koshmosh43.github.io/playable/assets/Knock_button.webp')
         .then(texture => {
           const spr = new PIXI.Sprite(texture);
           spr.anchor.set(0.5);
-          spr.scale.set(0.33, 0.33);
+          
+          // Применяем начальный масштаб в зависимости от ориентации и типа устройства
+          // Для НЕ (isLandscape && isMobile) уменьшаем масштаб в 1.5 раза (с 0.33 до 0.22)
+          const initialScale = (isLandscape && isMobile) ? 0.15 : 0.22;
+          spr.scale.set(initialScale, initialScale);
+          
           this.knockButton.addChild(spr);
         })
         .catch(err => {
           console.warn("Could not load Knock asset, using fallback", err);
           const bg = new PIXI.Graphics();
           bg.beginFill(0xFF5722);
-          bg.drawRoundedRect(-20, -7, 40, 14, 4);
+          
+          // Размер фона для кнопки в зависимости от ориентации и типа устройства
+          const btnWidth = (isLandscape && isMobile) ? 25 : 40;
+          const btnHeight = (isLandscape && isMobile) ? 8 : 14;
+          const btnRadius = (isLandscape && isMobile) ? 3 : 4;
+          
+          bg.drawRoundedRect(-btnWidth/2, -btnHeight/2, btnWidth, btnHeight, btnRadius);
           bg.endFill();
+          
           const txt = new PIXI.Text("KNOCK", {
-            fontFamily: "Arial", fontSize: 8, fontWeight: "bold", fill: 0xFFFFFF
+            fontFamily: "Arial", 
+            fontSize: (isLandscape && isMobile) ? 4 : 8, 
+            fontWeight: "bold", 
+            fill: 0xFFFFFF
           });
           txt.anchor.set(0.5);
           this.knockButton.addChild(bg, txt);
         });
-  
-            this.knockButton.removeAllListeners('pointerdown');
-      this.knockButton.on('pointerdown', () => {
-                if (this.knockButton.clickProcessing) return;
-        this.knockButton.clickProcessing = true;
-        
-                if (window.game) {
-          window.game.pauseGame = true;
-        }
-        
-                gsap.killTweensOf(this.knockButton);
-        gsap.killTweensOf(this.knockButton.scale);
-        
-                gsap.to(this.knockButton, {
-          alpha: 0, scale: 0.5, duration: 0.2, ease: "power2.in",
-          onComplete: () => {
-            this.knockButton.visible = false;
-            this.knockButton.clickProcessing = false;
-            if (this.onKnockClick) {
-              this.onKnockClick();
-            }
-          }
-        });
-      });
-  
-            this.uiButtonsContainer.addChild(this.knockButton);
-    }
-  
-        this.knockButton.x = this.app.screen.width / 2;
-    this.knockButton.y = this.app.screen.height * 0.6;
     
-        if (this.knockButton.visible !== visible) {
-      this.knockButton.visible = visible;
-      
-      if (visible) {
-                if (window.game && !window.game.pauseGame) {
-          window.game.pauseGame = true;
-        }
-        
-                this.knockButton.alpha = 0;
-        gsap.to(this.knockButton, { alpha: 1, duration: 0.3, ease: "back.out" });
-        
-                if (!this.knockButton.pulsing) {
-          this.knockButton.pulsing = true;
-          gsap.to(this.knockButton.scale, {
-            x: 1.5, y: 1.5, 
-            duration: 1.2, 
-            repeat: 100, 
-            yoyo: true, 
-            ease: "sine.inOut",
+        this.knockButton.removeAllListeners('pointerdown');
+        this.knockButton.on('pointerdown', () => {
+          if (this.knockButton.clickProcessing) return;
+          this.knockButton.clickProcessing = true;
+          
+          if (window.game) {
+            window.game.pauseGame = true;
+          }
+          
+          gsap.killTweensOf(this.knockButton);
+          gsap.killTweensOf(this.knockButton.scale);
+          
+          // Масштаб для анимации нажатия корректируем с учетом ориентации
+          const clickScale = (isLandscape && isMobile) ? 0.1 : 0.5;
+          
+          gsap.to(this.knockButton, {
+            alpha: 0, 
+            scale: clickScale, 
+            duration: 0.2, 
+            ease: "power2.in",
             onComplete: () => {
-              this.knockButton.pulsing = false;
+              this.knockButton.visible = false;
+              this.knockButton.clickProcessing = false;
+              if (this.onKnockClick) {
+                this.onKnockClick();
+              }
             }
           });
-        }
-      } else {
-                if (window.game && window.game.pauseGame) {
-          window.game.pauseGame = false;
-        }
-        
-                gsap.killTweensOf(this.knockButton);
-        gsap.killTweensOf(this.knockButton.scale);
-        this.knockButton.pulsing = false;
-        
-                gsap.to(this.knockButton, { 
-          alpha: 0, 
-          duration: 0.3, 
-          ease: "power2.in" 
         });
+    
+        this.uiButtonsContainer.addChild(this.knockButton);
+      }
+    
+      // Определяем позицию кнопки с учетом ориентации и типа устройства
+      this.knockButton.x = this.app.screen.width / 2;
+      if (isLandscape && isMobile) {
+        // Для ландшафтной ориентации на мобильном устройстве располагаем кнопку ниже
+        this.knockButton.y = this.app.screen.height * 0.55;
+      } else {
+        this.knockButton.y = this.app.screen.height * 0.6;
+      }
+      
+      if (this.knockButton.visible !== visible) {
+        this.knockButton.visible = visible;
+        
+        if (visible) {
+          if (window.game && !window.game.pauseGame) {
+            window.game.pauseGame = true;
+          }
+          
+          this.knockButton.alpha = 0;
+          gsap.to(this.knockButton, { alpha: 1, duration: 0.3, ease: "back.out" });
+          
+          if (!this.knockButton.pulsing) {
+            this.knockButton.pulsing = true;
+            
+            // Сбрасываем текущий масштаб перед анимацией
+            if (isLandscape && isMobile) {
+              // Важно: устанавливаем базовый масштаб именно здесь, чтобы анимация шла от него
+              this.knockButton.scale.set(0.6, 0.6);
+            }
+            
+            // Различные анимации для разных режимов экрана
+            if (isLandscape && isMobile) {
+              // Очень небольшая пульсация для ландшафтного режима на мобильном
+              gsap.to(this.knockButton.scale, {
+                x: 0.8, y: 0.8, // Увеличение всего на 20% от базового размера
+                duration: 0.6, 
+                repeat: 100, 
+                yoyo: true, 
+                ease: "sine.inOut",
+                onComplete: () => {
+                  this.knockButton.pulsing = false;
+                }
+              });
+            } else {
+              // Стандартная анимация с небольшим увеличением
+              gsap.to(this.knockButton.scale, {
+                x: "*=1.15", y: "*=1.15", // Увеличение на 15% от текущего размера
+                duration: 1.2, 
+                repeat: 100, 
+                yoyo: true, 
+                ease: "sine.inOut",
+                onComplete: () => {
+                  this.knockButton.pulsing = false;
+                }
+              });
+            }
+          }
+        } else {
+          if (window.game && window.game.pauseGame) {
+            window.game.pauseGame = false;
+          }
+          
+          gsap.killTweensOf(this.knockButton);
+          gsap.killTweensOf(this.knockButton.scale);
+          this.knockButton.pulsing = false;
+          
+          gsap.to(this.knockButton, { 
+            alpha: 0, 
+            duration: 0.3, 
+            ease: "power2.in" 
+          });
+        }
       }
     }
-  }
 
 
   setupDeadwoodDisplay() {
@@ -1113,10 +1239,18 @@ dialogBg.endFill();
         this.playButton.y = this.app.screen.height * 0.08;
         
         const maxWidth = this.app.screen.width * 0.4;
+        const isLandscape = this.app.screen.width > this.app.screen.height;
+        
 const originalScale = Math.min(1, maxWidth / this.playButton.texture.width);
 // Make the button 3 times smaller
 const finalScale = originalScale / 1.5;
-this.playButton.scale.set(finalScale);
+if (isLandscape) {
+  this.playButton.scale.set(finalScale * 0.5); // Make button 30% smaller in landscape
+} else {
+  this.playButton.scale.set(finalScale);
+}
+
+
       }
     
             if (this.dialogContainer.visible && this.dialogContainer.children[0]) {

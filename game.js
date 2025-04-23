@@ -486,8 +486,21 @@ sortCardsWithMelds() {
         // Устанавливаем масштаб кнопки так, чтобы она была такого же размера как на скриншоте
         const maxWidth = this.app.screen.width * 0.5;
         const originalScale = Math.min(1, maxWidth / playTexture.width);
-        const finalScale = originalScale * 0.6; // Подобран для соответствия скриншоту
-        playButton.scale.set(finalScale);
+        const finalScale = originalScale * 0.6; 
+        const isLandscape = this.app.screen.width > this.app.screen.height;
+        // Check if we're on a mobile device - based on screen size
+        const isMobile = this.app.screen.width < 1000;
+        const finalLandscapeScale = (originalScale * 0.6) * 0.5;
+        const finalLandscapeMobileScale = (originalScale * 0.6) * 0.4;
+
+      if (isLandscape && isMobile) {
+        playButton.scale.set(finalLandscapeMobileScale); // Make button 30% smaller in landscape
+      } else if (isLandscape) {
+  playButton.scale.set(finalLandscapeScale); // Make button 30% smaller in landscape
+
+} else {
+  playButton.scale.set(finalScale);
+}
         
         // Позиционируем кнопку вверху экрана как на скриншоте
         playButton.x = this.app.screen.width / 2;
@@ -503,6 +516,25 @@ sortCardsWithMelds() {
         
         // Добавляем кнопку
         introContainer.addChild(playButton);
+
+        if (isLandscape && isMobile) {
+          gsap.to(playButton, {
+            y: playButton.y - 5,
+            duration: 0.8,
+            repeat: -1,
+            yoyo: true,
+            ease: "sine.inOut"
+          });
+          
+          gsap.to(playButton.scale, {
+            x: finalLandscapeMobileScale * 1.05, 
+            y: finalLandscapeMobileScale * 1.05,
+            duration: 1.2,
+            repeat: -1,
+            yoyo: true,
+            ease: "sine.inOut"
+          });
+        } else {
         
         // Добавляем анимации
         gsap.to(playButton, {
@@ -520,7 +552,7 @@ sortCardsWithMelds() {
           repeat: -1,
           yoyo: true,
           ease: "sine.inOut"
-        });
+        });}
       })
       .catch(err => {
         console.warn("Could not load play button, using fallback", err);
@@ -1333,8 +1365,12 @@ setColorMatrix.matrix[12] = 0.9;
     
         const gradientBg = new PIXI.Graphics();
     const bgWidth = this.app.screen.width;
-    const bgHeight = 120;
-    const bgY = this.app.screen.height * 0.35 - bgHeight/2 - 50;
+
+    const isLandscape = this.app.screen.width > this.app.screen.height;
+    const isMobile = this.app.screen.width < 1000;
+
+        const bgHeight = (isLandscape && isMobile) ? 50 : 120;
+    const bgY = (isLandscape && isMobile) ? this.app.screen.height * 0.35 - bgHeight/2 - 60 : this.app.screen.height * 0.35 - bgHeight/2 - 50;
     
     gradientBg.beginFill(0x000000, 0.5);
     gradientBg.drawRect(0, bgY, bgWidth, bgHeight);
@@ -1344,7 +1380,7 @@ setColorMatrix.matrix[12] = 0.9;
     
         const style = {
       fontFamily: "Arial",
-      fontSize: this.app.screen.width < 500 ? 36 : 42,
+      fontSize: (isLandscape && isMobile) ? 18 : (this.app.screen.width < 500 ? 36 : 42),
       fontWeight: "bold",
       fill: 0xFFFFFF,
       align: "center",
@@ -1360,7 +1396,7 @@ setColorMatrix.matrix[12] = 0.9;
     const titleText = new PIXI.Text(tutorialText, style);
     titleText.anchor.set(0.5);
     titleText.x = this.app.screen.width / 2;
-    titleText.y = this.app.screen.height * 0.35 - 50;
+    titleText.y = (isLandscape && isMobile) ? this.app.screen.height * 0.35 - 60 : this.app.screen.height * 0.35 - 50;
     
     titleContainer.addChild(titleText);
     this.app.stage.addChild(titleContainer);
